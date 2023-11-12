@@ -263,6 +263,8 @@
 
   function startup(){
     faq();
+	var gameLink = document.getElementById("link_input");
+	gameLink.value = window.location.href;
     var id = localStorage.getItem('id');
     var admin_el = document.getElementById('admin_id');
     var admin_id = admin_el.innerHTML;
