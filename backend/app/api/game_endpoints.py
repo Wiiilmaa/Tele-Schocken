@@ -1,6 +1,7 @@
 from app.api import bp
 from app import app, db
 
+from os import environ
 from flask_socketio import emit, join_room
 from flask import jsonify
 from flask import request
@@ -20,7 +21,6 @@ from flask_socketio import SocketIO
 # the best option based on installed packages.
 async_mode = "gevent"
 socketio = SocketIO(app, async_mode=async_mode)
-
 
 @socketio.on('connect', namespace='/game')
 def test_connect():
