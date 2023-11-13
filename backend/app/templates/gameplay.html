@@ -781,7 +781,8 @@
       // me as user
       var id = localStorage.getItem('id');
       if (juser['Id'] == id) {
-        if (game.Stack == 0 && juser['Chips'] == 0 && game_state != 'playfinal') {
+        // Do not allow Users to skip if they already rolled the dice
+        if (game.Stack == 0 && juser['Chips'] == 0 && juser['Number_Dice'] == 0 && game_state != 'playfinal') {
           var set_passiv_div_id = document.getElementById('set_passiv_div_id');
           set_passiv_div_id.style.display = "block";
         } else {
