@@ -731,7 +731,10 @@
     } else {
       el_message.innerHTML = ''
     }
-
+    if (waiting_user_id == -1) {
+      // set Waiting for
+      waitinguserstorage.innerHTML = 'Warten auf: Chipvergabe';
+    }
     for (num in game.User) {
       var juser = game.User[num];
       // finale
@@ -765,7 +768,7 @@
         // sound whene i have to dice
         if (juser['Id'] == waiting_user_id) {
           if (waitinguserstorage.innerHTML != 'Warten auf: ' + juser['Name']) {
-            if (juser['Name'] == localStorage.getItem('name') && !game.Message.startsWith('Aufdecken')) {
+            if (juser['Id'] == localStorage.getItem('id') && !game.Message.startsWith('Aufdecken')) {
               soundDiceY.play();
             }
           }
