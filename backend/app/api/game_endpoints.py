@@ -466,7 +466,7 @@ def roll_dice(gid, uid):
         user = game.users[user_index]
         print( user )
     if user_index < 0 or user.game_id != game.id:
-        response = jsonify(Message='Spieler ist nicht in diesem Spiel')
+        response = jsonify(Message='Spieler ist nicht in diesem Spiel' + user_index + ' ' + len(game.users))
         response.status_code = 404
         return response
     data = request.get_json() or {}
