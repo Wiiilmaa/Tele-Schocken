@@ -328,7 +328,7 @@ def finish_throwing(gid, uid):
         response.status_code = 400
         return response
     if user.id == game.move_user_id:
-        for i = 1 to len(game.users):
+        for i in range(1, len(game.users)):
             test = user_index + i % len(game.users)
             if game.users[test].id == game.first_user_id:
                 game.move_user_id = -1
@@ -492,8 +492,7 @@ def roll_dice(gid, uid):
                 return response
             user.number_dice = user.number_dice + 1
             if user.number_dice == first_user.number_dice and user.id != first_user.id or user.number_dice == 3:
-#####
-                for i = 1 to len(game.users):
+                for i in range(1, len(game.users)):
                     test = user_index + i % len(game.users)
                     if game.users[test].id == game.first_user_id:
                         game.move_user_id = -1
@@ -503,9 +502,6 @@ def roll_dice(gid, uid):
                         break
                 if game.move_user_id == -1:
                     game.message = "Aufdecken!"
-#####
-                else:
-                    game.move_user_id = potenzial_next.id
                 db.session.add(game)
                 db.session.commit()
             seed()
