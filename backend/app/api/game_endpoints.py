@@ -25,8 +25,9 @@ socketio = SocketIO(app, async_mode=async_mode)
 
 # Get User from Game
 def get_Index_Of_User(game, uid):
+    id = int(uid)
     for i, x in enumerate(game.users):
-        if x.id == int(uid):
+        if x.id == id:
             return i
             break
     return -1
@@ -478,7 +479,7 @@ def roll_dice(gid, uid):
     if user.id == game.move_user_id:
         if game.status == Status.GAMEFINISCH:
             game.status = Status.STARTED
-        if first_user.number_dice == 0 or user.number_dice < first_user.number_dice or first_user.id == user.id:
+        if game.first_user_id == user.id or user.number_dice < game.number_dice:
             if user.number_dice >= 3:
                 response = jsonify(Message='Du hast schon dreimal gewürfelt!')
                 response.status_code = 404
