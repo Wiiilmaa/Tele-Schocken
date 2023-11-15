@@ -26,7 +26,7 @@ socketio = SocketIO(app, async_mode=async_mode)
 # Get User from Game
 def get_Index_Of_User(game, uid):
     for i, x in enumerate(game.users):
-        if x.id == uid:
+        if x.id == int(uid):
             return i
             break
     return -1
