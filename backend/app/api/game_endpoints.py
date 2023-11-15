@@ -290,7 +290,7 @@ def pull_up_dice_cup(gid, uid):
         for user in game.users:
             if not (user.passive or (user.dice1_visible and user.dice2_visible and user.dice3_visible)):
                 allvisible = False
-        if allvisible and not game.next_user:
+        if allvisible and game.waitinguser == -1:
             game.message = "Warten auf Vergabe der Chips!"
             db.session.add(game)
             db.session.commit()
@@ -516,23 +516,15 @@ def roll_dice(gid, uid):
                 user.dice1_visible = False
             else:
                 user.dice1_visible = True
-            if 'dice2' in data:
-                escapeddice2 = str(utils.escape(data['dice2']))
-                if escapeddice2.lower() in ['true', '1']:
-                    user.dice2 = randint(1, 6)
-                    user.dice2_visible = False
-                else:
-                    user.dice2_visible = True
+            if 'dice2' in data and str(utils.escape(data['dice2'])).lower() in ['true', '1']:
+                user.dice2 = randint(1, 6)
+                user.dice2_visible = False
             else:
                 user.dice2_visible = True
 
-            if 'dice3' in data:
-                escapeddice3 = str(utils.escape(data['dice3']))
-                if escapeddice3.lower() in ['true', '1']:
-                    user.dice3 = randint(1, 6)
-                    user.dice3_visible = False
-                else:
-                    user.dice3_visible = True
+            if 'dice3' in data and str(utils.escape(data['dice3'])).lower() in ['true', '1']:
+                user.dice3 = randint(1, 6)
+                user.dice3_visible = False
             else:
                 user.dice3_visible = True
         else:
