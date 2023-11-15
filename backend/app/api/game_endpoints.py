@@ -290,7 +290,7 @@ def pull_up_dice_cup(gid, uid):
         for user in game.users:
             if not (user.passive or (user.dice1_visible and user.dice2_visible and user.dice3_visible)):
                 allvisible = False
-        if allvisible and game.waitinguser == -1:
+        if allvisible and game.move_user_id == -1:
             game.message = "Warten auf Vergabe der Chips!"
             db.session.add(game)
             db.session.commit()
