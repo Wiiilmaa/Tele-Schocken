@@ -330,17 +330,14 @@ def finish_throwing(gid, uid):
         response.status_code = 400
         return response
     if user.id == game.move_user_id:
-        if len(game.users) < 2:
-            game.move_user_id = -1 
-        else:
-            for i in range(1, len(game.users)-1):
-                test = user_index + i % len(game.users)
-                if game.users[test].id == game.first_user_id:
-                    game.move_user_id = -1
-                    break
-                if not game.users[test].passive:
-                    game.move_user_id = game.users[test].id
-                    break
+        for i in range(1, len(game.users)):
+            test = (user_index + i) % len(game.users)
+            if game.users[test].id == game.first_user_id:
+                game.move_user_id = -1
+                break
+            if not game.users[test].passive:
+                game.move_user_id = game.users[test].id
+                break
         if game.move_user_id == -1:
             game.message = "Aufdecken!"
         # https://stackoverflow.com/questions/364621/how-to-get-items-position-in-a-list
@@ -502,7 +499,7 @@ def roll_dice(gid, uid):
             user.number_dice = user.number_dice + 1
             if user.number_dice == 3 or (user.id != game.first_user_id and user.number_dice == game.number_dice):
                 for i in range(1, len(game.users)):
-                    test = user_index + i % len(game.users)
+                    test = (user_index + i) % len(game.users)
                     if game.users[test].id == game.first_user_id:
                         game.move_user_id = -1
                         break
