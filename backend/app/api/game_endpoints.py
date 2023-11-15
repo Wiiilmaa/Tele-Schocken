@@ -497,7 +497,7 @@ def roll_dice(gid, uid):
                 emit('reload_game', game.to_dict(), room=gid, namespace='/game')
                 return response
             user.number_dice = user.number_dice + 1
-            if user.number_dice == first_user.number_dice and user.id != first_user.id or user.number_dice == 3:
+            if user.number_dice == 3 or (user.id != game.first_user_id and user.number_dice == game.number_dice):
                 for i in range(1, len(game.users)):
                     test = user_index + i % len(game.users)
                     if game.users[test].id == game.first_user_id:
@@ -511,13 +511,9 @@ def roll_dice(gid, uid):
                 db.session.add(game)
                 db.session.commit()
             seed()
-            if 'dice1' in data:
-                escapeddice1 = str(utils.escape(data['dice1']))
-                if escapeddice1.lower() in ['true', '1']:
-                    user.dice1 = randint(1, 6)
-                    user.dice1_visible = False
-                else:
-                    user.dice1_visible = True
+            if 'dice1' in data and str(utils.escape(data['dice1'])).lower() in ['true', '1']:
+                user.dice1 = randint(1, 6)
+                user.dice1_visible = False
             else:
                 user.dice1_visible = True
             if 'dice2' in data:
