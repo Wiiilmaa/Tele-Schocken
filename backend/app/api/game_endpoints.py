@@ -1,7 +1,6 @@
 from app.api import bp
 from app import app, db
 
-from os import environ
 from flask_socketio import emit, join_room
 from flask import jsonify
 from flask import request
@@ -326,7 +325,7 @@ def finish_throwing(gid, uid):
         response.status_code = 400
         return response
     if user.dice1 is None or user.dice2 is None or user.dice3 is None:
-        response = jsonify(Message='Nach dem verwandeln von Sechsen in Einsen musst Du nochmal würfeln')
+        response = jsonify(Message='Nach dem Verwandeln von Sechsen in Einsen musst Du nochmal würfeln')
         response.status_code = 400
         return response
     if user.id == game.move_user_id:
@@ -471,7 +470,7 @@ def roll_dice(gid, uid):
         user = game.users[user_index]
         print( user )
     if user_index < 0 or user.game_id != game.id:
-        response = jsonify(Message='Spieler ist nicht in diesem Spiel uid:' + str(type(uid)) + ' user_index:' + str(user_index) + ' user.id:' + str(type(game.users[0].id)))
+        response = jsonify(Message='Spieler ist nicht in diesem Spiel')
         response.status_code = 404
         return response
     data = request.get_json() or {}
