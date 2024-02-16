@@ -704,6 +704,13 @@
       var baseUrl = getUrl.protocol + "//" + getUrl.host;
       window.location.replace(baseUrl + '/game_waiting/' + gameid);
     }
+    var id = localStorage.getItem('id');
+    var me_inactive = false;
+    for (num in game.User) {
+      if (game.User[num]['Id'] == id && game.User[num]['Passive']) {
+        me_inactive = true;
+      }
+    }
     //set stack Chips
     var stackchips = document.getElementById('StackChips_id');
     stackchips.innerHTML = 'Chips: ' + game.Stack
@@ -720,7 +727,7 @@
           document.getElementById("dice2_cb").checked = true;
           document.getElementById("dice3_cb").checked = true;
         }
-        if (game.Message.startsWith('Aufdecken')) {
+        if (!me_inactive && game.Message.startsWith('Aufdecken')) {
           soundLift.play();
         }
         el_message.className = "message"
@@ -783,7 +790,6 @@
         }
       }
       // me as user
-      var id = localStorage.getItem('id');
       if (juser['Id'] == id) {
         // Do not allow Users to skip if they already rolled the dice
         if (game.Stack == 0 && juser['Chips'] == 0 && juser['Number_Dice'] == 0 && game_state != 'playfinal') {
