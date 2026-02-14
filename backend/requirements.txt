@@ -32,5 +32,5 @@ Werkzeug==3.0.1
 wheel==0.41.2
 wsproto==1.2.0
 WTForms==3.1.1
-gunicorn
-gevent
+gunicorn==23.0.0
+gevent>=24.10.1
