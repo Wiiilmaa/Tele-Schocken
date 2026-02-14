@@ -747,22 +747,23 @@
       var nameCell = document.getElementById('user' + juser.Id);
       var nameHtml = juser.Name;
 
-      if (juser.Pending_Join) nameHtml += ' <small>(wartet)</small>';
+      // Second line: status and/or leave icon
+      var secondLine = '';
+      if (juser.Pending_Join) secondLine += '<small>(wartet)</small> ';
       // Leave icon: green if active, gray only if user can toggle it (own or admin)
-      var clickable = (juser.Id === myId || isAdmin) && !juser.Pending_Join;
+      var clickable = (juser.Id === myId || isAdmin);
       if (juser.Leave_After_Game) {
-        // Active (green): always visible
-        nameHtml += '<div><i class="fas fa-sign-out-alt leave-icon leave-active"'
+        secondLine += '<i class="fas fa-sign-out-alt leave-icon leave-active"'
           + ' title="Verlassen vorgemerkt (klicken zum Aufheben)"'
           + (clickable ? ' onclick="toggle_leave(' + juser.Id + ')"' : '')
-          + '></i></div>';
+          + '></i>';
       } else if (clickable) {
-        // Inactive (gray): only visible for own row or admin
-        nameHtml += '<div><i class="fas fa-sign-out-alt leave-icon leave-inactive"'
+        secondLine += '<i class="fas fa-sign-out-alt leave-icon leave-inactive"'
           + ' title="Nach dem Spiel verlassen"'
           + ' onclick="toggle_leave(' + juser.Id + ')"'
-          + '></i></div>';
+          + '></i>';
       }
+      if (secondLine) nameHtml += '<div>' + secondLine + '</div>';
       nameCell.innerHTML = nameHtml;
 
       // Chips
