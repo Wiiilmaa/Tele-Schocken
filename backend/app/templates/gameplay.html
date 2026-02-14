@@ -193,12 +193,43 @@
 
 {% include "snippet/game_play_faq.html" %}
 
+<!-- Share link + QR code for mid-game joining -->
+<div class="row" style="margin-top: 20px;">
+  <div class="col-xs-12 col-md-10 col-md-offset-1">
+    <h4>Mitspieler einladen:</h4>
+    <div class="input-group" style="max-width: 500px;">
+      <input id="share_link_input" type="text" class="form-control" readonly>
+      <div class="input-group-btn">
+        <button onclick="document.getElementById('share_link_input').select();document.execCommand('copy');" class="btn btn-outline-secondary" type="button">kopieren</button>
+      </div>
+    </div>
+    <div id="share_qrcode" style="margin-top: 12px;"></div>
+  </div>
+</div>
+
 {% block footer %}
 {{ super() }}
 {% endblock %}
 {% endblock %}
 {% block scripts %}
 {{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script>
+  (function() {
+    var loc = window.location;
+    var gameUUID = document.getElementById('UUID').innerHTML.replace(/['"]+/g, '');
+    var fullUrl = loc.protocol + '//' + loc.host + '/game_waiting/' + gameUUID;
+    document.getElementById('share_link_input').value = fullUrl;
+    new QRCode(document.getElementById('share_qrcode'), {
+      text: fullUrl,
+      width: 160,
+      height: 160,
+      colorDark: '#000000',
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  })();
+</script>
 <script type=text/javascript src="{{url_for('static', filename='scripts/faq.js') }}">
 </script>
 <script type=text/javascript src="{{url_for('static', filename='scripts/adminpanel.js') }}">
