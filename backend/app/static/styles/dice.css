@@ -80,3 +80,41 @@
   flex-direction: column;
   justify-content: space-between;
 }
+
+/* H1: Stable table row height */
+.dice-cell {
+  min-height: 62px;
+  height: 62px;
+  vertical-align: middle;
+}
+
+/* F4: Leave icon styles */
+.leave-icon {
+  cursor: pointer;
+  font-size: 14px;
+  margin-top: 2px;
+}
+.leave-inactive {
+  color: #ccc;
+}
+.leave-inactive:hover {
+  color: #999;
+}
+.leave-active {
+  color: #5cb85c;
+}
+.leave-active:hover {
+  color: #449d44;
+}
+
+/* Admin badge */
+.admin-badge {
+  font-size: 10px;
+  color: #337ab7;
+  margin-left: 4px;
+}
+
+/* Pending player styling */
+.pending-row {
+  opacity: 0.5;
+}

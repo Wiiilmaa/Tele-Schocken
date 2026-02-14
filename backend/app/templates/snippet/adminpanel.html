@@ -1,88 +1,149 @@
-<div id="admin_interface">
+<!-- Auswertung section: visible to ALL players -->
+<div id="scoring_section" style="display: none;">
   <hr>
-  <div class="row ">
+  <div class="row">
     <div class="col-xs-11 col-md-11 col-md-offset-1 col-xs-offset-1">
-      <h2 id="admin_alert">&nbsp;</h2>
+      <h4 id="scoring_info"></h4>
+      <button class="btn btn-success" id="distribute_btn" onclick="distribute()" disabled>Verteilen</button>
     </div>
   </div>
-  <div class="row ">
+</div>
+
+<!-- Reveal all section: visible when waiting for reveal -->
+<div id="reveal_all_section" style="display: none;">
+  <div class="row">
+    <div class="col-xs-11 col-md-11 col-md-offset-1 col-xs-offset-1">
+      <button class="btn btn-warning" onclick="vote_reveal_all()">Alles aufdecken</button>
+      <span id="reveal_vote_info"></span>
+      <small>(Mehrheit oder Admin deckt sofort auf)</small>
+    </div>
+  </div>
+</div>
+
+<!-- Admin interface: only visible to admins -->
+<div id="admin_interface" style="display: none;">
+  <hr>
+  <div class="row">
     <div class="col-xs-11 col-md-11 col-md-offset-1 col-xs-offset-1">
       <h4 id="admin_information">Admin</h4>
     </div>
   </div>
+
+  <!-- Lobby after game toggle -->
+  <div class="row">
+    <div class="col-xs-11 col-md-11 col-md-offset-1 col-xs-offset-1">
+      <button class="btn btn-warning btn-sm" id="mark_lobby_btn" onclick="mark_lobby()">
+        Zurueck zur Lobby nach dem Spiel
+      </button>
+    </div>
+  </div>
+  <br>
+
+  <!-- Manuelle Korrektur (collapsible) -->
+  <div class="row">
+    <div class="col-xs-11 col-md-11 col-md-offset-1 col-xs-offset-1">
+      <button class="btn btn-default btn-sm" type="button" onclick="toggleManualCorrection()">
+        Manuelle Korrektur <span class="caret"></span>
+      </button>
+    </div>
+  </div>
+  <div id="manual_correction" style="display: none;">
+    <div class="container-fluid">
+      <div class="row">
+        <div class="col-xs-6 col-md-2 col-xs-offset-1 col-md-offset-1">
+          <button class="btn btn-primary btn-sm" id='sort_dice_id' onclick="sort_dice()">Wuerfel sortieren</button>
+        </div>
+        <div class="col-xs-5 col-md-1">
+          <label for="stack_count_id">Anzahl:</label><br />
+          <select id="stack_count_id" name="stack_count_id">
+            <option value="0">0</option>
+          </select>
+        </div>
+        <div class="clearfix visible-xs-block visible-sm-block"></div>
+        <div class="col-xs-offset-1">
+          <div class="col-xs-6 col-md-2">
+            <label for="transfer_source">Von:</label><br />
+            <select id="transfer_source" name="count">
+              <optgroup label="Allgemein">
+                <option value="stack">Stapel</option>
+                <option value="schockaus">Schock aus</option>
+              </optgroup>
+              <optgroup id="transfer_source_user" label="Spieler">
+              </optgroup>
+            </select>
+          </div>
+          <div class="col-xs-5 col-md-2">
+            <label for="transfer_target">An:</label><br />
+            <select id="transfer_target" name="count">
+              <optgroup id="transfer_target_user" label="Spieler">
+              </optgroup>
+            </select>
+          </div>
+        </div>
+        <div class="clearfix visible-xs-block visible-sm-block"></div>
+        <div class="col-xs-offset-4">
+          <div class="col-xs-7 col-md-2">
+            <button class="btn btn-primary btn-sm" id='transfere_chips_id' onclick="transfer_chips()">Chips uebertragen</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Player management -->
+  <div class="row">
+    <div class="col-xs-11 col-md-11 col-md-offset-1 col-xs-offset-1">
+      <h4 id="admin_player">Spieler verwalten</h4>
+    </div>
+  </div>
   <div class="container-fluid">
     <div class="row">
-      <div class="col-xs-6 col-md-2 col-xs-offset-1 col-md-offset-1">
-        <button class="btn btn-primary" id='sort_dice_id' onclick="sort_dice()">Würfel sortieren</button>
-      </div>
-      <div class="col-xs-5 col-md-1">
-        <label for="stack_count_id">Anzahl:</label><br />
-        <select id="stack_count_id" name="stack_count_id">
-          <option value="0">0</option>
-        </select>
-      </div>
-      <div class="clearfix visible-xs-block visible-sm-block"></div>
-      <div class="col-xs-offset-1">
-        <div class="col-xs-6 col-md-2">
-          <label for="transfer_source">Von:</label><br />
-          <select id="transfer_source" name="count">
-            <optgroup label="Allgemein">
-              <option value="stack">Stapel</option>
-              <option value="schockaus">Schock aus</option>
-            </optgroup>
-            <optgroup id="transfer_source_user" label="Spieler">
-            </optgroup>
-          </select>
-        </div>
-        <div class="col-xs-5  col-md-2">
-          <label for="transfer_target">An:</label><br />
-          <select id="transfer_target" name="count">
-            <optgroup id="transfer_target_user" label="Spieler">
-            </optgroup>
-          </select>
-        </div>
-      </div>
-      <div class="clearfix visible-xs-block visible-sm-block"></div>
-      <div class="col-xs-offset-4">
-        <div class="col-xs-7 col-md-2">
-          <button class="btn btn-primary" id='transfere_chips_id' onclick="transfer_chips()">Verteilen</button>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="row ">
-    <div class="col-xs-11 col-md-11 col-md-offset-1 col-xs-offset-1">
-      <h2 id="admin_player">Spieler verwalten</h2>
-    </div>
-  </div>
-  <div class="container-fluid">
-    <div class="row ">
       <div class="col-xs-10 col-md-3 col-md-offset-1 col-xs-offset-1">
         <div class="form-group form-inline">
           <label for="select_delete_player">Spieler:</label>
           <select id="select_delete_player" name="count">
             <option value=""></option>
           </select>
-          <button class="btn btn-primary" id='delete_player_id' onclick="delete_player()">Spieler entfernen</button>
+          <button class="btn btn-primary btn-sm" id='delete_player_id' onclick="delete_player()">Spieler entfernen</button>
         </div>
       </div>
 
       <div class="col-xs-10 col-xs-offset-1 col-md-3">
         <div class="form-group form-inline">
-          <label for="select_choose_admin">Neuen Admin wählen:</label>
+          <label for="select_choose_admin">Admin ernennen:</label>
           <select id="select_choose_admin" name="count">
             <option value=""></option>
           </select>
-          <button class="btn btn-primary" id='choose_admin_id' onclick="choose_admin()">Admin wählen</button>
+          <button class="btn btn-primary btn-sm" id='choose_admin_id' onclick="toggle_admin_action()">Admin ernennen</button>
         </div>
       </div>
       <div class="clearfix visible-xs-block visible-sm-block"></div>
       <div class="col-xs-6 col-md-3 col-xs-offset-1">
         <div class="form-group">
-        <label for="back_to_waiting">Spieler hinzufügen?</label>
-        <button class="btn btn-primary" id='back_to_waiting' onclick="back_to_waiting()">zurück zum Warteraum</button>
+          <label for="back_to_waiting">Spieler hinzufuegen?</label>
+          <button class="btn btn-primary btn-sm" id='back_to_waiting' onclick="back_to_waiting()">zurueck zum Warteraum</button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Admin alert area -->
+  <div class="row">
+    <div class="col-xs-11 col-md-11 col-md-offset-1 col-xs-offset-1">
+      <h4 id="admin_alert">&nbsp;</h4>
+    </div>
+  </div>
+</div>
+
+<!-- Rules display modal -->
+<div id="rulesModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <span id="rulesclose" class="close" onclick="document.getElementById('rulesModal').style.display='none'">&times;</span>
+      <h2 id="rules_title">Regeln</h2>
+    </div>
+    <div class="modal-body">
+      <div id="rules_content"></div>
     </div>
   </div>
 </div>
