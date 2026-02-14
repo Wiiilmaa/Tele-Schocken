@@ -128,3 +128,18 @@
 .pending-row {
   opacity: 0.5;
 }
+
+/* Larger checkboxes on desktop screens */
+@media (min-width: 992px) {
+  #dice1_cb,
+  #dice2_cb,
+  #dice3_cb {
+    scale: 2;
+    translate: 0px -30px;
+  }
+
+  #setpassivid {
+    scale: 2;
+    translate: 10px 40px;
+  }
+}
