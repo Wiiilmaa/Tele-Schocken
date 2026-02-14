@@ -169,18 +169,18 @@
 </div>
 <div class="row" data-example-id="striped-table">
   <div class="col-xs-12 col-md-10 col-md-offset-1">
-    <table class="table table-striped table-hover" id="player_table">
+    <table class="table table-striped table-hover table-sm" id="player_table">
       <thead>
         <tr>
-          <th>#</th>
+          <th class="col-counter">#</th>
           <th>Name</th>
-          <th>Chips</th>
-          <th>Hälften</th>
-          <th>Würfel1</th>
-          <th>Würfel2</th>
-          <th>Würfel3</th>
-          <th>Würfe</th>
-          <th id="finalcount_header" {% if not game.play_final %}style="display:none"{% endif %}>Runden</th>
+          <th class="col-chips">Chips</th>
+          <th class="col-half">Hälften</th>
+          <th class="col-dice">W1</th>
+          <th class="col-dice">W2</th>
+          <th class="col-dice">W3</th>
+          <th class="col-throws">Würfe</th>
+          <th id="finalcount_header" class="col-final" {% if not game.play_final %}style="display:none"{% endif %}>Runden</th>
         </tr>
       </thead>
       <tbody id="game_tbody">
@@ -721,15 +721,15 @@
         // Create new row
         row = document.createElement('tr');
         row.id = 'row' + juser.Id;
-        row.innerHTML = '<th class="counterCell" scope="row"></th>'
+        row.innerHTML = '<td class="counterCell col-counter"></td>'
           + '<td id="user' + juser.Id + '"></td>'
-          + '<td id="chips' + juser.Id + '"></td>'
-          + '<td id="first' + juser.Id + '"></td>'
-          + '<td id="dice1' + juser.Id + '" class="dice-cell"></td>'
-          + '<td id="dice2' + juser.Id + '" class="dice-cell"></td>'
-          + '<td id="dice3' + juser.Id + '" class="dice-cell"></td>'
-          + '<td id="Number_Dice' + juser.Id + '"></td>'
-          + '<td id="finalcount' + juser.Id + '"' + (showFinal ? '' : ' style="display:none"') + '></td>';
+          + '<td id="chips' + juser.Id + '" class="col-chips"></td>'
+          + '<td id="first' + juser.Id + '" class="col-half"></td>'
+          + '<td id="dice1' + juser.Id + '" class="dice-cell col-dice"></td>'
+          + '<td id="dice2' + juser.Id + '" class="dice-cell col-dice"></td>'
+          + '<td id="dice3' + juser.Id + '" class="dice-cell col-dice"></td>'
+          + '<td id="Number_Dice' + juser.Id + '" class="col-throws"></td>'
+          + '<td id="finalcount' + juser.Id + '" class="col-final"' + (showFinal ? '' : ' style="display:none"') + '></td>';
         tbody.appendChild(row);
       }
 
