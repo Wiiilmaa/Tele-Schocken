@@ -82,8 +82,8 @@ def _matched_suffix(matched):
 def _format_result(entry):
     """Format a player's result line including matched suffix."""
     suffix = _matched_suffix(entry['matched'])
-    return '{} mit {}{} im {}. Wurf'.format(
-        entry['name'], entry['scoring']['name'], suffix, entry['number_dice'])
+    return '{} mit {} im {}. Wurf{}'.format(
+        entry['name'], entry['scoring']['name'], entry['number_dice'], suffix)
 
 
 def calculate_scoring(game):
