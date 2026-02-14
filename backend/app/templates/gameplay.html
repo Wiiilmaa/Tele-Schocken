@@ -604,12 +604,18 @@
           dice1_v.innerHTML = '';
           dice2_v.innerHTML = '';
           dice3_v.innerHTML = '';
-          if (res.dice1) { appendDice(dice1_v, res.dice1); }
-          else { dice1_cb.checked = true; dice1_cb.disabled = true; }
-          if (res.dice2) { appendDice(dice2_v, res.dice2); }
-          else { dice2_cb.checked = true; dice2_cb.disabled = true; }
-          if (res.dice3) { appendDice(dice3_v, res.dice3); }
-          else { dice3_cb.checked = true; dice3_cb.disabled = true; }
+          if (res.dice1) {
+            appendDice(dice1_v, res.dice1);
+            if (res.dice1 == 1) { dice1_cb.checked = false; }
+          } else { dice1_cb.checked = true; dice1_cb.disabled = true; }
+          if (res.dice2) {
+            appendDice(dice2_v, res.dice2);
+            if (res.dice2 == 1) { dice2_cb.checked = false; }
+          } else { dice2_cb.checked = true; dice2_cb.disabled = true; }
+          if (res.dice3) {
+            appendDice(dice3_v, res.dice3);
+            if (res.dice3 == 1) { dice3_cb.checked = false; }
+          } else { dice3_cb.checked = true; dice3_cb.disabled = true; }
         } else {
           alert('' + res.Message);
         }
