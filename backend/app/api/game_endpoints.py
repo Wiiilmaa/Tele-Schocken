@@ -1,7 +1,6 @@
 from app.api import bp
 from app import app, db
 
-from os import environ
 from flask_socketio import emit, join_room
 from flask import jsonify
 from flask import request
@@ -20,7 +19,17 @@ from flask_socketio import SocketIO
 # different async modes, or leave it set to None for the application to choose
 # the best option based on installed packages.
 async_mode = "gevent"
-socketio = SocketIO(app, async_mode=async_mode)
+socketio = SocketIO(app, async_mode=async_mode, cors_allowed_origins="*")
+
+
+# Get User from Game
+def get_Index_Of_User(game, uid):
+    id = int(uid)
+    for i, x in enumerate(game.users):
+        if x.id == id:
+            return i
+            break
+    return -1
 
 @socketio.on('connect', namespace='/game')
 def test_connect():
@@ -109,7 +118,7 @@ def get_game(gid):
     """
     game = Game.query.filter_by(UUID=gid).first()
     if game is None:
-        response = jsonify(Message='Game id not in Database')
+        response = jsonify(Message='Spiel ist nicht in der Datenbank')
         response.status_code = 404
         return response
     response = jsonify(game.to_dict())
@@ -194,7 +203,7 @@ def set_game_user(gid):
         response.status_code = 404
         return response
     if game.status != Status.WAITING:
-        response = jsonify(Message='Game already started create new Game')
+        response = jsonify(Message='Spiel ist bereits gestartet. Starte ein neues Spiel!')
         response.status_code = 400
         return response
     data = request.get_json() or {}
@@ -203,7 +212,7 @@ def set_game_user(gid):
     escapedusername = str(utils.escape(data['name']))
     inuse = User.query.filter_by(name=escapedusername).first()
     if inuse is not None:
-        response = jsonify(Message='username in use!')
+        response = jsonify(Message='Benutzername schon vergeben!')
         response.status_code = 400
         return response
     user = User()
@@ -256,9 +265,15 @@ def pull_up_dice_cup(gid, uid):
             }
     """
     game = Game.query.filter_by(UUID=gid).first()
-    user = User.query.get_or_404(uid)
     if game is None:
-        response = jsonify(Message='Game not found')
+        response = jsonify(Message='Spiel nicht gefunden')
+        response.status_code = 404
+        return response
+    user_index = get_Index_Of_User(game, uid)
+    if user_index > -1:
+        user = game.users[user_index]
+    if user_index < 0 or user.game_id != game.id:
+        response = jsonify(Message='Spieler ist nicht in diesem Spiel')
         response.status_code = 404
         return response
     data = request.get_json() or {}
@@ -272,13 +287,13 @@ def pull_up_dice_cup(gid, uid):
         db.session.commit()
         allvisible = True
         for user in game.users:
-            if not (user.dice1_visible and user.dice2_visible and user.dice3_visible):
+            if not (user.passive or (user.dice1_visible and user.dice2_visible and user.dice3_visible)):
                 allvisible = False
-        if allvisible:
+        if allvisible and game.move_user_id == -1:
             game.message = "Warten auf Vergabe der Chips!"
             db.session.add(game)
             db.session.commit()
-        response = jsonify(Message='success')
+        response = jsonify(Message='Hat geklappt!')
         response.status_code = 201
         emit('reload_game', game.to_dict(), room=gid, namespace='/game')
         return response
@@ -288,69 +303,45 @@ def pull_up_dice_cup(gid, uid):
         return response
 
 
-# user finisch bevor 3 rolls
+# user finishes bevore third roll
 @bp.route('/game/<gid>/user/<uid>/finisch', methods=['POST'])
 def finish_throwing(gid, uid):
     game = Game.query.filter_by(UUID=gid).first()
-    user = User.query.get_or_404(uid)
     if game is None:
-        response = jsonify(Message='Game not found')
+        response = jsonify(Message='Spiel nicht gefunden')
         response.status_code = 404
         return response
-    if user.game_id != game.id:
-        response = jsonify(Message='Player not in Game')
+    user_index = get_Index_Of_User(game, uid)
+    if user_index > -1:
+        user = game.users[user_index]
+    if user_index < 0 or user.game_id != game.id:
+        response = jsonify(Message='Spieler ist nicht in diesem Spiel')
         response.status_code = 404
-        return response
-    # no chips on the stack but user has chips so you need to dice onece
-    if game.stack == 0 and user.chips != 0 and user.number_dice == 0:
-        response = jsonify(Message='Dice at least once')
-        response.status_code = 400
         return response
     # chips on the stack need to dice onece
-    if game.stack != 0 and user.number_dice == 0:
-        response = jsonify(Message='Dice at least once')
+    # no chips on the stack but user has chips so you need to dice once
+    if (game.stack != 0 or user.chips != 0) and user.number_dice == 0:
+        response = jsonify(Message='Du musst mindestens einmal würfeln!')
         response.status_code = 400
         return response
     if user.dice1 is None or user.dice2 is None or user.dice3 is None:
-        response = jsonify(Message='Dice again after turning 6er')
+        response = jsonify(Message='Nach dem Verwandeln von Sechsen in Einsen musst Du nochmal würfeln')
         response.status_code = 400
         return response
-    waitinguser = User.query.get_or_404(game.move_user_id)
-    if waitinguser.id == user.id:
-        potenzial_next = None
-        upperfound = False
-        # first find aktuell user and check all users behind for the next user (not passive)
-        for i, x in enumerate(game.users):
-            if upperfound:
-                potenzial_next = User.query.get_or_404(game.users[i].id)
-                # Netxt user is passiv and need to scip
-                if (potenzial_next.passive):
-                    potenzial_next = None
-                    continue
-                # next user is active and ist the real next user
-                else:
-                    break
-            if (x == user):
-                upperfound = True
-        # no user found so check the first "half" of the list for the next user
-        if potenzial_next is None:
-            for i, x in enumerate(game.users):
-                # already check this part of the list
-                if (x == user):
-                    break
-                else:
-                    potenzial_next = User.query.get_or_404(game.users[i].id)
-                    # Netxt user is passiv and need to scip
-                    if (potenzial_next.passive):
-                        potenzial_next = None
-                        continue
-                    # next user is active and ist the real next user
-                    else:
-                        break
-        if potenzial_next is None or potenzial_next.number_dice != 0:
-            game.message = "Aufdecken!"
+    if user.id == game.move_user_id:
+        if len(game.users) < 2:
+            game.move_user_id = -1
         else:
-            game.move_user_id = potenzial_next.id
+            for i in range(1, len(game.users)):
+                test = (user_index + i) % len(game.users)
+                if game.users[test].id == game.first_user_id:
+                    game.move_user_id = -1
+                    break
+                if not game.users[test].passive:
+                    game.move_user_id = game.users[test].id
+                    break
+        if game.move_user_id == -1:
+            game.message = "Aufdecken!"
         # https://stackoverflow.com/questions/364621/how-to-get-items-position-in-a-list
         # aktualuserid = [i for i, x in enumerate(game.users) if x == user]
         # aktualuserid = [i for i, x in enumerate(game.users) if (x == user and not x.passive)]
@@ -363,12 +354,12 @@ def finish_throwing(gid, uid):
         #    game.message = "Aufdecken!"
         db.session.add(game)
         db.session.commit()
-        response = jsonify(Message='success')
+        response = jsonify(Message='Hat geklappt!')
         response.status_code = 200
         emit('reload_game', game.to_dict(), room=gid, namespace='/game')
         return response
     else:
-        response = jsonify(Message='Its not your turn')
+        response = jsonify(Message='Du bist nicht dran!')
         response.status_code = 400
         return response
     response = jsonify(Message='Error')
@@ -380,9 +371,15 @@ def finish_throwing(gid, uid):
 @bp.route('/game/<gid>/user/<uid>/passiv', methods=['POST'])
 def set_user_passiv(gid, uid):
     game = Game.query.filter_by(UUID=gid).first()
-    user = User.query.get_or_404(uid)
     if game is None:
-        response = jsonify(Message='Game not found')
+        response = jsonify(Message='Spiel nicht gefunden')
+        response.status_code = 404
+        return response
+    user_index = get_Index_Of_User(game, uid)
+    if user_index > -1:
+        user = game.users[user_index]
+    if user_index < 0 or user.game_id != game.id:
+        response = jsonify(Message='Spieler ist nicht in diesem Spiel')
         response.status_code = 404
         return response
     data = request.get_json() or {}
@@ -395,7 +392,7 @@ def set_user_passiv(gid, uid):
             print('Hier')
         db.session.add(user)
         db.session.commit()
-        response = jsonify(Message='success')
+        response = jsonify(Message='Hat geklappt!')
         response.status_code = 201
         # needed ???
         emit('reload_game', game.to_dict(), room=gid, namespace='/game')
@@ -461,26 +458,32 @@ def roll_dice(gid, uid):
             }
     """
     game = Game.query.filter_by(UUID=gid).first()
-    user = User.query.filter_by(id=uid).first()
     if game is None:
-        response = jsonify()
+        response = jsonify(Message='Spiel nicht gefunden')
         response.status_code = 404
         return response
-    if user.game_id != game.id:
-        response = jsonify(Message='Player not in Game')
+    print( game )
+    print( uid )
+    user_index = get_Index_Of_User(game, uid)
+    print( user_index )
+    if user_index > -1:
+        user = game.users[user_index]
+        print( user )
+    if user_index < 0 or user.game_id != game.id:
+        response = jsonify(Message='Spieler ist nicht in diesem Spiel')
         response.status_code = 404
         return response
     data = request.get_json() or {}
     # Cloud be improved to game.first_user_id first user.number_dice
-    first_user = User.query.get_or_404(game.first_user_id)
-    waitinguser = User.query.get_or_404(game.move_user_id)
+#    first_user = User.query.get_or_404(game.first_user_id)
+#    waitinguser = User.query.get_or_404(game.move_user_id)
     game.refreshed = datetime.now()
-    if waitinguser.id == user.id:
+    if user.id == game.move_user_id:
         if game.status == Status.GAMEFINISCH:
             game.status = Status.STARTED
-        if first_user.number_dice == 0 or user.number_dice < first_user.number_dice or first_user.id == user.id:
+        if game.first_user_id == user.id or user.number_dice < game.number_dice:
             if user.number_dice >= 3:
-                response = jsonify(Message='User hase alread dice 3 times')
+                response = jsonify(Message='Du hast schon dreimal gewürfelt!')
                 response.status_code = 404
                 return response
             # Check if a dice fall from the table and return if so
@@ -496,86 +499,41 @@ def roll_dice(gid, uid):
                 emit('reload_game', game.to_dict(), room=gid, namespace='/game')
                 return response
             user.number_dice = user.number_dice + 1
-            if user.number_dice == first_user.number_dice and user.id != first_user.id or user.number_dice == 3:
-                potenzial_next = None
-                upperfound = False
-                # first find aktuell user and check all users behind for the next user (not passive)
-                for i, x in enumerate(game.users):
-                    if upperfound:
-                        potenzial_next = User.query.get_or_404(game.users[i].id)
-                        # Netxt user is passiv and need to scip
-                        if (potenzial_next.passive):
-                            potenzial_next = None
-                            continue
-                        # next user is active and ist the real next user
-                        else:
-                            break
-                    if (x == user):
-                        upperfound = True
-                # no user found so check the first "half" of the list for the next user
-                if potenzial_next is None:
-                    for i, x in enumerate(game.users):
-                        # already check this part of the list
-                        if (x == user):
-                            break
-                        else:
-                            potenzial_next = User.query.get_or_404(game.users[i].id)
-                            # Netxt user is passiv and need to scip
-                            if (potenzial_next.passive):
-                                potenzial_next = None
-                                continue
-                            # next user is active and ist the real next user
-                            else:
-                                break
-                if potenzial_next is None or potenzial_next.number_dice != 0:
-                    game.message = "Aufdecken!"
+            if user.number_dice == 3 or (user.id != game.first_user_id and user.number_dice == game.number_dice):
+                if len(game.users) < 2:
+                    game.move_user_id = -1 
                 else:
-                    game.move_user_id = potenzial_next.id
-                # https://stackoverflow.com/questions/364621/how-to-get-items-position-in-a-list
-                # aktualuserid = [i for i, x in enumerate(game.users) if (x == user and not x.passive)]
-                # print(aktualuserid)
-                # nex user is first user
-                # if len(game.users) > aktualuserid[0]+1:
-                #    game.move_user_id = game.users[aktualuserid[0]+1].id
-                # else:
-                #    game.move_user_id = game.users[0].id
-                # next_user = User.query.get_or_404(game.move_user_id)
-                # Back to first user
-                # if next_user.number_dice != 0:
-                #    game.message = "Aufdecken!"
+                    for i in range(1, len(game.users)):
+                        test = (user_index + i) % len(game.users)
+                        if game.users[test].id == game.first_user_id:
+                            game.move_user_id = -1
+                            break
+                        if not game.users[test].passive:
+                            game.move_user_id = next_user.id
+                            break
+                if game.move_user_id == -1:
+                    game.message = "Aufdecken!"
                 db.session.add(game)
                 db.session.commit()
             seed()
-            if 'dice1' in data:
-                escapeddice1 = str(utils.escape(data['dice1']))
-                if escapeddice1.lower() in ['true', '1']:
-                    user.dice1 = randint(1, 6)
-                    user.dice1_visible = False
-                else:
-                    user.dice1_visible = True
+            if 'dice1' in data and str(utils.escape(data['dice1'])).lower() in ['true', '1']:
+                user.dice1 = randint(1, 6)
+                user.dice1_visible = False
             else:
                 user.dice1_visible = True
-            if 'dice2' in data:
-                escapeddice2 = str(utils.escape(data['dice2']))
-                if escapeddice2.lower() in ['true', '1']:
-                    user.dice2 = randint(1, 6)
-                    user.dice2_visible = False
-                else:
-                    user.dice2_visible = True
+            if 'dice2' in data and str(utils.escape(data['dice2'])).lower() in ['true', '1']:
+                user.dice2 = randint(1, 6)
+                user.dice2_visible = False
             else:
                 user.dice2_visible = True
 
-            if 'dice3' in data:
-                escapeddice3 = str(utils.escape(data['dice3']))
-                if escapeddice3.lower() in ['true', '1']:
-                    user.dice3 = randint(1, 6)
-                    user.dice3_visible = False
-                else:
-                    user.dice3_visible = True
+            if 'dice3' in data and str(utils.escape(data['dice3'])).lower() in ['true', '1']:
+                user.dice3 = randint(1, 6)
+                user.dice3_visible = False
             else:
                 user.dice3_visible = True
         else:
-            response = jsonify(Message='Its not your turn')
+            response = jsonify(Message='Du bist nicht dran!')
             response.status_code = 400
             return response
         # Statistic
@@ -593,7 +551,7 @@ def roll_dice(gid, uid):
         emit('reload_game', game.to_dict(), room=gid, namespace='/game')
         return response
     else:
-        response = jsonify(Message='Its not your turn')
+        response = jsonify(Message='Du bist nicht dran!')
         response.status_code = 400
     return response
 
@@ -644,13 +602,15 @@ def turn_dice(gid, uid):
             }
     """
     game = Game.query.filter_by(UUID=gid).first()
-    user = User.query.get_or_404(uid)
     if game is None:
-        response = jsonify(Message='Game not found')
+        response = jsonify(Message='Spiel nicht gefunden')
         response.status_code = 404
         return response
-    if user.game_id != game.id:
-        response = jsonify(Message='User not in game')
+    user_index = get_Index_Of_User(game, uid)
+    if user_index > -1:
+        user = game.users[user_index]
+    if user_index < 0 or user.game_id != game.id:
+        response = jsonify(Message='Spieler ist nicht in diesem Spiel')
         response.status_code = 404
         return response
     data = request.get_json() or {}
@@ -671,7 +631,7 @@ def turn_dice(gid, uid):
                         user.dice1 = 1
                         user.dice3 = None
                     else:
-                        response = jsonify(Message='Could not finde tow dices with value 6')
+                        response = jsonify(Message='Keine zwei Sechsen gefunden')
                         response.status_code = 400
                         return response
                 elif int(escapedcount) == 2:
@@ -680,7 +640,7 @@ def turn_dice(gid, uid):
                         user.dice2 = 1
                         user.dice3 = None
                     else:
-                        response = jsonify(Message='Could not finde three dices with value 6')
+                        response = jsonify(Message='Keine drei Sechsen gefunden')
                         response.status_code = 400
                         return response
                 else:
@@ -692,11 +652,11 @@ def turn_dice(gid, uid):
                 response.status_code = 400
                 return response
         else:
-            response = jsonify(Message='less then 1 throw left')
+            response = jsonify(Message='Du musst nach dem Umdrehen noch würfeln können')
             response.status_code = 400
             return response
     else:
-        response = jsonify(Message='Its not your turn')
+        response = jsonify(Message='Du bist nicht dran!')
         response.status_code = 400
         return response
     response = jsonify(dice1=user.dice1, dice2=user.dice2, dice3=user.dice3)
@@ -718,20 +678,20 @@ def sort_dice(gid):
         escape = str(utils.escape(data['admin_id']))
         user = User.query.get_or_404(escape)
         if game is None:
-            response = jsonify(Message='Game not found')
+            response = jsonify(Message='Spiel nicht gefunden')
             response.status_code = 404
             return response
         if user.game_id != game.id:
-            response = jsonify(Message='User not in game')
+            response = jsonify(Message='Spieler ist nicht in diesem Spiel')
             response.status_code = 404
             return response
         if game.message == "Warten auf Vergabe der Chips!":
             for user in game.users:
                 dices = [user.dice1, user.dice2, user.dice3]
                 dices.sort()
-                user.dice1 = dices[0]
+                user.dice1 = dices[2]
                 user.dice2 = dices[1]
-                user.dice3 = dices[2]
+                user.dice3 = dices[0]
             db.session.add(game)
             db.session.commit()
             emit('reload_game', game.to_dict(), room=gid, namespace='/game')
