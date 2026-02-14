@@ -47,7 +47,7 @@ def _handle_round_end(game, loser):
 
         if game.play_final:
             if game.status == Status.PLAYFINAL:
-                message = 'Spieler {} hat das Finale verloren'.format(loser.name)
+                message = '{} hat das Finale verloren'.format(loser.name)
                 game.message = message
                 game.status = Status.GAMEFINISCH
                 loser.finalcount = loser.finalcount + 1
@@ -65,7 +65,7 @@ def _handle_round_end(game, loser):
                         user.passive = False
                         user.chips = 0
                         user.halfcount = 0
-                    message = 'Spieler {} hat das Finale verloren'.format(loser.name)
+                    message = '{} hat beide Haelften und damit das Spiel verloren'.format(loser.name)
                     game.message = message
                 # First half, round finish
                 elif loser.halfcount == 0:
@@ -79,10 +79,11 @@ def _handle_round_end(game, loser):
                             user.passive = False
                             user.chips = 0
                         message = 'Finale wird gespielt'
-                        game.message = 'Finale wird gespielt grau hinterlegte Spieler muessen warten'
+                        game.message = 'Finale wird gespielt, grau hinterlegte Spieler muessen warten'
                     else:
                         game.status = Status.ROUNDFINISCH
-                        message = 'Spieler {} verliert eine Haelfte'.format(loser.name)
+                        message = '{} hat die Haelfte verloren'.format(loser.name)
+                        game.message = message
                 else:
                     message = 'Fehler'
         # No final, only count halfs
@@ -91,7 +92,8 @@ def _handle_round_end(game, loser):
             game.status = Status.ROUNDFINISCH
             game.stack = game.stack_max
             game.halfcount = game.halfcount + 1
-            message = 'Spieler {} verliert eine Haelfte'.format(loser.name)
+            message = '{} hat das Spiel verloren'.format(loser.name)
+            game.message = message
 
     # Reset all active users for next round
     for user in game.active_users:
