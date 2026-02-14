@@ -89,12 +89,17 @@
 #player_table {
   width: auto;
 }
-#player_table td,
 #player_table th {
   vertical-align: middle;
   height: 62px;
   padding: 2px 4px;
   font-size: 14px;
+  white-space: nowrap;
+}
+#player_table td {
+  vertical-align: middle;
+  height: 62px;
+  padding: 2px 4px;
   white-space: nowrap;
 }
 /* Column styles */
