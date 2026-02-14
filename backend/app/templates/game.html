@@ -316,6 +316,22 @@
         var gameData = JSON.parse(xhttp.responseText);
         window._currentGame = gameData;
         var myId = parseInt(id);
+
+        // Stale localStorage check: if another user now has our stored ID,
+        // clear localStorage so the user can rejoin fresh
+        if (myId) {
+          var storedName = localStorage.getItem('name');
+          for (var i = 0; i < gameData.User.length; i++) {
+            if (gameData.User[i].Id === myId && gameData.User[i].Name !== storedName) {
+              localStorage.removeItem('id');
+              localStorage.removeItem('name');
+              myId = NaN;
+              id = null;
+              break;
+            }
+          }
+        }
+
         var amAdmin = gameData.Admins && gameData.Admins.indexOf(myId) !== -1;
 
         if (!amAdmin) {
