@@ -85,6 +85,9 @@
     <select name="ruleset_select" id="ruleset_select" class="form-select">
       <option value="">-- Wird geladen --</option>
     </select>
+    <div style="margin-top: 8px;">
+      <label><input type="checkbox" id="falling_dice_cb"> Würfel können vom Tisch fallen (Schnapsrunde)</label>
+    </div>
   </div>
 </div>
 <div class="row col-md-offset-1 admin_interface">
@@ -276,7 +279,8 @@
         }
       }
     }
-    xhttp.send(JSON.stringify({ruleset_id: rulesetId, admin_id: myId}));
+    var fallingDice = document.getElementById('falling_dice_cb').checked;
+    xhttp.send(JSON.stringify({ruleset_id: rulesetId, admin_id: myId, falling_dice: fallingDice}));
   }
 
   function isAdminUser() {

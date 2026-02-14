@@ -264,6 +264,12 @@ def start_game(gid):
         user.dice2_visible = False
         user.dice3_visible = False
 
+    # Falling dice option (default: off)
+    falling_dice = data.get('falling_dice', False)
+    if isinstance(falling_dice, str):
+        falling_dice = falling_dice.lower() in ['true', '1', 't', 'y', 'yes']
+    game.changs_of_fallling_dice = 0.003 if falling_dice else 0.0
+
     game.reveal_votes = ''
     db.session.add(game)
     db.session.commit()
