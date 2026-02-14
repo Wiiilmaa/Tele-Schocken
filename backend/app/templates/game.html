@@ -81,10 +81,9 @@
 <div class="row col-md-offset-1 admin_interface">
   <div class="col-md-9">
     <label for="ruleset_select">Ruleset wählen:</label>
-    <select name="ruleset_select" id="ruleset_select" class="form-select" onchange="showRulesetInfo()">
+    <select name="ruleset_select" id="ruleset_select" class="form-select">
       <option value="">-- Wird geladen --</option>
     </select>
-    <div id="ruleset_info" style="margin-top: 8px; font-size: 13px; color: #666;"></div>
   </div>
 </div>
 <div class="row col-md-offset-1 admin_interface">
@@ -201,26 +200,9 @@
         if (currentEl && currentEl.innerHTML.trim()) {
           select.value = currentEl.innerHTML.trim();
         }
-        showRulesetInfo();
       }
     }
     xhttp.send();
-  }
-
-  function showRulesetInfo() {
-    var select = document.getElementById('ruleset_select');
-    var infoEl = document.getElementById('ruleset_info');
-    var selectedId = select.value;
-    for (var i = 0; i < _rulesets.length; i++) {
-      if (_rulesets[i].id === selectedId) {
-        var r = _rulesets[i];
-        infoEl.innerHTML = r.stack_max + ' Chips | '
-          + (r.play_final ? 'Mit Finale' : 'Ohne Finale')
-          + ' | ' + r.rule_count + ' Sonderregeln';
-        return;
-      }
-    }
-    infoEl.innerHTML = '';
   }
 
   function joinGame() {
