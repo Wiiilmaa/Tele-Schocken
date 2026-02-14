@@ -985,10 +985,16 @@
 
     if (readyToDistribute && game.Scoring) {
       // Phase: all dice visible, ready to distribute
+      var chipsPart;
+      if (game.Scoring.From === 'schockaus') {
+        chipsPart = 'Schockaus! Alle Chips an ' + game.Scoring.To_Name;
+      } else {
+        chipsPart = game.Scoring.Chips + ' Chip(s) von '
+                  + game.Scoring.From_Name + ' an ' + game.Scoring.To_Name;
+      }
       var fullInfo = 'Hoch: ' + game.Scoring.High
                    + ', Tief: ' + game.Scoring.Low
-                   + ' — ' + game.Scoring.Chips + ' Chip(s) von '
-                   + game.Scoring.From_Name + ' an ' + game.Scoring.To_Name;
+                   + ' — ' + chipsPart;
       _lastRoundText = fullInfo;
       roundRow.innerHTML = '<button class="btn btn-success" id="distribute_btn" '
         + 'onclick="distribute()" disabled>Verteilen</button> '
