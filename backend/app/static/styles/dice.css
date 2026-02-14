@@ -97,16 +97,13 @@
   font-size: 14px;
   white-space: nowrap;
 }
-/* Name column: allow wrapping for name + leave icon on second line */
-#player_table td:nth-child(2) {
-  white-space: normal;
-}
-/* Compact column widths */
+/* Column styles */
 .col-counter { width: 1.5em; text-align: center; }
-.col-chips   { width: 2.5em; text-align: center; font-size: 28px; }
-.col-half    { width: 2.5em; text-align: center; font-size: 28px; }
-.col-throws  { width: 2.5em; text-align: center; font-size: 28px; }
-.col-final   { width: 2.5em; text-align: center; font-size: 28px; }
+.col-name    { font-size: 21px; white-space: normal; }
+.col-chips   { text-align: center; font-size: 28px; }
+.col-half    { text-align: center; font-size: 28px; }
+.col-throws  { text-align: center; font-size: 28px; }
+.col-final   { text-align: center; font-size: 28px; }
 .col-dice    { width: 81px; min-width: 81px; max-width: 81px; padding: 2px !important; }
 
 /* Mobile: smaller dice and hide less critical columns */
@@ -130,10 +127,11 @@
     font-size: 12px;
   }
   .col-dice    { width: 40px; min-width: 40px; max-width: 40px; }
+  .col-name    { font-size: 16px; }
   .col-chips   { font-size: 24px; }
+  .col-throws  { font-size: 24px; }
   .col-counter { display: none; }
   .col-half    { display: none; }
-  .col-throws  { display: none; }
   .col-final   { display: none; }
 }
 

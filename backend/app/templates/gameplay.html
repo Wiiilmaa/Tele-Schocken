@@ -173,12 +173,12 @@
       <thead>
         <tr>
           <th class="col-counter">#</th>
-          <th>Name</th>
+          <th class="col-name">Name</th>
           <th class="col-chips">Chips</th>
-          <th class="col-dice"></th>
-          <th class="col-dice"></th>
-          <th class="col-dice"></th>
           <th class="col-throws">Würfe</th>
+          <th class="col-dice"></th>
+          <th class="col-dice"></th>
+          <th class="col-dice"></th>
           <th class="col-half">Hälften</th>
           <th id="finalcount_header" class="col-final" {% if not game.play_final %}style="display:none"{% endif %}>Runden</th>
         </tr>
@@ -722,12 +722,12 @@
         row = document.createElement('tr');
         row.id = 'row' + juser.Id;
         row.innerHTML = '<td class="counterCell col-counter"></td>'
-          + '<td id="user' + juser.Id + '"></td>'
+          + '<td id="user' + juser.Id + '" class="col-name"></td>'
           + '<td id="chips' + juser.Id + '" class="col-chips"></td>'
+          + '<td id="Number_Dice' + juser.Id + '" class="col-throws"></td>'
           + '<td id="dice1' + juser.Id + '" class="dice-cell col-dice"></td>'
           + '<td id="dice2' + juser.Id + '" class="dice-cell col-dice"></td>'
           + '<td id="dice3' + juser.Id + '" class="dice-cell col-dice"></td>'
-          + '<td id="Number_Dice' + juser.Id + '" class="col-throws"></td>'
           + '<td id="first' + juser.Id + '" class="col-half"></td>'
           + '<td id="finalcount' + juser.Id + '" class="col-final"' + (showFinal ? '' : ' style="display:none"') + '></td>';
         tbody.appendChild(row);
