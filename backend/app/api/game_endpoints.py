@@ -324,6 +324,12 @@ def roll_dice(gid, uid):
         response.status_code = 400
         return response
 
+    # Minimum 2 active players required
+    if len(game.active_users) < 2:
+        response = jsonify(Message='Nicht genug Mitspieler')
+        response.status_code = 400
+        return response
+
     user_index = get_Index_Of_User(game, uid)
     if user_index > -1:
         user = game.users[user_index]

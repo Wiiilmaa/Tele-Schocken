@@ -847,8 +847,18 @@
       el_message.innerHTML = '';
     }
 
+    // Count active (non-pending) players
+    var activePlayerCount = 0;
+    for (var num in game.User) {
+      if (!game.User[num].Pending_Join) activePlayerCount++;
+    }
+    var notEnoughPlayers = activePlayerCount < 2 &&
+        (game_state == 'started' || game_state == 'playfinal');
+
     // C4: Improved "Warten auf" display
-    if (waiting_user_id == -1) {
+    if (notEnoughPlayers) {
+      waitinguserstorage.innerHTML = 'Warten auf: Mitspieler';
+    } else if (waiting_user_id == -1) {
       if (isUndecided(game)) {
         waitinguserstorage.innerHTML = 'Warten auf: Aufdecken';
       } else {
@@ -917,11 +927,16 @@
       }
     }
 
-    // Throw button color
-    if (id == waiting_user_id) {
+    // Throw button color and state
+    if (notEnoughPlayers) {
+      throwbutton.className = 'buttongray containerturner';
+      throwbutton.disabled = true;
+    } else if (id == waiting_user_id) {
       throwbutton.className = 'buttongreen containerturner';
+      throwbutton.disabled = false;
     } else {
       throwbutton.className = 'buttongray containerturner';
+      throwbutton.disabled = false;
     }
 
     // E4: Scoring section and distribute button
