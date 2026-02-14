@@ -532,10 +532,10 @@ def mark_leave_after_game(gid, uid):
 
     target_user.leave_after_game = new_state
 
-    # Immediate removal: only when player changes are allowed
-    # (lobby or game just (re)started, before anyone rolled).
+    # Immediate removal: when player changes are allowed (lobby / before first roll),
+    # OR when the player is pending (not yet in the game — can always leave).
     if new_state:
-        can_remove_now = game.player_changes_allowed
+        can_remove_now = game.player_changes_allowed or target_user.pending_join
         if can_remove_now:
             # Remove immediately
             if target_user.id == game.first_user_id:
