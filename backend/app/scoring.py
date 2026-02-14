@@ -156,8 +156,8 @@ def calculate_scoring(game):
     high_chips = high['scoring']['chips']
 
     if high_chips == -1:
-        # Schockaus: all remaining stack goes to loser
-        transfer_chips = 0
+        # Schockaus: loser gets ALL chips (stack_max), half/finale is over
+        transfer_chips = game.stack_max
         from_source = 'schockaus'
         from_name = 'Schock aus'
     elif game.stack > 0:

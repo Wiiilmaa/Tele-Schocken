@@ -310,8 +310,11 @@ def distribute_chips(gid):
     transfer_count = scoring['Chips']
 
     if from_source == 'schockaus':
-        # Schock aus: all remaining stack chips to loser
-        target_user.chips = target_user.chips + game.stack
+        # Schock aus: loser gets ALL chips (stack_max), half/finale is over.
+        # Reset all other players' chips and the stack.
+        for u in game.active_users:
+            u.chips = 0
+        target_user.chips = game.stack_max
         game.stack = 0
     elif from_source == 'stack':
         game.stack = game.stack - transfer_count
