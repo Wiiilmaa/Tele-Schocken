@@ -54,31 +54,30 @@ def upgrade():
         "UPDATE game SET ruleset_id = 'classic_13' WHERE ruleset_id IS NULL"
     )
 
-    # Fix the MySQL ENUM column: ensure it has all 5 lowercase values that
-    # SQLAlchemy 2.0 uses (it writes .value for string-valued enums).
-    # The original migration had uppercase NAMES without PLAYFINAL.
-    # ROUNDFINISCH/GAMEFINISCH names differ from their values (roundfinish/gamefinish),
-    # so we need a multi-step conversion for existing DBs:
+    # Fix the MySQL ENUM column: SQLAlchemy 2.0 uses enum NAMES (uppercase)
+    # for db.Enum(PEP435Enum) without values_callable. The original migration
+    # had NAMES but was missing PLAYFINAL. A previous version of this migration
+    # may have converted to lowercase values, so we handle both directions.
     #
-    # Step 1: Expand ENUM to include both old uppercase and new lowercase for
-    #         the mismatched names (ROUNDFINISCH≠roundfinish, GAMEFINISCH≠gamefinish).
-    #         For WAITING/STARTED/PLAYFINAL, MySQL handles case-insensitive rename.
+    # Step 1: Expand ENUM to include both lowercase values AND uppercase names
+    #         for the mismatched pairs (roundfinish≠ROUNDFINISCH, gamefinish≠GAMEFINISCH).
+    #         WAITING/STARTED/PLAYFINAL are handled by case-insensitive rename.
     op.execute(
         "ALTER TABLE game MODIFY COLUMN status "
-        "ENUM('waiting','started','ROUNDFINISCH','playfinal','GAMEFINISCH',"
+        "ENUM('WAITING','STARTED','ROUNDFINISCH','PLAYFINAL','GAMEFINISCH',"
         "'roundfinish','gamefinish') NULL"
     )
-    # Step 2: Convert any remaining uppercase data to lowercase values
+    # Step 2: Convert any lowercase values to uppercase NAMES
     op.execute(
-        "UPDATE game SET status = 'roundfinish' WHERE status = 'ROUNDFINISCH'"
+        "UPDATE game SET status = 'ROUNDFINISCH' WHERE status = 'roundfinish'"
     )
     op.execute(
-        "UPDATE game SET status = 'gamefinish' WHERE status = 'GAMEFINISCH'"
+        "UPDATE game SET status = 'GAMEFINISCH' WHERE status = 'gamefinish'"
     )
-    # Step 3: Shrink ENUM to final lowercase-only values
+    # Step 3: Shrink ENUM to final uppercase NAMES only
     op.execute(
         "ALTER TABLE game MODIFY COLUMN status "
-        "ENUM('waiting','started','roundfinish','playfinal','gamefinish') NULL"
+        "ENUM('WAITING','STARTED','ROUNDFINISCH','PLAYFINAL','GAMEFINISCH') NULL"
     )
 
 

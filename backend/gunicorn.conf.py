@@ -95,25 +95,28 @@ def post_worker_init(worker):
                 elif isinstance(e, SystemExit):
                     return
 
-            # Safety net: ensure status ENUM has correct lowercase values
-            # (in case migration failed or was already applied by a different path)
+            # Safety net: ensure status ENUM has uppercase NAMES incl. PLAYFINAL.
+            # SQLAlchemy 2.0 uses enum NAMES for db.Enum(PEP435Enum).
+            # A previous migration may have set lowercase values, so fix both.
             try:
-                # Step 1: expand ENUM to include both old uppercase and new lowercase
+                # Step 1: expand ENUM to include both lowercase and uppercase
+                # for mismatched pairs (roundfinish≠ROUNDFINISCH, gamefinish≠GAMEFINISCH)
                 db.session.execute(text(
                     "ALTER TABLE game MODIFY COLUMN status "
-                    "ENUM('waiting','started','ROUNDFINISCH','playfinal','GAMEFINISCH',"
+                    "ENUM('WAITING','STARTED','ROUNDFINISCH','PLAYFINAL','GAMEFINISCH',"
                     "'roundfinish','gamefinish') NULL"
                 ))
+                # Step 2: convert any lowercase to uppercase NAMES
                 db.session.execute(text(
-                    "UPDATE game SET status = 'roundfinish' WHERE status = 'ROUNDFINISCH'"
+                    "UPDATE game SET status = 'ROUNDFINISCH' WHERE status = 'roundfinish'"
                 ))
                 db.session.execute(text(
-                    "UPDATE game SET status = 'gamefinish' WHERE status = 'GAMEFINISCH'"
+                    "UPDATE game SET status = 'GAMEFINISCH' WHERE status = 'gamefinish'"
                 ))
-                # Step 2: shrink to final lowercase-only values
+                # Step 3: shrink to final uppercase NAMES only
                 db.session.execute(text(
                     "ALTER TABLE game MODIFY COLUMN status "
-                    "ENUM('waiting','started','roundfinish','playfinal','gamefinish') NULL"
+                    "ENUM('WAITING','STARTED','ROUNDFINISCH','PLAYFINAL','GAMEFINISCH') NULL"
                 ))
                 db.session.commit()
                 db.session.remove()
