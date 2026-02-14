@@ -124,14 +124,17 @@
   .dice-cell {
     height: 48px;
   }
-  #player_table td,
   #player_table th {
-    height: 48px;
+    height: auto;
     padding: 1px 2px;
     font-size: 12px;
   }
+  #player_table td {
+    height: 48px;
+    padding: 1px 2px;
+  }
   .col-dice    { width: 40px; min-width: 40px; max-width: 40px; }
-  .col-name    { font-size: 16px; }
+  .col-name    { font-size: 18px; }
   .col-chips   { font-size: 24px; }
   .col-throws  { font-size: 24px; }
   .col-counter { display: none; }
@@ -188,10 +191,12 @@
     height: 10px;
   }
   .col-dice { width: 46px; min-width: 46px; max-width: 46px; }
-  #player_table td,
   #player_table th {
     padding: 2px 3px;
     font-size: 13px;
+  }
+  #player_table td {
+    padding: 2px 3px;
   }
 }
 
