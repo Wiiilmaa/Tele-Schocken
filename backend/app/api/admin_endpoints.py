@@ -336,7 +336,11 @@ def distribute_chips(gid):
     # Handle round end (half/final logic)
     message = _handle_round_end(game, target_user)
 
-    # If GAMEFINISCH: execute deferred actions
+    # ROUNDFINISCH -> STARTED: continue with next round
+    if game.status == Status.ROUNDFINISCH:
+        game.status = Status.STARTED
+
+    # If GAMEFINISCH: execute deferred actions (sets status to STARTED or WAITING)
     if game.status == Status.GAMEFINISCH:
         execute_deferred_actions(game)
 
