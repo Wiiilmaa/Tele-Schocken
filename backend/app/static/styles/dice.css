@@ -102,13 +102,13 @@
   white-space: nowrap;
 }
 /* Column styles */
-.col-counter { width: 1.5em; text-align: center; }
+.col-counter { width: 1.5em; text-align: right; }
 .col-name    { font-size: 21px; white-space: normal; }
-.col-chips   { text-align: center; font-size: 28px; }
-.col-half    { text-align: center; font-size: 28px; }
-.col-throws  { text-align: center; font-size: 28px; }
-.col-final   { text-align: center; font-size: 28px; }
-.col-dice    { width: 81px; min-width: 81px; max-width: 81px; padding: 2px !important; }
+.col-chips   { text-align: right; font-size: 28px; }
+.col-half    { text-align: right; font-size: 28px; }
+.col-throws  { text-align: right; font-size: 28px; }
+.col-final   { text-align: right; font-size: 28px; }
+.col-dice    { width: 81px; min-width: 81px; max-width: 81px; padding: 2px !important; text-align: center; }
 
 /* Mobile: smaller dice and hide less critical columns */
 @media (max-width: 575px) {
