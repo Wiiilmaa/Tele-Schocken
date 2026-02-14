@@ -21,8 +21,6 @@ def post_worker_init(worker):
 
         with app.app_context():
             # Warm up: establish a connection through Flask-SQLAlchemy first.
-            # This primes MySQL's caching_sha2_password cache so that
-            # subsequent connections (including Alembic's) use fast-auth.
             for attempt in range(5):
                 try:
                     db.session.execute(text("SELECT 1"))
@@ -47,18 +45,27 @@ def post_worker_init(worker):
                 upgrade()
                 print("[gunicorn.conf] DB migration completed successfully.",
                       file=sys.stderr, flush=True)
-            except Exception as e:
+            except BaseException as e:
+                # Catch BaseException to also capture SystemExit from Alembic
                 print(f"[gunicorn.conf] DB migration failed: "
                       f"{type(e).__name__}: {e}",
                       file=sys.stderr, flush=True)
                 import traceback
                 traceback.print_exc(file=sys.stderr)
                 sys.stderr.flush()
+                # Don't re-raise SystemExit – let the worker continue
+                if isinstance(e, SystemExit):
+                    print("[gunicorn.conf] Suppressed SystemExit from migration, "
+                          "worker will continue.",
+                          file=sys.stderr, flush=True)
+                    return
 
-    except Exception as e:
+    except BaseException as e:
         print(f"[gunicorn.conf] post_worker_init error: "
               f"{type(e).__name__}: {e}",
               file=sys.stderr, flush=True)
         import traceback
         traceback.print_exc(file=sys.stderr)
         sys.stderr.flush()
+        if isinstance(e, SystemExit):
+            return
