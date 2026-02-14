@@ -57,7 +57,7 @@ def post_worker_init(worker):
                 current = None
                 db.session.remove()
 
-            # Now run Alembic migrations
+            # Run Alembic migrations first (table might not exist on fresh DB)
             try:
                 upgrade()
                 print("[gunicorn.conf] DB migration completed successfully.",
@@ -94,6 +94,36 @@ def post_worker_init(worker):
                             return
                 elif isinstance(e, SystemExit):
                     return
+
+            # Safety net: ensure status ENUM has correct lowercase values
+            # (in case migration failed or was already applied by a different path)
+            try:
+                # Step 1: expand ENUM to include both old uppercase and new lowercase
+                db.session.execute(text(
+                    "ALTER TABLE game MODIFY COLUMN status "
+                    "ENUM('waiting','started','ROUNDFINISCH','playfinal','GAMEFINISCH',"
+                    "'roundfinish','gamefinish') NULL"
+                ))
+                db.session.execute(text(
+                    "UPDATE game SET status = 'roundfinish' WHERE status = 'ROUNDFINISCH'"
+                ))
+                db.session.execute(text(
+                    "UPDATE game SET status = 'gamefinish' WHERE status = 'GAMEFINISCH'"
+                ))
+                # Step 2: shrink to final lowercase-only values
+                db.session.execute(text(
+                    "ALTER TABLE game MODIFY COLUMN status "
+                    "ENUM('waiting','started','roundfinish','playfinal','gamefinish') NULL"
+                ))
+                db.session.commit()
+                db.session.remove()
+                print("[gunicorn.conf] Status enum values verified/normalized.",
+                      file=sys.stderr, flush=True)
+            except Exception as e:
+                db.session.rollback()
+                db.session.remove()
+                print(f"[gunicorn.conf] Status enum fix skipped: {e}",
+                      file=sys.stderr, flush=True)
 
     except BaseException as e:
         print(f"[gunicorn.conf] post_worker_init error: "

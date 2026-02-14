@@ -54,6 +54,33 @@ def upgrade():
         "UPDATE game SET ruleset_id = 'classic_13' WHERE ruleset_id IS NULL"
     )
 
+    # Fix the MySQL ENUM column: ensure it has all 5 lowercase values that
+    # SQLAlchemy 2.0 uses (it writes .value for string-valued enums).
+    # The original migration had uppercase NAMES without PLAYFINAL.
+    # ROUNDFINISCH/GAMEFINISCH names differ from their values (roundfinish/gamefinish),
+    # so we need a multi-step conversion for existing DBs:
+    #
+    # Step 1: Expand ENUM to include both old uppercase and new lowercase for
+    #         the mismatched names (ROUNDFINISCH≠roundfinish, GAMEFINISCH≠gamefinish).
+    #         For WAITING/STARTED/PLAYFINAL, MySQL handles case-insensitive rename.
+    op.execute(
+        "ALTER TABLE game MODIFY COLUMN status "
+        "ENUM('waiting','started','ROUNDFINISCH','playfinal','GAMEFINISCH',"
+        "'roundfinish','gamefinish') NULL"
+    )
+    # Step 2: Convert any remaining uppercase data to lowercase values
+    op.execute(
+        "UPDATE game SET status = 'roundfinish' WHERE status = 'ROUNDFINISCH'"
+    )
+    op.execute(
+        "UPDATE game SET status = 'gamefinish' WHERE status = 'GAMEFINISCH'"
+    )
+    # Step 3: Shrink ENUM to final lowercase-only values
+    op.execute(
+        "ALTER TABLE game MODIFY COLUMN status "
+        "ENUM('waiting','started','roundfinish','playfinal','gamefinish') NULL"
+    )
+
 
 def downgrade():
     if _column_exists('game', 'ruleset_id'):

@@ -55,7 +55,7 @@ class Game(BaseGameData, db.Model):
     UUID = db.Column(db.String(200), index=True, unique=True)
     users = db.relationship('User')
     message = db.Column(db.String(300))
-    status = db.Column(db.Enum(Status, values_callable=lambda s: [e.value for e in s]))
+    status = db.Column(db.Enum(Status))
     stack = db.Column(db.Integer)
     move_user_id = db.Column(db.Integer)
     first_user_id = db.Column(db.Integer)
