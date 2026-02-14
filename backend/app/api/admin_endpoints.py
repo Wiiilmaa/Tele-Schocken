@@ -154,6 +154,7 @@ def execute_deferred_actions(game):
             user.passive = False
             user.leave_after_game = False
         game.stack = game.stack_max
+        game.player_changes_allowed = True
         game.message = "Zurueck in der Lobby"
     else:
         # Auto-start next round
@@ -164,6 +165,7 @@ def execute_deferred_actions(game):
             user.passive = False
             user.leave_after_game = False
         game.stack = game.stack_max
+        game.player_changes_allowed = True
         # Keep the message from the round end (shows who lost)
 
 
@@ -271,6 +273,7 @@ def start_game(gid):
     game.changs_of_fallling_dice = 0.003 if falling_dice else 0.0
 
     game.reveal_votes = ''
+    game.player_changes_allowed = True
     db.session.add(game)
     db.session.commit()
     emit('reload_game', game.to_dict(), room=gid, namespace='/game')
@@ -525,12 +528,10 @@ def mark_leave_after_game(gid, uid):
 
     target_user.leave_after_game = new_state
 
-    # Immediate removal: only in WAITING, or STARTED/PLAYFINAL before anyone rolled.
-    # Never remove immediately in ROUNDFINISCH or GAMEFINISCH (dice are reset there).
+    # Immediate removal: only when player changes are allowed
+    # (lobby or game just (re)started, before anyone rolled).
     if new_state:
-        anyone_rolled = any(u.number_dice > 0 for u in game.active_users)
-        can_remove_now = (game.status == Status.WAITING or
-                          (game.status in (Status.STARTED, Status.PLAYFINAL) and not anyone_rolled))
+        can_remove_now = game.player_changes_allowed
         if can_remove_now:
             # Remove immediately
             if target_user.id == game.first_user_id:
@@ -697,6 +698,7 @@ def wait_game(gid):
     game.status = Status.WAITING
     game.lobby_after_game = False
     game.reveal_votes = ''
+    game.player_changes_allowed = True
     db.session.add(game)
     db.session.commit()
     emit('reload_game', game.to_dict(), room=gid, namespace='/game')

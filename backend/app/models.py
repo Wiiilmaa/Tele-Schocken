@@ -67,6 +67,9 @@ class Game(BaseGameData, db.Model):
     reveal_votes = db.Column(db.Text, default='')
     # Ruleset
     ruleset_id = db.Column(db.String(50))
+    # Flag: player joins/leaves are executed immediately (True at game start,
+    # cleared on first roll, set again after GAMEFINISCH deferred actions)
+    player_changes_allowed = db.Column(db.Boolean(), default=True)
 
     @property
     def active_users(self):
@@ -133,6 +136,7 @@ class Game(BaseGameData, db.Model):
         self.UUID = str(uuid.uuid1())
         self.lobby_after_game = False
         self.reveal_votes = ''
+        self.player_changes_allowed = True
 
         self.started = datetime.now()
         self.refreshed = datetime.now()

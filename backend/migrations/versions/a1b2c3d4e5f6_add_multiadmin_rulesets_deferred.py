@@ -41,6 +41,8 @@ def upgrade():
         op.add_column('game', sa.Column('reveal_votes', sa.Text(), nullable=True))
     if not _column_exists('game', 'ruleset_id'):
         op.add_column('game', sa.Column('ruleset_id', sa.String(length=50), nullable=True))
+    if not _column_exists('game', 'player_changes_allowed'):
+        op.add_column('game', sa.Column('player_changes_allowed', sa.Boolean(), nullable=True, server_default=sa.text('1')))
 
     # Data migration: set is_admin=True for users matching their game's admin_user_id
     if _column_exists('game', 'admin_user_id'):

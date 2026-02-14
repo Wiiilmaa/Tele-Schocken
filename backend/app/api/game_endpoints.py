@@ -129,25 +129,13 @@ def set_game_user(gid):
     user = User()
     user.name = escapedusername
 
-    if game.status == Status.WAITING:
-        # Lobby: add immediately
-        user.pending_join = False
-    elif game.status in (Status.STARTED, Status.PLAYFINAL, Status.ROUNDFINISCH):
-        # Check if game has actually started (anyone rolled?)
-        anyone_rolled = any(u.number_dice > 0 for u in game.active_users)
-        if not anyone_rolled:
-            # Round hasn't begun, add immediately
-            user.pending_join = False
-        else:
-            # Game in progress, queue for next game
-            user.pending_join = True
-    elif game.status == Status.GAMEFINISCH:
-        # Game over, add immediately for next game
+    if game.player_changes_allowed:
+        # Game is in lobby or just (re)started and nobody rolled yet: join immediately
         user.pending_join = False
     else:
-        response = jsonify(Message='Spiel ist in einem ungueltigen Zustand')
-        response.status_code = 400
-        return response
+        # Game in progress: queue for next game.
+        # execute_deferred_actions will activate them when the game ends.
+        user.pending_join = True
 
     game.users.append(user)
     db.session.add(game)
@@ -342,6 +330,10 @@ def roll_dice(gid, uid):
     # A2 fix: load first_user to get their number_dice
     first_user = User.query.get(game.first_user_id)
     first_user_dice = first_user.number_dice if first_user else 3
+
+    # Once someone rolls, no more immediate player changes until next game
+    if game.player_changes_allowed:
+        game.player_changes_allowed = False
 
     game.refreshed = datetime.now()
     if user.id == game.move_user_id:
