@@ -103,11 +103,11 @@
 }
 /* Compact column widths */
 .col-counter { width: 1.5em; text-align: center; }
-.col-chips   { width: 2.5em; text-align: center; }
-.col-half    { width: 2.5em; text-align: center; }
-.col-throws  { width: 2.5em; text-align: center; }
-.col-final   { width: 2.5em; text-align: center; }
-.col-dice    { width: 54px; min-width: 54px; max-width: 54px; padding: 2px !important; }
+.col-chips   { width: 2.5em; text-align: center; font-size: 28px; }
+.col-half    { width: 2.5em; text-align: center; font-size: 28px; }
+.col-throws  { width: 2.5em; text-align: center; font-size: 28px; }
+.col-final   { width: 2.5em; text-align: center; font-size: 28px; }
+.col-dice    { width: 81px; min-width: 81px; max-width: 81px; padding: 2px !important; }
 
 /* Mobile: smaller dice and hide less critical columns */
 @media (max-width: 575px) {
@@ -130,6 +130,7 @@
     font-size: 12px;
   }
   .col-dice    { width: 40px; min-width: 40px; max-width: 40px; }
+  .col-chips   { font-size: 24px; }
   .col-counter { display: none; }
   .col-half    { display: none; }
   .col-throws  { display: none; }
@@ -184,6 +185,7 @@
     width: 10px;
     height: 10px;
   }
+  .col-dice { width: 46px; min-width: 46px; max-width: 46px; }
   #player_table td,
   #player_table th {
     padding: 2px 3px;
