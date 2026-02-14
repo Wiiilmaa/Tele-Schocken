@@ -176,9 +176,9 @@
           <th>Name</th>
           <th class="col-chips">Chips</th>
           <th class="col-half">Hälften</th>
-          <th class="col-dice">W1</th>
-          <th class="col-dice">W2</th>
-          <th class="col-dice">W3</th>
+          <th class="col-dice"></th>
+          <th class="col-dice"></th>
+          <th class="col-dice"></th>
           <th class="col-throws">Würfe</th>
           <th id="finalcount_header" class="col-final" {% if not game.play_final %}style="display:none"{% endif %}>Runden</th>
         </tr>
@@ -748,14 +748,21 @@
       var nameHtml = juser.Name;
 
       if (juser.Pending_Join) nameHtml += ' <small>(wartet)</small>';
-      // Leave icon
-      var leaveClass = juser.Leave_After_Game ? 'leave-icon leave-active' : 'leave-icon leave-inactive';
-      var leaveTitle = juser.Leave_After_Game ? 'Verlassen vorgemerkt (klicken zum Aufheben)' : 'Nach dem Spiel verlassen';
+      // Leave icon: green if active, gray only if user can toggle it (own or admin)
       var clickable = (juser.Id === myId || isAdmin) && !juser.Pending_Join;
-      nameHtml += '<div><i class="fas fa-sign-out-alt ' + leaveClass + '"'
-        + ' title="' + leaveTitle + '"'
-        + (clickable ? ' onclick="toggle_leave(' + juser.Id + ')" style="cursor:pointer"' : ' style="cursor:default"')
-        + '></i></div>';
+      if (juser.Leave_After_Game) {
+        // Active (green): always visible
+        nameHtml += '<div><i class="fas fa-sign-out-alt leave-icon leave-active"'
+          + ' title="Verlassen vorgemerkt (klicken zum Aufheben)"'
+          + (clickable ? ' onclick="toggle_leave(' + juser.Id + ')"' : '')
+          + '></i></div>';
+      } else if (clickable) {
+        // Inactive (gray): only visible for own row or admin
+        nameHtml += '<div><i class="fas fa-sign-out-alt leave-icon leave-inactive"'
+          + ' title="Nach dem Spiel verlassen"'
+          + ' onclick="toggle_leave(' + juser.Id + ')"'
+          + '></i></div>';
+      }
       nameCell.innerHTML = nameHtml;
 
       // Chips
