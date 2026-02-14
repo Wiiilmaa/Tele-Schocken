@@ -16,22 +16,38 @@ branch_labels = None
 depends_on = None
 
 
+def _column_exists(table, column):
+    """Check whether a column already exists (idempotent migrations)."""
+    conn = op.get_bind()
+    result = conn.execute(sa.text(
+        f"SHOW COLUMNS FROM `{table}` LIKE :col"
+    ), {"col": column})
+    return result.fetchone() is not None
+
+
 def upgrade():
     # User table: add is_admin, leave_after_game, pending_join
-    op.add_column('user', sa.Column('is_admin', sa.Boolean(), nullable=True, server_default=sa.text('0')))
-    op.add_column('user', sa.Column('leave_after_game', sa.Boolean(), nullable=True, server_default=sa.text('0')))
-    op.add_column('user', sa.Column('pending_join', sa.Boolean(), nullable=True, server_default=sa.text('0')))
+    if not _column_exists('user', 'is_admin'):
+        op.add_column('user', sa.Column('is_admin', sa.Boolean(), nullable=True, server_default=sa.text('0')))
+    if not _column_exists('user', 'leave_after_game'):
+        op.add_column('user', sa.Column('leave_after_game', sa.Boolean(), nullable=True, server_default=sa.text('0')))
+    if not _column_exists('user', 'pending_join'):
+        op.add_column('user', sa.Column('pending_join', sa.Boolean(), nullable=True, server_default=sa.text('0')))
 
     # Game table: add lobby_after_game, reveal_votes, ruleset_id
-    op.add_column('game', sa.Column('lobby_after_game', sa.Boolean(), nullable=True, server_default=sa.text('0')))
-    op.add_column('game', sa.Column('reveal_votes', sa.Text(), nullable=True))
-    op.add_column('game', sa.Column('ruleset_id', sa.String(length=50), nullable=True))
+    if not _column_exists('game', 'lobby_after_game'):
+        op.add_column('game', sa.Column('lobby_after_game', sa.Boolean(), nullable=True, server_default=sa.text('0')))
+    if not _column_exists('game', 'reveal_votes'):
+        op.add_column('game', sa.Column('reveal_votes', sa.Text(), nullable=True))
+    if not _column_exists('game', 'ruleset_id'):
+        op.add_column('game', sa.Column('ruleset_id', sa.String(length=50), nullable=True))
 
     # Data migration: set is_admin=True for users matching their game's admin_user_id
-    op.execute(
-        "UPDATE user SET is_admin = 1 WHERE id IN "
-        "(SELECT admin_user_id FROM game WHERE admin_user_id IS NOT NULL)"
-    )
+    if _column_exists('game', 'admin_user_id'):
+        op.execute(
+            "UPDATE user SET is_admin = 1 WHERE id IN "
+            "(SELECT admin_user_id FROM game WHERE admin_user_id IS NOT NULL)"
+        )
 
     # Set default ruleset for existing games
     op.execute(
@@ -40,10 +56,16 @@ def upgrade():
 
 
 def downgrade():
-    op.drop_column('game', 'ruleset_id')
-    op.drop_column('game', 'reveal_votes')
-    op.drop_column('game', 'lobby_after_game')
+    if _column_exists('game', 'ruleset_id'):
+        op.drop_column('game', 'ruleset_id')
+    if _column_exists('game', 'reveal_votes'):
+        op.drop_column('game', 'reveal_votes')
+    if _column_exists('game', 'lobby_after_game'):
+        op.drop_column('game', 'lobby_after_game')
 
-    op.drop_column('user', 'pending_join')
-    op.drop_column('user', 'leave_after_game')
-    op.drop_column('user', 'is_admin')
+    if _column_exists('user', 'pending_join'):
+        op.drop_column('user', 'pending_join')
+    if _column_exists('user', 'leave_after_game'):
+        op.drop_column('user', 'leave_after_game')
+    if _column_exists('user', 'is_admin'):
+        op.drop_column('user', 'is_admin')

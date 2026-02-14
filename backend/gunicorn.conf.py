@@ -16,7 +16,7 @@ def post_worker_init(worker):
     try:
         from teleschocken import app
         from app import db
-        from flask_migrate import upgrade
+        from flask_migrate import upgrade, stamp
         from sqlalchemy import text
 
         with app.app_context():
@@ -40,24 +40,59 @@ def post_worker_init(worker):
                       "trying migration anyway...",
                       file=sys.stderr, flush=True)
 
+            # Fix stale alembic_version: if the DB points to a revision
+            # that no longer exists in the migration files, reset it to
+            # the last known revision before our new migration.
+            try:
+                result = db.session.execute(
+                    text("SELECT version_num FROM alembic_version")
+                )
+                row = result.fetchone()
+                if row:
+                    current = row[0]
+                    print(f"[gunicorn.conf] Current DB revision: {current}",
+                          file=sys.stderr, flush=True)
+                db.session.remove()
+            except Exception:
+                current = None
+                db.session.remove()
+
             # Now run Alembic migrations
             try:
                 upgrade()
                 print("[gunicorn.conf] DB migration completed successfully.",
                       file=sys.stderr, flush=True)
             except BaseException as e:
-                # Catch BaseException to also capture SystemExit from Alembic
+                err_msg = str(e)
                 print(f"[gunicorn.conf] DB migration failed: "
-                      f"{type(e).__name__}: {e}",
+                      f"{type(e).__name__}: {err_msg}",
                       file=sys.stderr, flush=True)
-                import traceback
-                traceback.print_exc(file=sys.stderr)
-                sys.stderr.flush()
-                # Don't re-raise SystemExit – let the worker continue
-                if isinstance(e, SystemExit):
-                    print("[gunicorn.conf] Suppressed SystemExit from migration, "
-                          "worker will continue.",
+
+                # If the current revision is unknown, stamp to the last
+                # known revision and retry.
+                if "Can't locate revision" in err_msg or "No such revision" in err_msg:
+                    print("[gunicorn.conf] Stale revision detected. "
+                          "Stamping DB to '2c71994ad95b' and retrying...",
                           file=sys.stderr, flush=True)
+                    try:
+                        db.session.execute(
+                            text("UPDATE alembic_version SET version_num = '2c71994ad95b'")
+                        )
+                        db.session.commit()
+                        db.session.remove()
+                        upgrade()
+                        print("[gunicorn.conf] DB migration completed successfully (after stamp).",
+                              file=sys.stderr, flush=True)
+                    except BaseException as e2:
+                        print(f"[gunicorn.conf] DB migration retry failed: "
+                              f"{type(e2).__name__}: {e2}",
+                              file=sys.stderr, flush=True)
+                        import traceback
+                        traceback.print_exc(file=sys.stderr)
+                        sys.stderr.flush()
+                        if isinstance(e2, SystemExit):
+                            return
+                elif isinstance(e, SystemExit):
                     return
 
     except BaseException as e:
