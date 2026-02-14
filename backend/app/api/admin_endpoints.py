@@ -519,10 +519,13 @@ def mark_leave_after_game(gid, uid):
 
     target_user.leave_after_game = new_state
 
-    # Immediate removal check: if nobody has rolled yet, remove now
+    # Immediate removal: only in WAITING, or STARTED/PLAYFINAL before anyone rolled.
+    # Never remove immediately in ROUNDFINISCH or GAMEFINISCH (dice are reset there).
     if new_state:
         anyone_rolled = any(u.number_dice > 0 for u in game.active_users)
-        if not anyone_rolled or game.status == Status.WAITING:
+        can_remove_now = (game.status == Status.WAITING or
+                          (game.status in (Status.STARTED, Status.PLAYFINAL) and not anyone_rolled))
+        if can_remove_now:
             # Remove immediately
             if target_user.id == game.first_user_id:
                 # Find next user
