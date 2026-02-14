@@ -247,6 +247,7 @@
 
   // ============= Helpers =============
   var _lastGameState = null;  // cache for checking player status etc.
+  var _lastRoundText = '';    // persisted "Letzte Runde" description across rounds
 
   function getGameId() {
     var el = document.getElementById('UUID');
@@ -714,7 +715,7 @@
       // F4: Name + admin badge + leave icon
       var nameCell = document.getElementById('user' + juser.Id);
       var nameHtml = juser.Name;
-      if (juser.Is_Admin) nameHtml += ' <span class="admin-badge"><i class="fas fa-star" title="Admin"></i></span>';
+
       if (juser.Pending_Join) nameHtml += ' <small>(wartet)</small>';
       // Leave icon
       var leaveClass = juser.Leave_After_Game ? 'leave-icon leave-active' : 'leave-icon leave-inactive';
@@ -945,35 +946,48 @@
       throwbutton.disabled = false;
     }
 
-    // E4: Scoring section and distribute button
-    var scoringSection = document.getElementById('scoring_section');
-    var distributeBtn = document.getElementById('distribute_btn');
-    if (game.Scoring) {
-      var info = 'Auswertung -- Hoch: ' + game.Scoring.High
-               + ', Tief: ' + game.Scoring.Low
-               + ' | ' + game.Scoring.Chips + ' Chip(s) von '
-               + game.Scoring.From_Name + ' an ' + game.Scoring.To_Name;
-      document.getElementById('scoring_info').innerHTML = info;
-      scoringSection.style.display = 'block';
-      distributeBtn.disabled = true;
-      setTimeout(function() { distributeBtn.disabled = false; }, 3000);
-    } else {
-      scoringSection.style.display = 'none';
-      distributeBtn.disabled = true;
-    }
+    // Unified round status row
+    var roundRow = document.getElementById('round_status_row');
+    var roundFinished = (waiting_user_id == -1);
+    var needsReveal = roundFinished && isUndecided(game);
+    var readyToDistribute = roundFinished && !needsReveal;
 
-    // H4: Reveal all section
-    var revealAllSection = document.getElementById('reveal_all_section');
-    if (waiting_user_id == -1 && isUndecided(game)) {
-      revealAllSection.style.display = 'block';
-      var voteInfo = document.getElementById('reveal_vote_info');
+    if (readyToDistribute && game.Scoring) {
+      // Phase: all dice visible, ready to distribute
+      var fullInfo = 'Hoch: ' + game.Scoring.High
+                   + ', Tief: ' + game.Scoring.Low
+                   + ' — ' + game.Scoring.Chips + ' Chip(s) von '
+                   + game.Scoring.From_Name + ' an ' + game.Scoring.To_Name;
+      _lastRoundText = fullInfo;
+      roundRow.innerHTML = '<button class="btn btn-success" id="distribute_btn" '
+        + 'onclick="distribute()" disabled>Verteilen</button> '
+        + '<span>' + fullInfo + '</span>';
+      // Enable button after 3s delay
+      setTimeout(function() {
+        var btn = document.getElementById('distribute_btn');
+        if (btn) btn.disabled = false;
+      }, 3000);
+    } else if (needsReveal) {
+      // Phase: waiting for reveal
+      var voteHtml = '';
       if (game.Reveal_Votes > 0) {
-        voteInfo.innerHTML = game.Reveal_Votes + ' Stimme(n)';
+        voteHtml = ' <span>(' + game.Reveal_Votes + ' Stimme(n))</span>';
+      }
+      roundRow.innerHTML = '<button class="btn btn-warning" onclick="vote_reveal_all()">'
+        + 'Alles aufdecken</button>' + voteHtml;
+    } else if (!roundFinished) {
+      // Phase: game is running
+      // On page reload _lastRoundText is lost; reconstruct from game message
+      if (!_lastRoundText && game.Message && (game.Message.includes('Chip(s) von') || game.Message.includes('Schock aus'))) {
+        _lastRoundText = game.Message;
+      }
+      if (_lastRoundText) {
+        roundRow.innerHTML = '<span>Letzte Runde: ' + _lastRoundText + '</span>';
       } else {
-        voteInfo.innerHTML = '';
+        roundRow.innerHTML = '';
       }
     } else {
-      revealAllSection.style.display = 'none';
+      roundRow.innerHTML = '';
     }
 
     // Lobby after game button

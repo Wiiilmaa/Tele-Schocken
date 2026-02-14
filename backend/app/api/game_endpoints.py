@@ -575,7 +575,7 @@ def vote_reveal_all(gid):
     # Count active non-passive players
     active_players = [u for u in game.active_users if not u.passive]
     vote_count = len(current_votes)
-    threshold = len(active_players) // 2 + 1  # strict majority
+    threshold = (len(active_players) + 1) // 2  # half (rounded up), so 1 of 2 is enough
 
     # Admin vote triggers immediately
     is_admin = user.is_admin

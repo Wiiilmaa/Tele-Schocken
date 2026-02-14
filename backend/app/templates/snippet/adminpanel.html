@@ -1,22 +1,7 @@
-<!-- Auswertung section: visible to ALL players -->
-<div id="scoring_section" style="display: none;">
-  <hr>
-  <div class="row">
-    <div class="col-xs-11 col-md-11 col-md-offset-1 col-xs-offset-1">
-      <h4 id="scoring_info"></h4>
-      <button class="btn btn-success" id="distribute_btn" onclick="distribute()" disabled>Verteilen</button>
-    </div>
-  </div>
-</div>
-
-<!-- Reveal all section: visible when waiting for reveal -->
-<div id="reveal_all_section" style="display: none;">
-  <div class="row">
-    <div class="col-xs-11 col-md-11 col-md-offset-1 col-xs-offset-1">
-      <button class="btn btn-warning" onclick="vote_reveal_all()">Alles aufdecken</button>
-      <span id="reveal_vote_info"></span>
-      <small>(Mehrheit oder Admin deckt sofort auf)</small>
-    </div>
+<!-- Unified round status row: visible to ALL players, below the table -->
+<div class="row">
+  <div class="col-xs-12 col-md-10 col-md-offset-1">
+    <div id="round_status_row" style="min-height: 40px; padding: 6px 0;"></div>
   </div>
 </div>
 

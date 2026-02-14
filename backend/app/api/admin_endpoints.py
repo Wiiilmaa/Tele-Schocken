@@ -317,14 +317,12 @@ def distribute_chips(gid):
     game.first_user_id = target_user.id
     game.move_user_id = target_user.id
 
-    # Build message with Hoch/Tief info
+    # Short message for the game message line
     if from_source == 'schockaus':
-        game.message = "Hoch: {}, Tief: {} -- Schock aus! Alle Chips an {}".format(
-            scoring['High'], scoring['Low'], scoring['To_Name'])
+        game.message = "Schock aus! Alle Chips an {}".format(scoring['To_Name'])
     else:
-        game.message = "Hoch: {}, Tief: {} -- {} Chip(s) von {} an {} verteilt".format(
-            scoring['High'], scoring['Low'], transfer_count,
-            scoring['From_Name'], scoring['To_Name'])
+        game.message = "{} Chip(s) von {} an {}".format(
+            transfer_count, scoring['From_Name'], scoring['To_Name'])
 
     # Handle round end (half/final logic)
     message = _handle_round_end(game, target_user)

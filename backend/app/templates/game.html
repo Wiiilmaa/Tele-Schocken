@@ -50,7 +50,7 @@
         <tr >
           <th class="counterCell" scope="row"></th>
             <td>
-              {{ user.name }}{% if user.is_admin %} <span class="admin-badge"><i class="fas fa-star" title="Admin"></i></span>{% endif %}
+              {{ user.name }}
             </td>
         </tr>
         {% endfor %}
@@ -396,7 +396,6 @@
         th.scope = 'row';
         var td = document.createElement('td');
         var nameHtml = juser['Name'];
-        if (juser['Is_Admin']) nameHtml += ' <span class="admin-badge"><i class="fas fa-star" title="Admin"></i></span>';
         if (juser['Pending_Join']) nameHtml += ' <small>(wartet)</small>';
         td.innerHTML = nameHtml;
         tr.appendChild(th);
