@@ -18,19 +18,16 @@ depends_on = None
 
 def upgrade():
     # User table: add is_admin, leave_after_game, pending_join
-    with op.batch_alter_table('user', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('is_admin', sa.Boolean(), nullable=True, server_default='0'))
-        batch_op.add_column(sa.Column('leave_after_game', sa.Boolean(), nullable=True, server_default='0'))
-        batch_op.add_column(sa.Column('pending_join', sa.Boolean(), nullable=True, server_default='0'))
+    op.add_column('user', sa.Column('is_admin', sa.Boolean(), nullable=True, server_default=sa.text('0')))
+    op.add_column('user', sa.Column('leave_after_game', sa.Boolean(), nullable=True, server_default=sa.text('0')))
+    op.add_column('user', sa.Column('pending_join', sa.Boolean(), nullable=True, server_default=sa.text('0')))
 
     # Game table: add lobby_after_game, reveal_votes, ruleset_id
-    with op.batch_alter_table('game', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('lobby_after_game', sa.Boolean(), nullable=True, server_default='0'))
-        batch_op.add_column(sa.Column('reveal_votes', sa.Text(), nullable=True, server_default=''))
-        batch_op.add_column(sa.Column('ruleset_id', sa.String(length=50), nullable=True))
+    op.add_column('game', sa.Column('lobby_after_game', sa.Boolean(), nullable=True, server_default=sa.text('0')))
+    op.add_column('game', sa.Column('reveal_votes', sa.Text(), nullable=True))
+    op.add_column('game', sa.Column('ruleset_id', sa.String(length=50), nullable=True))
 
     # Data migration: set is_admin=True for users matching their game's admin_user_id
-    # This works for both SQLite and MySQL
     op.execute(
         "UPDATE user SET is_admin = 1 WHERE id IN "
         "(SELECT admin_user_id FROM game WHERE admin_user_id IS NOT NULL)"
@@ -43,12 +40,10 @@ def upgrade():
 
 
 def downgrade():
-    with op.batch_alter_table('game', schema=None) as batch_op:
-        batch_op.drop_column('ruleset_id')
-        batch_op.drop_column('reveal_votes')
-        batch_op.drop_column('lobby_after_game')
+    op.drop_column('game', 'ruleset_id')
+    op.drop_column('game', 'reveal_votes')
+    op.drop_column('game', 'lobby_after_game')
 
-    with op.batch_alter_table('user', schema=None) as batch_op:
-        batch_op.drop_column('pending_join')
-        batch_op.drop_column('leave_after_game')
-        batch_op.drop_column('is_admin')
+    op.drop_column('user', 'pending_join')
+    op.drop_column('user', 'leave_after_game')
+    op.drop_column('user', 'is_admin')
