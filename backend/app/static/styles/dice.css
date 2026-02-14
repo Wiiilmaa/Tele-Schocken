@@ -81,11 +81,26 @@
   justify-content: space-between;
 }
 
-/* H1: Stable table row height */
+/* H1: Stable table row height – match dice height (50px + border + cell padding) */
 .dice-cell {
-  min-height: 62px;
   height: 62px;
   vertical-align: middle;
+}
+#player_table td,
+#player_table th {
+  vertical-align: middle;
+  height: 62px;
+}
+
+/* Unified round status row – match button height so it doesn't jump */
+#round_status_row {
+  min-height: 42px;
+  line-height: 34px;
+  padding: 4px 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 /* F4: Leave icon styles */

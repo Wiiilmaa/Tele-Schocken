@@ -71,6 +71,7 @@
         <button onclick="coppy()" class="btn btn-outline-secondary" type="button">kopieren</button>
       </div>
     </div>
+    <div id="qrcode" style="margin-top: 12px;"></div>
   </div>
 </div>
 <div class="row col-md-offset-1 admin_interface">
@@ -169,6 +170,7 @@
 <script type=text/javascript src="{{url_for('static', filename='scripts/jquery-3.5.1.min.js') }}">
 </script>
 
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <script>
   // https://www.w3schools.com/howto/howto_js_copy_clipboard.asp
   function coppy() {
@@ -177,6 +179,20 @@
     copyText.setSelectionRange(0, 99999);
     document.execCommand("copy");
   }
+
+  // Generate QR code for the game link
+  (function() {
+    var loc = window.location;
+    var fullUrl = loc.protocol + '//' + loc.host + '/game_waiting/{{game.UUID}}';
+    new QRCode(document.getElementById('qrcode'), {
+      text: fullUrl,
+      width: 160,
+      height: 160,
+      colorDark: '#000000',
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  })();
 
   var _rulesets = [];
 
