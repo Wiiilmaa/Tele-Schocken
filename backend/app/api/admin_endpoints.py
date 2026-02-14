@@ -42,8 +42,9 @@ def _handle_round_end(game, loser):
     message = 'OK'
 
     if loser.chips == game.stack_max:
-        # Someone loses a half - increase chance of fallen dice
-        game.changs_of_fallling_dice = game.changs_of_fallling_dice + 0.0002
+        # Someone loses a half - increase chance of fallen dice (only if enabled)
+        if game.changs_of_fallling_dice > 0:
+            game.changs_of_fallling_dice = game.changs_of_fallling_dice + 0.0002
 
         if game.play_final:
             if game.status == Status.PLAYFINAL:

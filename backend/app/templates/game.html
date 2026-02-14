@@ -357,6 +357,18 @@
           hand.style.webkitAnimationName = 'run';
           setdamin.innerHTML = 'Du bist Admin. Bitte starten wenn alle Spieler in der Liste stehen.';
         }
+
+        // Restore falling dice checkbox from current game state
+        var fallingCb = document.getElementById('falling_dice_cb');
+        if (fallingCb && gameData.Falling_Dice !== undefined) {
+          fallingCb.checked = gameData.Falling_Dice;
+        }
+
+        // Restore selected ruleset
+        if (gameData.Ruleset_Id) {
+          var rulesetSel = document.getElementById('ruleset_select');
+          if (rulesetSel) rulesetSel.value = gameData.Ruleset_Id;
+        }
       }
     }
     xhttp.send();
