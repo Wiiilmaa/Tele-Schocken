@@ -564,9 +564,9 @@ def vote_reveal_all(gid):
     current_votes.add(str(requester_id))
     game.reveal_votes = ','.join(current_votes)
 
-    # Count all players (including passive/waiting) for threshold
+    # Count ALL players (including pending/waiting) for threshold
     vote_count = len(current_votes)
-    threshold = (len(game.active_users) + 1) // 2  # half (rounded up), so 1 of 2 is enough
+    threshold = (len(game.users) + 1) // 2  # half (rounded up): 2 of 2, 2 of 3, etc.
 
     # Admin vote triggers immediately
     is_admin = user.is_admin
