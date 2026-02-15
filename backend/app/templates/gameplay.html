@@ -203,7 +203,7 @@
         <button onclick="document.getElementById('share_link_input').select();document.execCommand('copy');" class="btn btn-outline-secondary" type="button">kopieren</button>
       </div>
     </div>
-    <div id="share_qrcode" style="margin-top: 12px;"></div>
+    <div id="share_qrcode" style="margin-top: 12px; padding: 20px;"></div>
   </div>
 </div>
 
@@ -714,14 +714,13 @@
     });
 
     // Add/update rows for each user
-    var counter = 1;
-    game.User.forEach(function(juser) {
+    game.User.forEach(function(juser, idx) {
       var row = document.getElementById('row' + juser.Id);
       if (!row) {
         // Create new row
         row = document.createElement('tr');
         row.id = 'row' + juser.Id;
-        row.innerHTML = '<td class="counterCell col-counter"></td>'
+        row.innerHTML = '<td class="col-counter"></td>'
           + '<td id="user' + juser.Id + '" class="col-name"></td>'
           + '<td id="chips' + juser.Id + '" class="col-chips"></td>'
           + '<td id="Number_Dice' + juser.Id + '" class="col-throws"></td>'
@@ -733,8 +732,8 @@
         tbody.appendChild(row);
       }
 
-      // Counter
-      row.querySelector('.counterCell').innerHTML = counter++;
+      // Counter: use first cell directly
+      row.cells[0].textContent = idx + 1;
 
       // G5: Pending player display
       if (juser.Pending_Join) {

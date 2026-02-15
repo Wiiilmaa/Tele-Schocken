@@ -205,6 +205,14 @@ body {
   }
 }
 
+/* Desktop: more padding in table cells */
+@media (min-width: 768px) {
+  #player_table td,
+  #player_table th {
+    padding: 4px 10px;
+  }
+}
+
 /* Larger checkboxes on desktop screens */
 @media (min-width: 992px) {
   #dice1_cb,
