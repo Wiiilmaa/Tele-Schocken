@@ -1123,8 +1123,12 @@
       if (game.Reveal_Votes > 0) {
         voteHtml = ' <span>(' + game.Reveal_Votes + ' Stimme(n))</span>';
       }
-      roundRow.innerHTML = '<button class="btn btn-warning" onclick="vote_reveal_all()">'
+      roundRow.innerHTML = '<button class="btn btn-warning" id="reveal_all_btn" onclick="vote_reveal_all()" disabled>'
         + 'Alles aufdecken</button>' + voteHtml;
+      setTimeout(function() {
+        var btn = document.getElementById('reveal_all_btn');
+        if (btn) btn.disabled = false;
+      }, 10000);
     } else if (!roundFinished) {
       // Phase: game is running – show last round result from server state
       var lastText = formatScoringText(game.Last_Scoring);
