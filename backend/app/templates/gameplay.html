@@ -319,34 +319,35 @@
   try { soundDice.load(); soundLift.load(); soundDiceY.load(); } catch(e) {}
 
   // Unlock audio on first user interaction.
-  // Play each element at volume 0 so the browser marks it as user-initiated.
+  // Play each element muted so the browser marks it as user-initiated.
+  // (On iOS, audio.volume is read-only and always 1, so we must use .muted instead.)
   // Only pause afterwards if no real playSound() call has claimed the element
-  // in the meantime (detected by volume still being 0).
+  // in the meantime (detected by .muted still being true).
   function unlockAudio() {
     if (audioUnlocked) return;
     audioUnlocked = true;
     [soundDice, soundLift, soundDiceY].forEach(function(audio) {
-      audio.volume = 0;
+      audio.muted = true;
       var p = audio.play();
       if (p) {
         p.then(function() {
-          // If volume is still 0, no real playSound happened — safe to reset.
-          if (audio.volume === 0) {
+          // If still muted, no real playSound happened — safe to reset.
+          if (audio.muted) {
             audio.pause();
             audio.currentTime = 0;
-            audio.volume = 1;
           }
+          audio.muted = false;
         }).catch(function() {
-          audio.volume = 1;
+          audio.muted = false;
         });
       } else {
         // Older browser without promise-based play
         setTimeout(function() {
-          if (audio.volume === 0) {
+          if (audio.muted) {
             audio.pause();
             audio.currentTime = 0;
-            audio.volume = 1;
           }
+          audio.muted = false;
         }, 250);
       }
     });
@@ -360,7 +361,7 @@
 
   function playSound(audio) {
     if (!audio) return;
-    audio.volume = 1;  // claim element (prevents unlock from pausing it)
+    audio.muted = false;  // claim element (prevents unlock from pausing it)
     try { audio.currentTime = 0; } catch(e) {}
     var p = audio.play();
     if (p !== undefined) {
