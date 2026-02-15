@@ -204,6 +204,7 @@
       </div>
     </div>
     <div id="share_qrcode" style="margin-top: 12px; padding: 20px;"></div>
+    <button id="switch_device_btn" onclick="toggleDeviceSwitch()" class="btn btn-outline-secondary btn-sm" style="margin-top: 8px;">Gerät wechseln</button>
   </div>
 </div>
 
@@ -215,6 +216,23 @@
 {{ super() }}
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <script>
+  // Handle device switch: read params from URL and set localStorage
+  (function() {
+    var params = new URLSearchParams(window.location.search);
+    var switchId = params.get('switch_id');
+    var switchName = params.get('switch_name');
+    if (switchId && switchName) {
+      localStorage.setItem('id', switchId);
+      localStorage.setItem('name', switchName);
+      params.delete('switch_id');
+      params.delete('switch_name');
+      var newUrl = window.location.pathname;
+      var remaining = params.toString();
+      if (remaining) newUrl += '?' + remaining;
+      window.history.replaceState({}, '', newUrl);
+    }
+  })();
+
   (function() {
     var loc = window.location;
     var gameUUID = document.getElementById('UUID').innerHTML.replace(/['"]+/g, '');
@@ -229,6 +247,48 @@
       correctLevel: QRCode.CorrectLevel.M
     });
   })();
+
+  // Toggle between invite link and device-switch link
+  var _showingDeviceSwitch = false;
+  function toggleDeviceSwitch() {
+    var myId = localStorage.getItem('id');
+    var myName = localStorage.getItem('name');
+    if (!myId || !myName) {
+      alert('Du musst erst dem Spiel beitreten.');
+      return;
+    }
+    var btn = document.getElementById('switch_device_btn');
+    var linkInput = document.getElementById('share_link_input');
+    var qrContainer = document.getElementById('share_qrcode');
+    var loc = window.location;
+    var gameUUID = document.getElementById('UUID').innerHTML.replace(/['"]+/g, '').trim();
+
+    if (!_showingDeviceSwitch) {
+      var deviceUrl = loc.protocol + '//' + loc.host + '/game_waiting/' + gameUUID
+                    + '?switch_id=' + encodeURIComponent(myId)
+                    + '&switch_name=' + encodeURIComponent(myName);
+      linkInput.value = deviceUrl;
+      qrContainer.innerHTML = '';
+      new QRCode(qrContainer, {
+        text: deviceUrl, width: 160, height: 160,
+        colorDark: '#000000', colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M
+      });
+      btn.textContent = 'Spieler einladen';
+      _showingDeviceSwitch = true;
+    } else {
+      var inviteUrl = loc.protocol + '//' + loc.host + '/game_waiting/' + gameUUID;
+      linkInput.value = inviteUrl;
+      qrContainer.innerHTML = '';
+      new QRCode(qrContainer, {
+        text: inviteUrl, width: 160, height: 160,
+        colorDark: '#000000', colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M
+      });
+      btn.textContent = 'Gerät wechseln';
+      _showingDeviceSwitch = false;
+    }
+  }
 </script>
 <script type=text/javascript src="{{url_for('static', filename='scripts/faq.js') }}">
 </script>
