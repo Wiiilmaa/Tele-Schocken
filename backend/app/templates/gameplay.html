@@ -279,6 +279,7 @@
   // ============= Helpers =============
   var _lastGameState = null;  // cache for checking player status etc.
   var _lastRoundText = '';    // persisted "Letzte Runde" description across rounds
+  var _wasInRevealPhase = false; // track reveal phase to play sound only on transition
 
   function getGameId() {
     var el = document.getElementById('UUID');
@@ -872,9 +873,6 @@
     var el_message = document.getElementById('Message');
     if (game.Message) {
       if (el_message.innerHTML != 'Nachricht: ' + game.Message) {
-        if (!me_inactive && game.Message.startsWith('Aufdecken')) {
-          playSound(soundLift);
-        }
         el_message.className = "message";
         el_message.style.animation = 'none';
         el_message.offsetHeight;
@@ -989,6 +987,16 @@
     var roundFinished = (waiting_user_id == -1);
     var needsReveal = roundFinished && isUndecided(game);
     var readyToDistribute = roundFinished && !needsReveal;
+
+    // Play reveal sound only on transition into the reveal phase,
+    // and only for active players who still have hidden dice
+    if (needsReveal && !_wasInRevealPhase) {
+      if (me_data && !me_data.Passive && !me_data.Pending_Join
+          && me_data.Dices.length < 3 && me_data.Number_Dice > 0) {
+        playSound(soundLift);
+      }
+    }
+    _wasInRevealPhase = needsReveal;
 
     if (readyToDistribute && game.Scoring) {
       // Phase: all dice visible, ready to distribute
