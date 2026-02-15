@@ -6,6 +6,7 @@ A Game Class represent a hole Schocken game
 """
 from app import db
 import enum
+import json
 import uuid
 from datetime import datetime
 from markupsafe import Markup
@@ -70,6 +71,8 @@ class Game(BaseGameData, db.Model):
     # Flag: player joins/leaves are executed immediately (True at game start,
     # cleared on first roll, set again after GAMEFINISCH deferred actions)
     player_changes_allowed = db.Column(db.Boolean(), default=True)
+    # Last scoring result (JSON) – persisted so all clients can display it
+    last_scoring = db.Column(db.Text)
 
     @property
     def active_users(self):
@@ -107,13 +110,20 @@ class Game(BaseGameData, db.Model):
             'Reveal_Votes': len([v for v in (self.reveal_votes or '').split(',') if v]),
         }
 
-        # Add scoring when ready for distribution
+        # Add live scoring when ready for distribution
         if self.move_user_id == -1 and self._all_dice_visible():
             try:
                 from app.scoring import calculate_scoring
                 data['Scoring'] = calculate_scoring(self)
             except Exception as e:
                 print('Scoring error: {}'.format(e))
+
+        # Add persisted last scoring (available in all phases)
+        if self.last_scoring:
+            try:
+                data['Last_Scoring'] = json.loads(self.last_scoring)
+            except Exception:
+                pass
 
         # Add ruleset info if available
         if self.ruleset_id:

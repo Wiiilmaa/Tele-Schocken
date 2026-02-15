@@ -370,7 +370,6 @@
 
   // ============= Helpers =============
   var _lastGameState = null;  // cache for checking player status etc.
-  var _lastRoundText = '';    // persisted "Letzte Runde" description across rounds
   var _wasInRevealPhase = false; // track reveal phase to play sound only on transition
   var _lastWaitingUserId = undefined; // undefined = first load (suppress sound on page load)
 
@@ -503,6 +502,21 @@
       }
       default: return null;
     }
+  }
+
+  // Format a scoring object (from game.Scoring or game.Last_Scoring) into display HTML
+  function formatScoringText(scoring) {
+    if (!scoring) return '';
+    var chipsPart;
+    if (scoring.From === 'schockaus') {
+      chipsPart = 'Schockaus! Alle Chips an ' + scoring.To_Name;
+    } else {
+      chipsPart = scoring.Chips + ' Chip(s) von '
+                + scoring.From_Name + ' an ' + scoring.To_Name;
+    }
+    return '<b>Hoch:</b> ' + scoring.High
+         + ' — <b>Tief:</b> ' + scoring.Low
+         + ' — ' + chipsPart;
   }
 
   // Append dice element if non-null
@@ -1094,17 +1108,7 @@
 
     if (readyToDistribute && game.Scoring) {
       // Phase: all dice visible, ready to distribute
-      var chipsPart;
-      if (game.Scoring.From === 'schockaus') {
-        chipsPart = 'Schockaus! Alle Chips an ' + game.Scoring.To_Name;
-      } else {
-        chipsPart = game.Scoring.Chips + ' Chip(s) von '
-                  + game.Scoring.From_Name + ' an ' + game.Scoring.To_Name;
-      }
-      var fullInfo = '<b>Hoch:</b> ' + game.Scoring.High
-                   + ' — <b>Tief:</b> ' + game.Scoring.Low
-                   + ' — ' + chipsPart;
-      _lastRoundText = fullInfo;
+      var fullInfo = formatScoringText(game.Scoring);
       roundRow.innerHTML = '<button class="btn btn-success" id="distribute_btn" '
         + 'onclick="distribute()" disabled>Verteilen</button> '
         + '<span>' + fullInfo + '</span>';
@@ -1122,13 +1126,10 @@
       roundRow.innerHTML = '<button class="btn btn-warning" onclick="vote_reveal_all()">'
         + 'Alles aufdecken</button>' + voteHtml;
     } else if (!roundFinished) {
-      // Phase: game is running
-      // On page reload _lastRoundText is lost; reconstruct from game message
-      if (!_lastRoundText && game.Message && (game.Message.includes('Chip(s) von') || game.Message.includes('Schock aus'))) {
-        _lastRoundText = game.Message;
-      }
-      if (_lastRoundText) {
-        roundRow.innerHTML = '<span>Letzte Runde: ' + _lastRoundText + '</span>';
+      // Phase: game is running – show last round result from server state
+      var lastText = formatScoringText(game.Last_Scoring);
+      if (lastText) {
+        roundRow.innerHTML = '<span>Letzte Runde: ' + lastText + '</span>';
       } else {
         roundRow.innerHTML = '';
       }

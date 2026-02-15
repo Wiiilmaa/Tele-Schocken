@@ -9,6 +9,7 @@ from app.models import User, Game, Status
 from random import seed, randrange
 from jinja2 import utils
 
+import json
 from app.api.errors import bad_request
 from app.rulesets import get_all_rulesets, get_ruleset
 from app.scoring import calculate_scoring
@@ -303,6 +304,9 @@ def distribute_chips(gid):
     scoring = calculate_scoring(game)
     if scoring is None:
         return jsonify(Message='Auswertung konnte nicht berechnet werden'), 500
+
+    # Persist scoring so all clients can display it after distribution
+    game.last_scoring = json.dumps(scoring)
 
     # Perform the chip transfer
     target_user = User.query.get(scoring['To'])
