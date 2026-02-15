@@ -61,7 +61,7 @@
 
 
 <div class="row col-md-offset-1 col-md-10">
-    <h3>Verteile diesen Link an alle Mitspieler:</h3>
+    <h3 id="share_heading">Verteile diesen Link an alle Mitspieler:</h3>
 </div>
 <div class="row">
   <div class="col-md-offset-1 col-md-4" >
@@ -230,6 +230,8 @@
     var loc = window.location;
     var gameUUID = document.getElementById('UUID').innerHTML.replace(/['"]+/g, '').trim();
 
+    var heading = document.getElementById('share_heading');
+
     if (!_showingDeviceSwitch) {
       var deviceUrl = loc.protocol + '//' + loc.host + '/game_waiting/' + gameUUID
                     + '?switch_id=' + encodeURIComponent(myId)
@@ -242,6 +244,7 @@
         correctLevel: QRCode.CorrectLevel.M
       });
       btn.textContent = 'Spieler einladen';
+      heading.textContent = 'Behalte diesen Link für dich:';
       _showingDeviceSwitch = true;
     } else {
       var inviteUrl = loc.protocol + '//' + loc.host + '/game_waiting/' + gameUUID;
@@ -253,6 +256,7 @@
         correctLevel: QRCode.CorrectLevel.M
       });
       btn.textContent = 'Gerät wechseln';
+      heading.textContent = 'Verteile diesen Link an alle Mitspieler:';
       _showingDeviceSwitch = false;
     }
   }
