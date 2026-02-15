@@ -175,13 +175,8 @@ function distribute() {
   xhttp.onreadystatechange = function () {
     if (xhttp.readyState == XMLHttpRequest.DONE) {
       if (xhttp.status != 200) {
-        try {
-          var res = JSON.parse(xhttp.responseText);
-          alert(res.Message);
-        } catch (e) {
-          alert('Fehler bei der Verteilung');
-        }
-        document.getElementById('distribute_btn').disabled = false;
+        // Silently ignore – another player likely already distributed.
+        // The socket reload_game event will update the UI correctly.
       }
     }
   };
