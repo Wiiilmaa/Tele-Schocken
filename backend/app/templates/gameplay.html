@@ -318,22 +318,50 @@
   // Preload
   try { soundDice.load(); soundLift.load(); soundDiceY.load(); } catch(e) {}
 
+  // Unlock audio on first user interaction.
+  // Play each element at volume 0 so the browser marks it as user-initiated.
+  // Only pause afterwards if no real playSound() call has claimed the element
+  // in the meantime (detected by volume still being 0).
   function unlockAudio() {
     if (audioUnlocked) return;
-    [soundDice, soundLift, soundDiceY].forEach(function(audio) {
-      var p = audio.play();
-      if (p) p.then(function() { audio.pause(); audio.currentTime = 0; }).catch(function() {});
-    });
     audioUnlocked = true;
+    [soundDice, soundLift, soundDiceY].forEach(function(audio) {
+      audio.volume = 0;
+      var p = audio.play();
+      if (p) {
+        p.then(function() {
+          // If volume is still 0, no real playSound happened — safe to reset.
+          if (audio.volume === 0) {
+            audio.pause();
+            audio.currentTime = 0;
+            audio.volume = 1;
+          }
+        }).catch(function() {
+          audio.volume = 1;
+        });
+      } else {
+        // Older browser without promise-based play
+        setTimeout(function() {
+          if (audio.volume === 0) {
+            audio.pause();
+            audio.currentTime = 0;
+            audio.volume = 1;
+          }
+        }, 250);
+      }
+    });
     document.removeEventListener('click', unlockAudio);
     document.removeEventListener('touchstart', unlockAudio);
+    document.removeEventListener('touchend', unlockAudio);
   }
   document.addEventListener('click', unlockAudio);
   document.addEventListener('touchstart', unlockAudio);
+  document.addEventListener('touchend', unlockAudio);
 
   function playSound(audio) {
     if (!audio) return;
-    audio.currentTime = 0;
+    audio.volume = 1;  // claim element (prevents unlock from pausing it)
+    try { audio.currentTime = 0; } catch(e) {}
     var p = audio.play();
     if (p !== undefined) {
       p.catch(function(e) { console.log('Sound konnte nicht abgespielt werden:', e.message); });
@@ -344,6 +372,7 @@
   var _lastGameState = null;  // cache for checking player status etc.
   var _lastRoundText = '';    // persisted "Letzte Runde" description across rounds
   var _wasInRevealPhase = false; // track reveal phase to play sound only on transition
+  var _lastWaitingUserId = undefined; // undefined = first load (suppress sound on page load)
 
   function getGameId() {
     var el = document.getElementById('UUID');
@@ -968,19 +997,20 @@
       // Find the waiting user's name
       for (var num in game.User) {
         if (game.User[num]['Id'] == waiting_user_id) {
-          // Sound when it's my turn
-          if (game.Message) {
-            if (waitinguserstorage.innerHTML != 'Warten auf: ' + game.User[num]['Name']) {
-              if (game.User[num]['Id'] == id && !game.Message.startsWith('Aufdecken')) {
-                playSound(soundDiceY);
-              }
-            }
-          }
           waitinguserstorage.innerHTML = 'Warten auf: ' + game.User[num]['Name'];
           break;
         }
       }
     }
+
+    // Play "your turn" sound when the waiting user changes to me.
+    // _lastWaitingUserId === undefined on first load → suppress sound on page load.
+    if (_lastWaitingUserId !== undefined
+        && waiting_user_id !== _lastWaitingUserId
+        && waiting_user_id === id) {
+      playSound(soundDiceY);
+    }
+    _lastWaitingUserId = waiting_user_id;
 
     // H2: Update table rows dynamically
     updateTableRows(game);
