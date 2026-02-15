@@ -105,7 +105,7 @@ function choose_admin() {
 }
 
 function back_to_waiting() {
-  if (confirm('Bist du sicher das du zurueck zum Warteraum willst? Die Runde startet von vorne!')) {
+  if (confirm('Bist du sicher, dass du zurück zum Warteraum willst? Die Runde startet von vorne!')) {
     var gameid = getGameId();
     var xhttp = new XMLHttpRequest();
     xhttp.open("POST", "/api/game/" + gameid + "/back");

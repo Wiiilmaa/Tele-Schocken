@@ -17,10 +17,10 @@
       {"dice": 444, "name": "Kardinal 4", "chips": 3},
       {"dice": 333, "name": "Kardinal 3", "chips": 3},
       {"dice": 222, "name": "Kardinal 2", "chips": 3},
-      {"dice": 654, "name": "Grosse Strasse", "chips": 2},
-      {"dice": 543, "name": "Strasse", "chips": 2},
-      {"dice": 432, "name": "Strasse", "chips": 2},
-      {"dice": 321, "name": "Kleine Strasse", "chips": 2}
+      {"dice": 654, "name": "Große Straße", "chips": 2},
+      {"dice": 543, "name": "Straße", "chips": 2},
+      {"dice": 432, "name": "Straße", "chips": 2},
+      {"dice": 321, "name": "Kleine Straße", "chips": 2}
     ]
   },
   {
@@ -41,10 +41,10 @@
       {"dice": 444, "name": "Kardinal 4", "chips": 3},
       {"dice": 333, "name": "Kardinal 3", "chips": 3},
       {"dice": 222, "name": "Kardinal 2", "chips": 3},
-      {"dice": 654, "name": "Grosse Strasse", "chips": 2},
-      {"dice": 543, "name": "Strasse", "chips": 2},
-      {"dice": 432, "name": "Strasse", "chips": 2},
-      {"dice": 321, "name": "Kleine Strasse", "chips": 2}
+      {"dice": 654, "name": "Große Straße", "chips": 2},
+      {"dice": 543, "name": "Straße", "chips": 2},
+      {"dice": 432, "name": "Straße", "chips": 2},
+      {"dice": 321, "name": "Kleine Straße", "chips": 2}
     ]
   },
   {
@@ -64,10 +64,10 @@
       {"dice": 444, "name": "Kardinal 4", "chips": 3},
       {"dice": 333, "name": "Kardinal 3", "chips": 3},
       {"dice": 222, "name": "Kardinal 2", "chips": 3},
-      {"dice": 654, "name": "Grosse Strasse", "chips": 2},
-      {"dice": 543, "name": "Strasse", "chips": 2},
-      {"dice": 432, "name": "Strasse", "chips": 2},
-      {"dice": 321, "name": "Kleine Strasse", "chips": 2}
+      {"dice": 654, "name": "Große Straße", "chips": 2},
+      {"dice": 543, "name": "Straße", "chips": 2},
+      {"dice": 432, "name": "Straße", "chips": 2},
+      {"dice": 321, "name": "Kleine Straße", "chips": 2}
     ]
   },
   {
@@ -87,10 +87,10 @@
       {"dice": 444, "name": "Kardinal 4", "chips": 3},
       {"dice": 333, "name": "Kardinal 3", "chips": 3},
       {"dice": 222, "name": "Kardinal 2", "chips": 3},
-      {"dice": 654, "name": "Grosse Strasse", "chips": 2},
-      {"dice": 543, "name": "Strasse", "chips": 2},
-      {"dice": 432, "name": "Strasse", "chips": 2},
-      {"dice": 321, "name": "Kleine Strasse", "chips": 2}
+      {"dice": 654, "name": "Große Straße", "chips": 2},
+      {"dice": 543, "name": "Straße", "chips": 2},
+      {"dice": 432, "name": "Straße", "chips": 2},
+      {"dice": 321, "name": "Kleine Straße", "chips": 2}
     ]
   },
   {
@@ -112,10 +112,10 @@
       {"dice": 444, "name": "Kardinal 4", "chips": 3},
       {"dice": 333, "name": "Kardinal 3", "chips": 3},
       {"dice": 222, "name": "Kardinal 2", "chips": 3},
-      {"dice": 654, "name": "Grosse Strasse", "chips": 2},
-      {"dice": 543, "name": "Strasse", "chips": 2},
-      {"dice": 432, "name": "Strasse", "chips": 2},
-      {"dice": 321, "name": "Kleine Strasse", "chips": 2}
+      {"dice": 654, "name": "Große Straße", "chips": 2},
+      {"dice": 543, "name": "Straße", "chips": 2},
+      {"dice": 432, "name": "Straße", "chips": 2},
+      {"dice": 321, "name": "Kleine Straße", "chips": 2}
     ]
   },
   {
@@ -137,10 +137,10 @@
       {"dice": 444, "name": "Kardinal 4", "chips": 3},
       {"dice": 333, "name": "Kardinal 3", "chips": 3},
       {"dice": 222, "name": "Kardinal 2", "chips": 3},
-      {"dice": 654, "name": "Grosse Strasse", "chips": 2},
-      {"dice": 543, "name": "Strasse", "chips": 2},
-      {"dice": 432, "name": "Strasse", "chips": 2},
-      {"dice": 321, "name": "Kleine Strasse", "chips": 2}
+      {"dice": 654, "name": "Große Straße", "chips": 2},
+      {"dice": 543, "name": "Straße", "chips": 2},
+      {"dice": 432, "name": "Straße", "chips": 2},
+      {"dice": 321, "name": "Kleine Straße", "chips": 2}
     ]
   }
 ]

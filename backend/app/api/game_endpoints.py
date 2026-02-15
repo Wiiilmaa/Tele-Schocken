@@ -173,7 +173,7 @@ def pull_up_dice_cup(gid, uid):
 
     # B3: Must have rolled at least once to show dice
     if user.number_dice == 0:
-        response = jsonify(Message='Du musst zuerst wuerfeln!')
+        response = jsonify(Message='Du musst zuerst würfeln!')
         response.status_code = 400
         return response
 
@@ -230,11 +230,11 @@ def finish_throwing(gid, uid):
     # chips on the stack need to dice once
     # no chips on the stack but user has chips so you need to dice once
     if (game.stack != 0 or user.chips != 0) and user.number_dice == 0:
-        response = jsonify(Message='Du musst mindestens einmal wuerfeln!')
+        response = jsonify(Message='Du musst mindestens einmal würfeln!')
         response.status_code = 400
         return response
     if user.dice1 is None or user.dice2 is None or user.dice3 is None:
-        response = jsonify(Message='Nach dem Verwandeln von Sechsen in Einsen musst Du nochmal wuerfeln')
+        response = jsonify(Message='Nach dem Verwandeln von Sechsen in Einsen musst Du nochmal würfeln')
         response.status_code = 400
         return response
     if user.id == game.move_user_id:
@@ -350,13 +350,13 @@ def roll_dice(gid, uid):
     if user.id == game.move_user_id:
         if game.first_user_id == user.id or user.number_dice < first_user_dice:
             if user.number_dice >= 3:
-                response = jsonify(Message='Du hast schon dreimal gewuerfelt!')
+                response = jsonify(Message='Du hast schon dreimal gewürfelt!')
                 response.status_code = 400
                 return response
             # Check if a dice fall from the table and return if so
             fallen = decision(game.changs_of_fallling_dice)
             if fallen:
-                game.message = "Hoppla, {} ist ein Wuerfel vom Tisch gefallen!".format(user.name)
+                game.message = "Hoppla, {} ist ein Würfel vom Tisch gefallen!".format(user.name)
                 game.fallling_dice_count = game.fallling_dice_count + 1
                 db.session.add(game)
                 db.session.commit()
@@ -481,7 +481,7 @@ def turn_dice(gid, uid):
                 response.status_code = 400
                 return response
         else:
-            response = jsonify(Message='Du musst nach dem Umdrehen noch wuerfeln koennen')
+            response = jsonify(Message='Du musst nach dem Umdrehen noch würfeln können')
             response.status_code = 400
             return response
     else:
@@ -515,7 +515,7 @@ def sort_dice(gid):
             return response
         # B2: Admin check
         if not user.is_admin:
-            response = jsonify(Message='Nur Admins duerfen diese Aktion ausfuehren')
+            response = jsonify(Message='Nur Admins dürfen diese Aktion ausführen')
             response.status_code = 403
             return response
 
@@ -558,7 +558,7 @@ def vote_reveal_all(gid):
         return jsonify(Message='Runde ist noch nicht beendet'), 400
 
     if game._all_dice_visible():
-        return jsonify(Message='Alle Wuerfel sind bereits aufgedeckt'), 400
+        return jsonify(Message='Alle Würfel sind bereits aufgedeckt'), 400
 
     data = request.get_json() or {}
     requester_id = data.get('requester_id')
@@ -594,13 +594,13 @@ def vote_reveal_all(gid):
         db.session.add(game)
         db.session.commit()
     else:
-        game.message = "Aufdecken! ({}/{} Stimmen fuer Alles aufdecken)".format(
+        game.message = "Aufdecken! ({}/{} Stimmen für Alles aufdecken)".format(
             vote_count, threshold)
         db.session.add(game)
         db.session.commit()
 
     emit('reload_game', game.to_dict(), room=gid, namespace='/game')
-    return jsonify(Message='Stimme gezaehlt'), 200
+    return jsonify(Message='Stimme gezählt'), 200
 
 
 # to fall a dice from the tableCount

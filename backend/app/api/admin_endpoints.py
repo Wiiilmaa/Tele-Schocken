@@ -67,7 +67,7 @@ def _handle_round_end(game, loser):
                         user.passive = False
                         user.chips = 0
                         user.halfcount = 0
-                    message = '{} hat beide Haelften und damit das Spiel verloren'.format(loser.name)
+                    message = '{} hat beide Hälften und damit das Spiel verloren'.format(loser.name)
                     game.message = message
                 # First half, round finish
                 elif loser.halfcount == 0:
@@ -81,10 +81,10 @@ def _handle_round_end(game, loser):
                             user.passive = False
                             user.chips = 0
                         message = 'Finale wird gespielt'
-                        game.message = 'Finale wird gespielt, grau hinterlegte Spieler muessen warten'
+                        game.message = 'Finale wird gespielt, grau hinterlegte Spieler müssen warten'
                     else:
                         game.status = Status.ROUNDFINISCH
-                        message = '{} hat die Haelfte verloren'.format(loser.name)
+                        message = '{} hat die Hälfte verloren'.format(loser.name)
                         game.message = message
                 else:
                     message = 'Fehler'
@@ -159,7 +159,7 @@ def execute_deferred_actions(game):
             user.leave_after_game = False
         game.stack = game.stack_max
         game.player_changes_allowed = True
-        game.message = "Zurueck in der Lobby"
+        game.message = "Zurück in der Lobby"
     else:
         # Auto-start next round
         game.status = Status.STARTED
@@ -225,7 +225,7 @@ def start_game(gid):
     # B2: Admin check
     requester_id = data.get('admin_id')
     if requester_id and not _is_admin(game, int(requester_id)):
-        return jsonify(Message='Nur Admins duerfen das Spiel starten'), 403
+        return jsonify(Message='Nur Admins dürfen das Spiel starten'), 403
 
     # Support both new ruleset-based and legacy stack_max/play_final start
     if 'ruleset_id' in data:
@@ -298,7 +298,7 @@ def distribute_chips(gid):
     if game.move_user_id != -1:
         return jsonify(Message='Noch nicht alle Spieler sind fertig'), 400
     if not game._all_dice_visible():
-        return jsonify(Message='Noch nicht alle Wuerfel aufgedeckt'), 400
+        return jsonify(Message='Noch nicht alle Würfel aufgedeckt'), 400
 
     # Calculate scoring
     scoring = calculate_scoring(game)
@@ -373,7 +373,7 @@ def transfer_chips(gid):
     # B2: Admin check
     admin_id = data.get('admin_id')
     if admin_id and not _is_admin(game, int(admin_id)):
-        return jsonify(Message='Nur Admins duerfen Chips verteilen'), 403
+        return jsonify(Message='Nur Admins dürfen Chips verteilen'), 403
 
     if 'target' not in data:
         return jsonify(Message='request must include target'), 400
@@ -403,7 +403,7 @@ def transfer_chips(gid):
             db.session.add(game)
             db.session.commit()
         else:
-            return jsonify(Message='nicht genuegend Chips an der Quelle'), 400
+            return jsonify(Message='nicht genügend Chips an der Quelle'), 400
 
     # Transfer from stack to user B
     if 'count' in data and 'stack' in data and 'target' in data:
@@ -425,7 +425,7 @@ def transfer_chips(gid):
             db.session.add(game)
             db.session.commit()
         else:
-            return jsonify(Message='Nicht genuegend Chips auf dem Stapel'), 400
+            return jsonify(Message='Nicht genügend Chips auf dem Stapel'), 400
 
     # Transfer all to B (Schockaus)
     if 'schockaus' in data and 'target' in data:
@@ -477,7 +477,7 @@ def toggle_admin(gid, uid):
     data = request.get_json() or {}
     requester_id = data.get('requester_id')
     if not requester_id or not _is_admin(game, int(requester_id)):
-        return jsonify(Message='Nur Admins duerfen andere Admins ernennen'), 403
+        return jsonify(Message='Nur Admins dürfen andere Admins ernennen'), 403
 
     target_user = User.query.get(uid)
     if target_user is None or target_user.game_id != game.id:
@@ -528,7 +528,7 @@ def mark_leave_after_game(gid, uid):
     is_admin = _is_admin(game, requester_id)
 
     if not is_self and not is_admin:
-        return jsonify(Message='Nur der Spieler selbst oder ein Admin kann diese Aktion ausfuehren'), 403
+        return jsonify(Message='Nur der Spieler selbst oder ein Admin kann diese Aktion ausführen'), 403
 
     # Toggle
     new_state = not target_user.leave_after_game
@@ -594,7 +594,7 @@ def mark_lobby_after_game(gid):
     data = request.get_json() or {}
     requester_id = data.get('requester_id')
     if not requester_id or not _is_admin(game, int(requester_id)):
-        return jsonify(Message='Nur Admins duerfen diese Aktion ausfuehren'), 403
+        return jsonify(Message='Nur Admins dürfen diese Aktion ausführen'), 403
 
     game.lobby_after_game = not game.lobby_after_game
     db.session.add(game)
@@ -602,7 +602,7 @@ def mark_lobby_after_game(gid):
     emit('reload_game', game.to_dict(), room=gid, namespace='/game')
 
     if game.lobby_after_game:
-        return jsonify(Message='Nach dem Spiel zurueck zur Lobby'), 200
+        return jsonify(Message='Nach dem Spiel zurück zur Lobby'), 200
     else:
         return jsonify(Message='Lobby nach dem Spiel aufgehoben'), 200
 
@@ -675,7 +675,7 @@ def choose_admin(gid, uid):
     if user.game_id != game.id:
         return jsonify(Message='Spieler ist nicht in diesem Spiel'), 404
     if not user.is_admin:
-        return jsonify(Message='Nur Admins duerfen diese Aktion ausfuehren'), 403
+        return jsonify(Message='Nur Admins dürfen diese Aktion ausführen'), 403
 
     # Promote the new admin
     new_admin.is_admin = True
