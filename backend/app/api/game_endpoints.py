@@ -284,6 +284,17 @@ def set_user_passiv(gid, uid):
         escapeduserstate = str(utils.escape(data['userstate']))
         val = escapeduserstate.lower() in ['true', '1']
         user.passive = val
+
+        # If the player goes passive while it's their turn, auto-advance
+        if val and user.id == game.move_user_id:
+            next_id, is_round_complete = _get_next_active_user(game, user_index)
+            if is_round_complete:
+                game.move_user_id = -1
+            else:
+                game.move_user_id = next_id
+            if game.move_user_id == -1:
+                game.message = "Aufdecken!"
+
         db.session.add(user)
         db.session.commit()
         response = jsonify(Message='Hat geklappt!')
