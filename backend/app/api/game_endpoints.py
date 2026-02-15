@@ -28,8 +28,38 @@ def get_Index_Of_User(game, uid):
     for i, x in enumerate(game.users):
         if x.id == id:
             return i
-            break
     return -1
+
+
+def _get_next_active_user(game, current_index):
+    """Find the next active (non-passive, non-pending) user in turn order.
+    Returns (user_id, found_first_user) where found_first_user means we
+    wrapped around to the first user (round complete -> move_user_id = -1).
+    """
+    active = game.active_users
+    if len(active) < 2:
+        return -1, True
+
+    # Find current user in active list
+    current_user = game.users[current_index]
+    active_index = -1
+    for i, u in enumerate(active):
+        if u.id == current_user.id:
+            active_index = i
+            break
+
+    if active_index == -1:
+        return -1, True
+
+    for i in range(1, len(active)):
+        test = (active_index + i) % len(active)
+        if active[test].id == game.first_user_id:
+            return -1, True
+        if not active[test].passive:
+            return active[test].id, False
+
+    return -1, True
+
 
 @socketio.on('connect', namespace='/game')
 def test_connect():
@@ -56,65 +86,6 @@ def get_game(gid):
     :reqheader Accept: application/json
     :statuscode 200: Game Data
     :statuscode 404: Game id not in Database
-
-    Parameters
-    ----------
-    gid : 'Integer'
-        A Game UUID
-
-    Examples
-    --------
-    .. sourcecode:: http
-
-         HTTP/1.1 200 OK
-         Content-Type: text/json
-
-            {
-               "Stack":10,
-               "State":"String",
-               "Game_Half_Count":0,
-               "Move":"Userid",
-               "Message":"Hallo",
-               "First":"Userid",
-               "Admin":"Userid",
-               "Users":[
-                  {
-                     "id":11,
-                     "Name":"Hans",
-                     "Chips":2,
-                     "passive":false,
-                     "Halfcount":0,
-                     "Number_Dice":0,
-                  },
-                  {
-                     "id":11,
-                     "Name":"Hans",
-                     "Chips":2,
-                     "passive":false,
-                     "Halfcount":0,
-                     "Number_Dice":0,
-                     "Dices":[
-                        {
-                           "Dice1":2
-                        },
-                        {
-                           "Dice2":6
-                        },
-                        {
-                           "Dice3":6
-                        }
-                     ]
-                  }
-               ]
-            }
-
-    .. sourcecode:: http
-
-      HTTP/1.1 404
-      Content-Type: text/json
-          {
-            "Message": "Game id not in Database"
-          }
     """
     game = Game.query.filter_by(UUID=gid).first()
     if game is None:
@@ -126,97 +97,46 @@ def get_game(gid):
     return response
 
 
-# set User to Game
+# set User to Game (supports mid-game joining)
 @bp.route('/game/<gid>/user', methods=['POST'])
 def set_game_user(gid):
-    """Add a User to a game with the STATUS WAITING
-
-    Parameters
-    ----------
-    gid : 'int'
-        A Game UUID
-    name : 'str'
-        Username
-
-    Examples
-    --------
-
-    .. code-block:: json
-
-        {"name": "jimbo10"}
-
-    Examples
-    --------
-    .. sourcecode:: http
-
-         HTTP/1.1 200 OK
-         Content-Type: text/json
-
-            {
-               "Stack":10,
-               "State":"String",
-               "First_Halfe":true,
-               "Move":"Userid",
-               "First":"Userid",
-               "Admin":"Userid",
-               "Users":[
-                  {
-                     "id":11,
-                     "Name":"Hans",
-                     "Chips":2,
-                     "passive":false,
-                     "visible":false
-                  },
-                  {
-                     "id":11,
-                     "Name":"Hans",
-                     "Chips":2,
-                     "passive":false,
-                     "visible":true,
-                     "Dices":[
-                        {
-                           "Dice1":2
-                        },
-                        {
-                           "Dice2":6
-                        },
-                        {
-                           "Dice3":6
-                        }
-                     ]
-                  }
-               ]
-            }
-
-    .. sourcecode:: http
-
-      HTTP/1.1 400
-      Content-Type: text/json
-          {
-            "Status": "Game already Startet create new Game",
-          }
-
+    """Add a User to a game. Supports joining during WAITING (immediate),
+    during active game (pending if someone rolled, immediate if not),
+    and during GAMEFINISCH (immediate for next game).
     """
     game = Game.query.filter_by(UUID=gid).first()
     if game is None:
         response = jsonify()
         response.status_code = 404
         return response
-    if game.status != Status.WAITING:
-        response = jsonify(Message='Spiel ist bereits gestartet. Starte ein neues Spiel!')
-        response.status_code = 400
-        return response
+
     data = request.get_json() or {}
     if 'name' not in data:
         return bad_request('must include name field')
     escapedusername = str(utils.escape(data['name']))
+
+    if len(escapedusername.strip()) == 0:
+        response = jsonify(Message='Benutzername darf nicht leer sein!')
+        response.status_code = 400
+        return response
+
     inuse = User.query.filter_by(name=escapedusername).first()
     if inuse is not None:
         response = jsonify(Message='Benutzername schon vergeben!')
         response.status_code = 400
         return response
+
     user = User()
     user.name = escapedusername
+
+    if game.player_changes_allowed:
+        # Game is in lobby or just (re)started and nobody rolled yet: join immediately
+        user.pending_join = False
+    else:
+        # Game in progress: queue for next game.
+        # execute_deferred_actions will activate them when the game ends.
+        user.pending_join = True
+
     game.users.append(user)
     db.session.add(game)
     db.session.commit()
@@ -225,50 +145,24 @@ def set_game_user(gid):
 
 
 # pull up the dice cup
-@bp.route('game/<gid>/user/<uid>/visible', methods=['POST'])
+# A3 fix: added leading /
+@bp.route('/game/<gid>/user/<uid>/visible', methods=['POST'])
 def pull_up_dice_cup(gid, uid):
     """
     Pull the Dice cup up so that every user can see the dice's
-
-    Parameters
-    ----------
-    gid : 'int'
-        A Game UUID
-    uid : 'int'
-        A User ID
-    value : 'bool'
-        True = Visible False = invisible. So change the visibility of your dices
-    Examples
-    --------
-    .. code-block:: json
-
-        {
-            "value": true
-        }
-
-    Examples
-    --------
-    .. sourcecode:: http
-
-        HTTP/1.1 400
-        Content-Type: text/json
-            {
-                "Message": "Request must include visible",
-            }
-
-    .. sourcecode:: http
-
-        HTTP/1.1 201
-        Content-Type: text/json
-            {
-                "Message": "success",
-            }
     """
     game = Game.query.filter_by(UUID=gid).first()
     if game is None:
         response = jsonify(Message='Spiel nicht gefunden')
         response.status_code = 404
         return response
+
+    # B1: Game status check
+    if game.status not in (Status.STARTED, Status.PLAYFINAL):
+        response = jsonify(Message='Spiel ist nicht in einer spielbaren Phase')
+        response.status_code = 400
+        return response
+
     user_index = get_Index_Of_User(game, uid)
     if user_index > -1:
         user = game.users[user_index]
@@ -276,6 +170,13 @@ def pull_up_dice_cup(gid, uid):
         response = jsonify(Message='Spieler ist nicht in diesem Spiel')
         response.status_code = 404
         return response
+
+    # B3: Must have rolled at least once to show dice
+    if user.number_dice == 0:
+        response = jsonify(Message='Du musst zuerst würfeln!')
+        response.status_code = 400
+        return response
+
     data = request.get_json() or {}
     if 'visible' in data:
         escapedvisible = str(utils.escape(data['visible']))
@@ -283,16 +184,17 @@ def pull_up_dice_cup(gid, uid):
         user.dice1_visible = val
         user.dice2_visible = val
         user.dice3_visible = val
-        db.session.add(user)
-        db.session.commit()
+
+        # Check if all active non-passive users have revealed
         allvisible = True
-        for user in game.users:
-            if not (user.passive or (user.dice1_visible and user.dice2_visible and user.dice3_visible)):
+        for u in game.active_users:
+            if not (u.passive or (u.dice1_visible and u.dice2_visible and u.dice3_visible)):
                 allvisible = False
         if allvisible and game.move_user_id == -1:
             game.message = "Warten auf Vergabe der Chips!"
-            db.session.add(game)
-            db.session.commit()
+
+        db.session.add(game)
+        db.session.commit()
         response = jsonify(Message='Hat geklappt!')
         response.status_code = 201
         emit('reload_game', game.to_dict(), room=gid, namespace='/game')
@@ -303,7 +205,7 @@ def pull_up_dice_cup(gid, uid):
         return response
 
 
-# user finishes bevore third roll
+# user finishes before third roll
 @bp.route('/game/<gid>/user/<uid>/finisch', methods=['POST'])
 def finish_throwing(gid, uid):
     game = Game.query.filter_by(UUID=gid).first()
@@ -311,6 +213,13 @@ def finish_throwing(gid, uid):
         response = jsonify(Message='Spiel nicht gefunden')
         response.status_code = 404
         return response
+
+    # B1: Game status check
+    if game.status not in (Status.STARTED, Status.PLAYFINAL):
+        response = jsonify(Message='Spiel ist nicht in einer spielbaren Phase')
+        response.status_code = 400
+        return response
+
     user_index = get_Index_Of_User(game, uid)
     if user_index > -1:
         user = game.users[user_index]
@@ -318,7 +227,7 @@ def finish_throwing(gid, uid):
         response = jsonify(Message='Spieler ist nicht in diesem Spiel')
         response.status_code = 404
         return response
-    # chips on the stack need to dice onece
+    # chips on the stack need to dice once
     # no chips on the stack but user has chips so you need to dice once
     if (game.stack != 0 or user.chips != 0) and user.number_dice == 0:
         response = jsonify(Message='Du musst mindestens einmal würfeln!')
@@ -329,29 +238,13 @@ def finish_throwing(gid, uid):
         response.status_code = 400
         return response
     if user.id == game.move_user_id:
-        if len(game.users) < 2:
+        next_id, is_round_complete = _get_next_active_user(game, user_index)
+        if is_round_complete:
             game.move_user_id = -1
         else:
-            for i in range(1, len(game.users)):
-                test = (user_index + i) % len(game.users)
-                if game.users[test].id == game.first_user_id:
-                    game.move_user_id = -1
-                    break
-                if not game.users[test].passive:
-                    game.move_user_id = game.users[test].id
-                    break
+            game.move_user_id = next_id
         if game.move_user_id == -1:
             game.message = "Aufdecken!"
-        # https://stackoverflow.com/questions/364621/how-to-get-items-position-in-a-list
-        # aktualuserid = [i for i, x in enumerate(game.users) if x == user]
-        # aktualuserid = [i for i, x in enumerate(game.users) if (x == user and not x.passive)]
-        # if len(game.users) > aktualuserid[0]+1:
-        #    game.move_user_id = game.users[aktualuserid[0]+1].id
-        # else:
-        #    game.move_user_id = game.users[0].id
-        # next_user = User.query.get_or_404(game.move_user_id)
-        # if next_user.number_dice != 0:
-        #    game.message = "Aufdecken!"
         db.session.add(game)
         db.session.commit()
         response = jsonify(Message='Hat geklappt!')
@@ -362,9 +255,6 @@ def finish_throwing(gid, uid):
         response = jsonify(Message='Du bist nicht dran!')
         response.status_code = 400
         return response
-    response = jsonify(Message='Error')
-    response.status_code = 400
-    return response
 
 
 # set user aktiv or passiv
@@ -375,6 +265,13 @@ def set_user_passiv(gid, uid):
         response = jsonify(Message='Spiel nicht gefunden')
         response.status_code = 404
         return response
+
+    # B1: Game status check
+    if game.status not in (Status.STARTED, Status.PLAYFINAL):
+        response = jsonify(Message='Spiel ist nicht in einer spielbaren Phase')
+        response.status_code = 400
+        return response
+
     user_index = get_Index_Of_User(game, uid)
     if user_index > -1:
         user = game.users[user_index]
@@ -387,14 +284,21 @@ def set_user_passiv(gid, uid):
         escapeduserstate = str(utils.escape(data['userstate']))
         val = escapeduserstate.lower() in ['true', '1']
         user.passive = val
-        # # TODO: Wheren player needs to dice and check the box
-        if game.move_user_id == user.id and val:
-            print('Hier')
+
+        # If the player goes passive while it's their turn, auto-advance
+        if val and user.id == game.move_user_id:
+            next_id, is_round_complete = _get_next_active_user(game, user_index)
+            if is_round_complete:
+                game.move_user_id = -1
+            else:
+                game.move_user_id = next_id
+            if game.move_user_id == -1:
+                game.message = "Aufdecken!"
+
         db.session.add(user)
         db.session.commit()
         response = jsonify(Message='Hat geklappt!')
         response.status_code = 201
-        # needed ???
         emit('reload_game', game.to_dict(), room=gid, namespace='/game')
         return response
     else:
@@ -406,91 +310,53 @@ def set_user_passiv(gid, uid):
 # roll dice
 @bp.route('/game/<gid>/user/<uid>/dice', methods=['POST'])
 def roll_dice(gid, uid):
-    """A user can roll up to 3 dice. dice1, dice2, dice3 are optional attributes depending on witch one you will roll again
-
-    Parameters
-    ----------
-    gid : 'int'
-        A Game UUID
-    uid : 'int'
-        A User ID
-    dice1 : 'bool', optional
-        Roll dice 1 again
-    dice2 : 'bool', optional
-        Roll dice 2 again
-    dice3 : 'bool', optional
-        Roll dice 3 again
-
-    Examples
-    --------
-
-    .. code-block:: json
-
-        {
-            "dice1" : 2,
-            "dice2" : 3,
-            "dice3" : 6,
-        }
-
-    Returns
-    -------
-    fallen : 'bool'
-        one dice is rollen from the table (shot round)
-    dice1 : 'int'
-        value of the first dice
-    dice2 : 'int'
-        value of the second dice
-    dice3 : 'int'
-        value of the third dice
-
-    Examples
-    --------
-
-    .. sourcecode:: http
-
-        HTTP/1.1 201
-        Content-Type: text/json
-            {
-                "fallen": true,
-                "dice1": 3,
-                "dice2": 4,
-                "dice3": 6
-            }
-    """
+    """A user can roll up to 3 dice."""
     game = Game.query.filter_by(UUID=gid).first()
     if game is None:
         response = jsonify(Message='Spiel nicht gefunden')
         response.status_code = 404
         return response
-    print( game )
-    print( uid )
+
+    # B1: Game status check (removed implicit GAMEFINISCH->STARTED transition)
+    if game.status not in (Status.STARTED, Status.PLAYFINAL):
+        response = jsonify(Message='Spiel ist nicht in einer spielbaren Phase')
+        response.status_code = 400
+        return response
+
+    # Minimum 2 active players required
+    if len(game.active_users) < 2:
+        response = jsonify(Message='Nicht genug Mitspieler')
+        response.status_code = 400
+        return response
+
     user_index = get_Index_Of_User(game, uid)
-    print( user_index )
     if user_index > -1:
         user = game.users[user_index]
-        print( user )
     if user_index < 0 or user.game_id != game.id:
         response = jsonify(Message='Spieler ist nicht in diesem Spiel')
         response.status_code = 404
         return response
+
     data = request.get_json() or {}
-    # Cloud be improved to game.first_user_id first user.number_dice
-#    first_user = User.query.get_or_404(game.first_user_id)
-#    waitinguser = User.query.get_or_404(game.move_user_id)
+    # A2 fix: load first_user to get their number_dice
+    first_user = User.query.get(game.first_user_id)
+    first_user_dice = first_user.number_dice if first_user else 3
+
+    # Once someone rolls, no more immediate player changes until next game
+    if game.player_changes_allowed:
+        game.player_changes_allowed = False
+
     game.refreshed = datetime.now()
     if user.id == game.move_user_id:
-        if game.status == Status.GAMEFINISCH:
-            game.status = Status.STARTED
-        if game.first_user_id == user.id or user.number_dice < game.number_dice:
+        if game.first_user_id == user.id or user.number_dice < first_user_dice:
             if user.number_dice >= 3:
                 response = jsonify(Message='Du hast schon dreimal gewürfelt!')
-                response.status_code = 404
+                response.status_code = 400
                 return response
             # Check if a dice fall from the table and return if so
             fallen = decision(game.changs_of_fallling_dice)
             if fallen:
                 game.message = "Hoppla, {} ist ein Würfel vom Tisch gefallen!".format(user.name)
-                # Statistic
                 game.fallling_dice_count = game.fallling_dice_count + 1
                 db.session.add(game)
                 db.session.commit()
@@ -499,22 +365,17 @@ def roll_dice(gid, uid):
                 emit('reload_game', game.to_dict(), room=gid, namespace='/game')
                 return response
             user.number_dice = user.number_dice + 1
-            if user.number_dice == 3 or (user.id != game.first_user_id and user.number_dice == game.number_dice):
-                if len(game.users) < 2:
-                    game.move_user_id = -1 
+            # Check if this was the last roll for this user
+            if user.number_dice == 3 or (user.id != game.first_user_id and user.number_dice == first_user_dice):
+                next_id, is_round_complete = _get_next_active_user(game, user_index)
+                if is_round_complete:
+                    game.move_user_id = -1
                 else:
-                    for i in range(1, len(game.users)):
-                        test = (user_index + i) % len(game.users)
-                        if game.users[test].id == game.first_user_id:
-                            game.move_user_id = -1
-                            break
-                        if not game.users[test].passive:
-                            game.move_user_id = next_user.id
-                            break
+                    # A1 fix: was next_user.id (undefined), now correctly uses next_id
+                    game.move_user_id = next_id
                 if game.move_user_id == -1:
                     game.message = "Aufdecken!"
-                db.session.add(game)
-                db.session.commit()
+
             seed()
             if 'dice1' in data and str(utils.escape(data['dice1'])).lower() in ['true', '1']:
                 user.dice1 = randint(1, 6)
@@ -526,7 +387,6 @@ def roll_dice(gid, uid):
                 user.dice2_visible = False
             else:
                 user.dice2_visible = True
-
             if 'dice3' in data and str(utils.escape(data['dice3'])).lower() in ['true', '1']:
                 user.dice3 = randint(1, 6)
                 user.dice3_visible = False
@@ -536,16 +396,17 @@ def roll_dice(gid, uid):
             response = jsonify(Message='Du bist nicht dran!')
             response.status_code = 400
             return response
+
         # Statistic
         if user.dice1 == 1 and user.dice2 == 1 and user.dice3 == 1:
             game.schockoutcount = game.schockoutcount + 1
-            db.session.add(game)
-            db.session.commit()
         game.throw_dice_count = game.throw_dice_count + 1
+
+        # D1: Single commit instead of multiple
         db.session.add(game)
-        db.session.commit()
         db.session.add(user)
         db.session.commit()
+
         response = jsonify(fallen=fallen, dice1=user.dice1, dice2=user.dice2, dice3=user.dice3, number_dice=user.number_dice)
         response.status_code = 201
         emit('reload_game', game.to_dict(), room=gid, namespace='/game')
@@ -559,53 +420,21 @@ def roll_dice(gid, uid):
 # turn dice (2 or 3 6er to 1 or 2 1er)
 @bp.route('/game/<gid>/user/<uid>/diceturn', methods=['POST'])
 def turn_dice(gid, uid):
-    """If a User Throws tow or three 6er in Throw 1 or 2 he/ she ist allowed
-    to turn 1 dice (tow 6er) or 2 dice (three 6er) to dice with the numer 1
-
-    Parameters
-    ----------
-    gid : 'int'
-        A Game UUID
-    uid : 'int'
-        A User ID
-    count : 'int'
-        allowed values 1 or 2. To change 1 or 2 6er dice to 1er dice
-
-    Examples
-    --------
-
-    .. code-block:: json
-
-        {
-            "count" : 1
-        }
-
-    Returns
-    -------
-    dice1 : 'int'
-        value of the first dice
-    dice2 : 'int'
-        value of the second dice
-    dice3 : 'int'
-        value of the third dice
-
-    Examples
-    --------
-    .. sourcecode:: http
-
-        HTTP/1.1 201
-        Content-Type: text/json
-            {
-                "dice1": 1,
-                "dice2": 2,
-                "dice3": None
-            }
+    """If a User Throws two or three 6er in Throw 1 or 2 they are allowed
+    to turn 1 dice (two 6er) or 2 dice (three 6er) to dice with the number 1
     """
     game = Game.query.filter_by(UUID=gid).first()
     if game is None:
         response = jsonify(Message='Spiel nicht gefunden')
         response.status_code = 404
         return response
+
+    # B1: Game status check
+    if game.status not in (Status.STARTED, Status.PLAYFINAL):
+        response = jsonify(Message='Spiel ist nicht in einer spielbaren Phase')
+        response.status_code = 400
+        return response
+
     user_index = get_Index_Of_User(game, uid)
     if user_index > -1:
         user = game.users[user_index]
@@ -663,13 +492,12 @@ def turn_dice(gid, uid):
     response.status_code = 201
     db.session.add(user)
     db.session.commit()
+    # D2: Add reload_game emit after diceturn
+    emit('reload_game', game.to_dict(), room=gid, namespace='/game')
     return response
 
 
-# XHR Route
-# after everyone has pull up the dice cup the admin is able to sort the dice1
-# This make it easyer to visial see witch player wind and witch player select_choose_admin
-# Could be enhanced to directly highlight the potensial Winner (not exactly possible because of to many diffrent rules)
+# XHR Route: sort dice for visual comparison
 @bp.route('/game/<gid>/sort', methods=['PUT'])
 def sort_dice(gid):
     data = request.get_json() or {}
@@ -685,60 +513,100 @@ def sort_dice(gid):
             response = jsonify(Message='Spieler ist nicht in diesem Spiel')
             response.status_code = 404
             return response
-        if game.message == "Warten auf Vergabe der Chips!":
-            for user in game.users:
-                dices = [user.dice1, user.dice2, user.dice3]
-                dices.sort()
-                user.dice1 = dices[2]
-                user.dice2 = dices[1]
-                user.dice3 = dices[0]
+        # B2: Admin check
+        if not user.is_admin:
+            response = jsonify(Message='Nur Admins dürfen diese Aktion ausführen')
+            response.status_code = 403
+            return response
+
+        if game.move_user_id == -1 and game._all_dice_visible():
+            for u in game.active_users:
+                if not u.passive:
+                    dices = [u.dice1 or 0, u.dice2 or 0, u.dice3 or 0]
+                    dices.sort()
+                    u.dice1 = dices[2]
+                    u.dice2 = dices[1]
+                    u.dice3 = dices[0]
             db.session.add(game)
             db.session.commit()
             emit('reload_game', game.to_dict(), room=gid, namespace='/game')
-        elif game.stack == 0:
-            all_needed_visible = True
-            for user in game.users:
-                if user.chips != 0:
-                    if not (user.dice1_visible and user.dice2_visible and user.dice3_visible):
-                        all_needed_visible = False
-            if all_needed_visible:
-                for user in game.users:
-                    dices = [user.dice1, user.dice2, user.dice3]
-                    dices.sort()
-                    user.dice1 = dices[0]
-                    user.dice2 = dices[1]
-                    user.dice3 = dices[2]
-                db.session.add(game)
-                db.session.commit()
-                emit('reload_game', game.to_dict(), room=gid, namespace='/game')
-            else:
-                response = jsonify(Message='Warten bis der Admin die Chips verteilen darf (Alle aufgedeckt haben)!')
-                response.status_code = 403
-                return response
         else:
-            response = jsonify(Message='Warten bis der Admin die Chips verteilen darf (Alle aufgedeckt haben)!')
+            response = jsonify(Message='Warten bis alle aufgedeckt haben!')
             response.status_code = 403
             return response
     else:
-        print('Log Bad request')
         return bad_request('must include admin_id')
     response = jsonify()
     response.status_code = 200
     return response
 
 
+# Vote to reveal all dice
+@bp.route('/game/<gid>/vote_reveal', methods=['POST'])
+def vote_reveal_all(gid):
+    """Vote to force-reveal all dice. Admin triggers immediately,
+    otherwise need strict majority (>50%) of active non-passive players.
+    """
+    game = Game.query.filter_by(UUID=gid).first()
+    if game is None:
+        return jsonify(Message='Spiel nicht gefunden'), 404
+
+    if game.status not in (Status.STARTED, Status.PLAYFINAL):
+        return jsonify(Message='Spiel ist nicht in einer spielbaren Phase'), 400
+
+    if game.move_user_id != -1:
+        return jsonify(Message='Runde ist noch nicht beendet'), 400
+
+    if game._all_dice_visible():
+        return jsonify(Message='Alle Würfel sind bereits aufgedeckt'), 400
+
+    data = request.get_json() or {}
+    requester_id = data.get('requester_id')
+    if not requester_id:
+        return jsonify(Message='requester_id fehlt'), 400
+
+    requester_id = int(requester_id)
+    user = User.query.get(requester_id)
+    if user is None or user.game_id != game.id:
+        return jsonify(Message='Spieler ist nicht in diesem Spiel'), 404
+
+    # Track votes
+    current_votes = set(v for v in (game.reveal_votes or '').split(',') if v)
+    current_votes.add(str(requester_id))
+    game.reveal_votes = ','.join(current_votes)
+
+    # Count ALL players (including pending/waiting) for threshold
+    vote_count = len(current_votes)
+    threshold = (len(game.users) + 1) // 2  # half (rounded up): 2 of 2, 2 of 3, etc.
+
+    # Admin vote triggers immediately
+    is_admin = user.is_admin
+
+    if is_admin or vote_count >= threshold:
+        # Reveal all dice
+        for u in game.active_users:
+            if not u.passive:
+                u.dice1_visible = True
+                u.dice2_visible = True
+                u.dice3_visible = True
+        game.reveal_votes = ''
+        game.message = "Warten auf Vergabe der Chips!"
+        db.session.add(game)
+        db.session.commit()
+    else:
+        game.message = "Aufdecken! ({}/{} Stimmen für Alles aufdecken)".format(
+            vote_count, threshold)
+        db.session.add(game)
+        db.session.commit()
+
+    emit('reload_game', game.to_dict(), room=gid, namespace='/game')
+    return jsonify(Message='Stimme gezählt'), 200
+
+
 # to fall a dice from the tableCount
-# the chanse increases each round
+# the chance increases each round
 def decision(probability) -> bool:
     """
-    Return a Boolen that reprenet a fallen dice
-    Parameters
-    ----------
-    probability : 'flaot'
-        A Float that represent a changs that a dice will fall
-    Returns
-    -------
-    random : 'bool'
-        True = Dice fallen, False = Dice not fallen
+    Return a Boolean that represent a fallen dice
     """
     return random() < probability

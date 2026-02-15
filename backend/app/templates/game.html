@@ -61,7 +61,7 @@
 
 
 <div class="row col-md-offset-1 col-md-10">
-    <h3>Verteile diesen Link an alle Mitspieler:</h3>
+    <h3 id="share_heading">Verteile diesen Link an alle Mitspieler:</h3>
 </div>
 <div class="row">
   <div class="col-md-offset-1 col-md-4" >
@@ -71,6 +71,8 @@
         <button onclick="coppy()" class="btn btn-outline-secondary" type="button">kopieren</button>
       </div>
     </div>
+    <div id="qrcode" style="margin-top: 12px; padding: 20px;"></div>
+    <button id="switch_device_btn" onclick="toggleDeviceSwitch()" class="btn btn-outline-secondary btn-sm" style="margin-top: 8px;">Gerät wechseln</button>
   </div>
 </div>
 <div class="row col-md-offset-1 admin_interface">
@@ -80,30 +82,18 @@
 </div>
 <div class="row col-md-offset-1 admin_interface">
   <div class="col-md-9">
-    <label for="stack_max">Anzahl Chips / Deckel wählen:</label>
-    <select name="stack_max" id="stack_max" class="form-select">
-     <option value="12">12</option>
-     <option value="13" selected="selected">13 </option>
-     <option value="15">15</option>
-     <option value="21">21</option>
-     <option value="24">24</option>
+    <label for="ruleset_select">Ruleset wählen:</label>
+    <select name="ruleset_select" id="ruleset_select" class="form-select">
+      <option value="">-- Wird geladen --</option>
     </select>
-  </div>
-</div>
-<div class="row col-md-offset-1 admin_interface">
-  <div class="col-md-9">
-    <label for="final">Willst du ein Finale spielen? (beta sende mir gerne euer Feedback via instagram oder <i class="fas fa-paper-plane" title="Feedback senden"></i> )</label>
-    {% if game.play_final %}
-      <input type="checkbox" id="final_cb" name="final" value="True" checked>
-    {% else %}
-      <input type="checkbox" id="final_cb" name="final" value="False">
-    {% endif %}
-
+    <div style="margin-top: 8px;">
+      <label><input type="checkbox" id="falling_dice_cb"> Würfel können vom Tisch fallen (Schnapsrunde)</label>
+    </div>
   </div>
 </div>
 <div class="row col-md-offset-1 admin_interface">
   <div class="col-md-1" >
-    <button class="btn btn-primary" id='startgame_id'onclick="startGame()" disabled>Starten</button>
+    <button class="btn btn-primary" id='startgame_id' onclick="startGame()" disabled>Starten</button>
     <div id="inline_button_text" >
       <h3>👈</h3>
     </div>
@@ -113,10 +103,14 @@
 
 <div class="row col-md-offset-1 col-md-10" >
     <p id="admin_id" hidden>{{ game.admin_user_id }}</p>
+    <p id="admins_data" hidden>{{ game.users | selectattr('is_admin') | map(attribute='id') | list }}</p>
 </div>
 <div class="row col-md-offset-1 col-md-10" >
     <p id="UUID" hidden>{{game.UUID}}</p>
 </div>
+{% if game.ruleset_id %}
+<p id="current_ruleset_id" hidden>{{game.ruleset_id}}</p>
+{% endif %}
 
 
 
@@ -134,7 +128,7 @@
         <div class="panel">
           <p>Wenn die gewünschten Spieler in der Spielerliste aufgetaucht sind, einfach auf den Button Starten klicken.</p>
           <p>Das Spiel startet dann automatisch für alle Mitspieler!</p>
-          <p>Nur der Admin (derjenige der ein Spiel erstellt hat) kann dieses auch starten</p>
+          <p>Nur ein Admin kann das Spiel starten</p>
             <div class="col-md-11 col-md-offset-1 example_img">
               <picture>
                 <img alt="FAQ Spiel Starten" style="width:80%; height:auto;" src="{{ url_for('static',filename='image/start_game.png') }}">
@@ -145,7 +139,7 @@
         <div class="panel">
           <p>Es werden nur die Mitspieler angezeigt die du eingeladen hast und die deiner Einladung gefolgt sind.</p>
           <p>Sobald jemand deinen link geöffnet hat und beigetreten ist taucht dieser in der Spielerliste auf.</p>
-          <p>Kopiere den Link zur Einladung über den Button kopieren und verteile diesen per Mail oder Messanger deiner Wahl.</p>
+          <p>Kopiere den Link zur Einladung über den Button kopieren und verteile diesen per Mail oder Messenger deiner Wahl.</p>
           <div class="col-md-11 col-md-offset-1 example_img">
             <picture>
               <img alt="FAQ Mitspieler Einladen" style="width:80%; height:auto;" src="{{ url_for('static',filename='image/ShareLink.png') }}">
@@ -180,25 +174,124 @@
 <script type=text/javascript src="{{url_for('static', filename='scripts/jquery-3.5.1.min.js') }}">
 </script>
 
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <script>
+  // Handle device switch: read params from URL and set localStorage
+  (function() {
+    var params = new URLSearchParams(window.location.search);
+    var switchId = params.get('switch_id');
+    var switchName = params.get('switch_name');
+    if (switchId && switchName) {
+      localStorage.setItem('id', switchId);
+      localStorage.setItem('name', switchName);
+      params.delete('switch_id');
+      params.delete('switch_name');
+      var newUrl = window.location.pathname;
+      var remaining = params.toString();
+      if (remaining) newUrl += '?' + remaining;
+      window.history.replaceState({}, '', newUrl);
+    }
+  })();
+
   // https://www.w3schools.com/howto/howto_js_copy_clipboard.asp
   function coppy() {
-  /* Get the text field */
-  var copyText = document.getElementById("link_input");
+    var copyText = document.getElementById("link_input");
+    copyText.select();
+    copyText.setSelectionRange(0, 99999);
+    document.execCommand("copy");
+  }
 
-  /* Select the text field */
-  copyText.select();
-  copyText.setSelectionRange(0, 99999); /*For mobile devices*/
-  /* Copy the text inside the text field */
-  document.execCommand("copy");
-}
+  // Generate QR code for the game link
+  (function() {
+    var loc = window.location;
+    var fullUrl = loc.protocol + '//' + loc.host + '/game_waiting/{{game.UUID}}';
+    new QRCode(document.getElementById('qrcode'), {
+      text: fullUrl,
+      width: 160,
+      height: 160,
+      colorDark: '#000000',
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  })();
 
-  function joinGame(){
+  // Toggle between invite link and device-switch link
+  var _showingDeviceSwitch = false;
+  function toggleDeviceSwitch() {
+    var myId = localStorage.getItem('id');
+    var myName = localStorage.getItem('name');
+    if (!myId || !myName) {
+      alert('Du musst erst dem Spiel beitreten.');
+      return;
+    }
+    var btn = document.getElementById('switch_device_btn');
+    var linkInput = document.getElementById('link_input');
+    var qrContainer = document.getElementById('qrcode');
+    var loc = window.location;
+    var gameUUID = document.getElementById('UUID').innerHTML.replace(/['"]+/g, '').trim();
+
+    var heading = document.getElementById('share_heading');
+
+    if (!_showingDeviceSwitch) {
+      var deviceUrl = loc.protocol + '//' + loc.host + '/game_waiting/' + gameUUID
+                    + '?switch_id=' + encodeURIComponent(myId)
+                    + '&switch_name=' + encodeURIComponent(myName);
+      linkInput.value = deviceUrl;
+      qrContainer.innerHTML = '';
+      new QRCode(qrContainer, {
+        text: deviceUrl, width: 160, height: 160,
+        colorDark: '#000000', colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M
+      });
+      btn.textContent = 'Spieler einladen';
+      heading.textContent = 'Behalte diesen Link für dich:';
+      _showingDeviceSwitch = true;
+    } else {
+      var inviteUrl = loc.protocol + '//' + loc.host + '/game_waiting/' + gameUUID;
+      linkInput.value = inviteUrl;
+      qrContainer.innerHTML = '';
+      new QRCode(qrContainer, {
+        text: inviteUrl, width: 160, height: 160,
+        colorDark: '#000000', colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M
+      });
+      btn.textContent = 'Gerät wechseln';
+      heading.textContent = 'Verteile diesen Link an alle Mitspieler:';
+      _showingDeviceSwitch = false;
+    }
+  }
+
+  var _rulesets = [];
+
+  function loadRulesets() {
+    var xhttp = new XMLHttpRequest();
+    xhttp.open("GET", "/api/rulesets");
+    xhttp.setRequestHeader("Content-Type", "application/json");
+    xhttp.onreadystatechange = function() {
+      if (xhttp.readyState == XMLHttpRequest.DONE && xhttp.status == 200) {
+        _rulesets = JSON.parse(xhttp.responseText);
+        var select = document.getElementById('ruleset_select');
+        select.innerHTML = '';
+        for (var i = 0; i < _rulesets.length; i++) {
+          var opt = document.createElement('option');
+          opt.value = _rulesets[i].id;
+          opt.innerHTML = _rulesets[i].name;
+          select.appendChild(opt);
+        }
+        // Pre-select current ruleset if returning to lobby
+        var currentEl = document.getElementById('current_ruleset_id');
+        if (currentEl && currentEl.innerHTML.trim()) {
+          select.value = currentEl.innerHTML.trim();
+        }
+      }
+    }
+    xhttp.send();
+  }
+
+  function joinGame() {
     var user = document.getElementById('Name');
     var game = document.getElementById('UUID');
     var uuid = game.innerHTML;
-    // uuid = uuid.replace(/\s/g, '');
-    // uuid = uuid.replace(/['"]+/g, '');
     uuid = uuid.replace(/^"(.+)"$/,'$1');
     var usernname = user.value;
     var xhttp = new XMLHttpRequest();
@@ -206,162 +299,233 @@
     xhttp.setRequestHeader("Content-Type", "application/json");
     xhttp.onreadystatechange = function() {
       if (xhttp.readyState == XMLHttpRequest.DONE) {
-        var res=JSON.parse(xhttp.responseText);
-        if (xhttp.status != 200){
+        var res = JSON.parse(xhttp.responseText);
+        if (xhttp.status != 200) {
           alert('Fehler beim erzeugen: '+res.Message);
-          location=location;
-        }else{
+          location = location;
+        } else {
           localStorage.setItem('name', usernname);
           for (num in res.User) {
             var juser = res.User[num];
             var name = juser['Name'];
-            if (name == usernname){
+            if (name == usernname) {
               localStorage.setItem('id', juser['Id']);
             }
           }
-          var id = localStorage.getItem('id');
           window.location.href = "/game_waiting/"+uuid;
         }
       }
     }
-    xhttp.send(JSON.stringify({name:usernname}));
+    xhttp.send(JSON.stringify({name: usernname}));
   }
 
-  function refreshGame(){
-    location=location;
-  }
-  function startGame(){
-    var name = localStorage.getItem('name');
-
+  function startGame() {
     var game = document.getElementById('UUID');
     var gameid = game.innerHTML;
     gameid = gameid.replace(/^"(.+)"$/,'$1');
-    var stack_max = document.getElementById("stack_max").value;
 
-    var play_final_cb = document.getElementById('final_cb');
-    var play_final = play_final_cb.checked;
-
+    var rulesetSelect = document.getElementById('ruleset_select');
+    var rulesetId = rulesetSelect.value;
+    var myId = parseInt(localStorage.getItem('id'));
 
     var xhttp = new XMLHttpRequest();
     xhttp.open("POST", "/api/game/"+gameid+"/start");
     xhttp.setRequestHeader("Content-Type", "application/json");
     xhttp.onreadystatechange = function() {
       if (xhttp.readyState == XMLHttpRequest.DONE) {
-        if (xhttp.status != 201){
+        if (xhttp.status != 201) {
           try {
-            var res=JSON.parse(xhttp.responseText);
+            var res = JSON.parse(xhttp.responseText);
             alert(''+res.Message);
-          }
-          catch (e) {
+          } catch (e) {
             alert('Allgemeiner Fehler');
           }
         }
       }
     }
-    xhttp.send(JSON.stringify({stack_max:stack_max, play_final:play_final}));
+    var fallingDice = document.getElementById('falling_dice_cb').checked;
+    xhttp.send(JSON.stringify({ruleset_id: rulesetId, admin_id: myId, falling_dice: fallingDice}));
   }
 
-  function startup(){
+  function isAdminUser() {
+    var myId = parseInt(localStorage.getItem('id'));
+    // Check from the game state if available
+    if (window._currentGame && window._currentGame.Admins) {
+      return window._currentGame.Admins.indexOf(myId) !== -1;
+    }
+    // Fallback: check from template data
+    var adminEl = document.getElementById('admin_id');
+    if (adminEl) {
+      return myId == parseInt(adminEl.innerHTML);
+    }
+    return false;
+  }
+
+  function startup() {
     faq();
-	var gameLink = document.getElementById("link_input");
-	gameLink.value = window.location.href;
+    var gameLink = document.getElementById("link_input");
+    gameLink.value = window.location.href;
+
+    loadRulesets();
+
     var id = localStorage.getItem('id');
-    var admin_el = document.getElementById('admin_id');
-    var admin_id = admin_el.innerHTML;
     var setdamin = document.getElementById('admin');
-    if (id != admin_id){
-      var all_admin_elements = document.getElementsByClassName("admin_interface");
-      for (let admin_element of all_admin_elements){
-        admin_element.style.display = "none";
+
+    // Fetch game state to check admin status
+    var game = document.getElementById('UUID');
+    var gameid = game.innerHTML;
+    gameid = gameid.replace(/^"(.+)"$/,'$1');
+
+    var xhttp = new XMLHttpRequest();
+    xhttp.open("GET", "/api/game/" + gameid);
+    xhttp.setRequestHeader("Content-Type", "application/json");
+    xhttp.onreadystatechange = function() {
+      if (xhttp.readyState == XMLHttpRequest.DONE && xhttp.status == 200) {
+        var gameData = JSON.parse(xhttp.responseText);
+        window._currentGame = gameData;
+        var myId = parseInt(id);
+
+        // Stale localStorage check: if another user now has our stored ID,
+        // clear localStorage so the user can rejoin fresh
+        if (myId) {
+          var storedName = localStorage.getItem('name');
+          for (var i = 0; i < gameData.User.length; i++) {
+            if (gameData.User[i].Id === myId && gameData.User[i].Name !== storedName) {
+              localStorage.removeItem('id');
+              localStorage.removeItem('name');
+              myId = NaN;
+              id = null;
+              break;
+            }
+          }
+        }
+
+        var amAdmin = gameData.Admins && gameData.Admins.indexOf(myId) !== -1;
+
+        if (!amAdmin) {
+          var all_admin_elements = document.getElementsByClassName("admin_interface");
+          for (var i = 0; i < all_admin_elements.length; i++) {
+            all_admin_elements[i].style.display = "none";
+          }
+          var button = document.getElementById('startgame_id');
+          button.style.display = "none";
+          var hand = document.getElementById('inline_button_text');
+          hand.style.display = "none";
+          setdamin.innerHTML = 'Bitte warte bis ein Admin das Spiel startet.';
+        } else {
+          var joincontainer = document.getElementById('joincontainer');
+          joincontainer.style.display = "none";
+          var button = document.getElementById('startgame_id');
+          button.disabled = false;
+          var hand = document.getElementById('inline_button_text');
+          hand.style.webkitAnimationName = 'run';
+          setdamin.innerHTML = 'Du bist Admin. Bitte starten wenn alle Spieler in der Liste stehen.';
+        }
+
+        // Restore falling dice checkbox from current game state
+        var fallingCb = document.getElementById('falling_dice_cb');
+        if (fallingCb && gameData.Falling_Dice !== undefined) {
+          fallingCb.checked = gameData.Falling_Dice;
+        }
+
+        // Restore selected ruleset
+        if (gameData.Ruleset_Id) {
+          var rulesetSel = document.getElementById('ruleset_select');
+          if (rulesetSel) rulesetSel.value = gameData.Ruleset_Id;
+        }
       }
     }
-
-    if (id == admin_id){
-      var joincontainer = document.getElementById('joincontainer');
-        joincontainer.style.display = "none";
-      var button = document.getElementById('startgame_id');
-      button.disabled = false;
-      var hand = document.getElementById('inline_button_text');
-      hand.style.webkitAnimationName = 'run'; // you had a trailing space here which does NOT get trimmed
-
-      setdamin.innerHTML = 'Du bist Admin. Bitte starten wenn alle Spieler in der Liste stehen.'
-    }else{
-      var button = document.getElementById('startgame_id');
-      button.style.display = "none";
-      var hand = document.getElementById('inline_button_text');
-      hand.style.display = "none";
-      setdamin.innerHTML = 'Bitte warte bis der Admin das Spiel startet.'
-    }
+    xhttp.send();
   }
   startup();
 </script>
 
 <script type="text/javascript" charset="utf-8">
-  // Use a "/game_waiting" namespace.
-  // An application can open a connection on multiple namespaces, and
-  // Socket.IO will multiplex all those connections on a single
-  // physical channel. If you don't care about multiple channels, you
-  // can set the namespace to an empty string.
   namespace = '/game';
 
-  // Connect to the Socket.IO server.
-  // The connection URL has the following format, relative to the current page:
-  //     http[s]://<domain>:<port>[/<namespace>]
   const socket = io(namespace, {
-    reconnection: true,             // whether to reconnect automatically
-    reconnectionAttempts: Infinity, // number of reconnection attempts before giving up
-    reconnectionDelay: 1000,        // how long to initially wait before attempting a new reconnection
-    reconnectionDelayMax: 5000,     // maximum amount of time to wait between reconnection attempts. Each attempt increases the reconnection delay by 2x along with a randomization factor
+    reconnection: true,
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
     randomizationFactor: 0.5
   });
-  // Event handler for new connections.
-  // The callback function is invoked when a connection with the
-  // server is established.
+
   socket.on('connect', function() {
-      var game = document.getElementById('UUID');
-      var gameid = game.innerHTML;
-      gameid = gameid.replace(/^"(.+)"$/,'$1');
-      socket.emit('join', {room: gameid});
+    var game = document.getElementById('UUID');
+    var gameid = game.innerHTML;
+    gameid = gameid.replace(/^"(.+)"$/,'$1');
+    socket.emit('join', {room: gameid});
   });
 
   socket.on('reload_game', function(game, cb) {
-      if (game){
-        var game_el = document.getElementById('UUID');
-        var gameid = game_el.innerHTML;
-        gameid = gameid.replace(/^"(.+)"$/,'$1');
+    if (game) {
+      var game_el = document.getElementById('UUID');
+      var gameid = game_el.innerHTML;
+      gameid = gameid.replace(/^"(.+)"$/,'$1');
 
-        var id = localStorage.getItem('id');
-        var res = game;
-        var sate = res.State
-        var table = document.getElementById('player_tbody');
-        table.innerHTML = '';
-        for (num in res.User) {
-          var juser = res.User[num];
+      window._currentGame = game;
+      var id = localStorage.getItem('id');
+      var res = game;
+      var sate = res.State;
 
-          // reload table data
-          var tr = document.createElement('tr');
-          var th = document.createElement('th');
-          th.className = 'counterCell';
-          th.scope = 'row';
-          var td = document.createElement('td');
-          td.innerHTML = juser['Name']
-          tr.appendChild(th);
-          tr.appendChild(td);
-          table.appendChild(tr);
-
-          if (juser['Id'] == id){
-            var name = document.getElementById('Name');
-            name.disabled = true;
-            var btn = document.getElementById('jointbtn');
-            btn.disabled = true;
-          }
+      // Update admin visibility dynamically
+      var myId = parseInt(id);
+      var amAdmin = res.Admins && res.Admins.indexOf(myId) !== -1;
+      var all_admin_elements = document.getElementsByClassName("admin_interface");
+      var setdamin = document.getElementById('admin');
+      if (amAdmin) {
+        for (var i = 0; i < all_admin_elements.length; i++) {
+          all_admin_elements[i].style.display = '';
         }
-        if (sate == 'started'){
-          //alert('Spiel vom admin gestartet eine moment noch');
-          window.location.href = "/game/"+gameid;
+        var joincontainer = document.getElementById('joincontainer');
+        joincontainer.style.display = "none";
+        var button = document.getElementById('startgame_id');
+        button.disabled = false;
+        button.style.display = '';
+        var hand = document.getElementById('inline_button_text');
+        hand.style.display = '';
+        if (setdamin) setdamin.innerHTML = 'Du bist Admin. Bitte starten wenn alle Spieler in der Liste stehen.';
+      } else {
+        for (var i = 0; i < all_admin_elements.length; i++) {
+          all_admin_elements[i].style.display = "none";
+        }
+        var button = document.getElementById('startgame_id');
+        button.style.display = "none";
+        var hand = document.getElementById('inline_button_text');
+        hand.style.display = "none";
+        if (setdamin) setdamin.innerHTML = 'Bitte warte bis ein Admin das Spiel startet.';
+      }
+
+      // Rebuild player table
+      var table = document.getElementById('player_tbody');
+      table.innerHTML = '';
+      for (num in res.User) {
+        var juser = res.User[num];
+        var tr = document.createElement('tr');
+        var th = document.createElement('th');
+        th.className = 'counterCell';
+        th.scope = 'row';
+        var td = document.createElement('td');
+        var nameHtml = juser['Name'];
+        if (juser['Pending_Join']) nameHtml += ' <small>(wartet)</small>';
+        td.innerHTML = nameHtml;
+        tr.appendChild(th);
+        tr.appendChild(td);
+        table.appendChild(tr);
+
+        if (juser['Id'] == id) {
+          var name = document.getElementById('Name');
+          name.disabled = true;
+          var btn = document.getElementById('jointbtn');
+          btn.disabled = true;
         }
       }
-  });
 
+      if (sate == 'started' || sate == 'playfinal') {
+        window.location.href = "/game/" + gameid;
+      }
+    }
+  });
 </script>
 {% endblock %}

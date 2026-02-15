@@ -8,9 +8,9 @@
     <h2 class="message" id="Message"></h2>
   </div>
   <div class="col-md-1 col-xs-2">
+    <a class="roundetb" id="rulesBtn" href="#" onclick="showRules(); return false;" style="margin-right:8px;"><i class="fas fa-book" title="Regeln"></i></a>
     <a class="roundetb" id="faqBtn" href="#"><i class="fas fa-question" title="Fragen?"></i></a>
   </div>
-
 </div>
 <div class="container-fluid">
   <div class="row">
@@ -19,7 +19,7 @@
     </div>
     <div class="clearfix visible-xs-block visible-sm-block"></div>
     <div class="col-xs-6 col-md-3">
-      <h3 id="throw_id">Anzahl würfe:</h3>
+      <h3 id="throw_id">Anzahl Würfe:</h3>
       <p id="throw_number_id" hidden></p>
     </div>
     <div class="col-xs-6 col-md-3">
@@ -34,9 +34,12 @@
 
 <div class="row ">
   <div class="col-md-11 col-md-offset-1">
-    <h2 id="ownuser">Spielen User:</h2>
+    <h2 id="ownuser">Spieler:</h2>
   </div>
 </div>
+
+<!-- Game controls: visible for active players only -->
+<div id="game_controls">
 <div class="container-fluid">
   <div class="row ">
     <div class="col-xs-6 col-md-2 col-md-offset-1">
@@ -128,6 +131,37 @@
     </div>
   </div>
 </div>
+</div>
+
+<!-- Join form: visible for visitors who are not in the game -->
+<div id="join_form" style="display: none;">
+  <div class="container-fluid">
+    <div class="row">
+      <div class="col-xs-12 col-md-6 col-md-offset-1">
+        <h3>Spiel läuft -- Möchtest du mitspielen?</h3>
+        <p>Du wirst sofort hinzugefügt, falls die aktuelle Runde noch nicht begonnen hat.
+           Ansonsten wirst du nach Ende des aktuellen Spiels hinzugefügt.</p>
+        <div class="input-group" style="max-width: 400px;">
+          <input id="join_name" placeholder="Spielername" type="text" class="form-control">
+          <div class="input-group-btn">
+            <button class="btn btn-primary" onclick="joinMidGame()">Beitreten</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Pending notice: visible for players waiting to join -->
+<div id="pending_notice" style="display: none;">
+  <div class="container-fluid">
+    <div class="row">
+      <div class="col-xs-12 col-md-6 col-md-offset-1">
+        <h3>Du bist vorgemerkt und wirst nach Ende des aktuellen Spiels hinzugefügt.</h3>
+      </div>
+    </div>
+  </div>
+</div>
 
 <div style="height:30px;" class="row col-md-offset-1 col-xs-offset-1">
 </div>
@@ -135,50 +169,21 @@
 </div>
 <div class="row" data-example-id="striped-table">
   <div class="col-xs-12 col-md-10 col-md-offset-1">
-    <table class="table table-striped table-hover">
+    <table class="table table-striped table-hover table-sm" id="player_table">
       <thead>
         <tr>
-          <th>#</th>
-          <th>Name</th>
-          <th>Chips</th>
-          <th>Hälften</th>
-          <th>Würfel1</th>
-          <th>Würfel2</th>
-          <th>Würfel3</th>
-          <th>Würfe</th>
-          {% if game.play_final %}
-          <th>Runden</th>
-          {% endif %}
+          <th class="col-counter">#</th>
+          <th class="col-name">Name</th>
+          <th class="col-chips">Chips</th>
+          <th class="col-throws">Würfe</th>
+          <th class="col-dice"></th>
+          <th class="col-dice"></th>
+          <th class="col-dice"></th>
+          <th class="col-half">Hälften</th>
+          <th id="finalcount_header" class="col-final" {% if not game.play_final %}style="display:none"{% endif %}>Runden</th>
         </tr>
       </thead>
-      <tbody>
-        {% for user in game.users %}
-        <tr id="row{{user.id}}">
-          <th class="counterCell" scope="row"></th>
-          <td id="user{{user.id}}">
-            {{user.user_name()}}
-          </td>
-          <td id="chips{{user.id}}">
-            {{user.chips}}
-          </td>
-          <td id="first{{user.id}}">
-          </td>
-          <td id="dice1{{user.id}}">
-          </td>
-          <td id="dice2{{user.id}}">
-          </td>
-          <td id="dice3{{user.id}}">
-          </td>
-          <td id="Number_Dice{{user.id}}">
-            {{user.number_dice}}
-          </td>
-          {% if game.play_final %}
-          <td id="finalcount{{user.id}}">
-            {{user.finalcount}}
-          </td>
-          {% endif %}
-        </tr>
-        {% endfor %}
+      <tbody id="game_tbody">
       </tbody>
     </table>
   </div>
@@ -186,13 +191,22 @@
 
 {% include "snippet/adminpanel.html" %}
 
-
-
-
-
 {% include "snippet/game_play_faq.html" %}
 
-
+<!-- Share link + QR code for mid-game joining -->
+<div class="row" style="margin-top: 20px;">
+  <div class="col-xs-12 col-md-10 col-md-offset-1">
+    <h4 id="share_heading">Verteile diesen Link an alle Mitspieler:</h4>
+    <div class="input-group" style="max-width: 500px;">
+      <input id="share_link_input" type="text" class="form-control" readonly>
+      <div class="input-group-btn">
+        <button onclick="document.getElementById('share_link_input').select();document.execCommand('copy');" class="btn btn-outline-secondary" type="button">kopieren</button>
+      </div>
+    </div>
+    <div id="share_qrcode" style="margin-top: 12px; padding: 20px;"></div>
+    <button id="switch_device_btn" onclick="toggleDeviceSwitch()" class="btn btn-outline-secondary btn-sm" style="margin-top: 8px;">Gerät wechseln</button>
+  </div>
+</div>
 
 {% block footer %}
 {{ super() }}
@@ -200,17 +214,329 @@
 {% endblock %}
 {% block scripts %}
 {{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script>
+  // Handle device switch: read params from URL and set localStorage
+  (function() {
+    var params = new URLSearchParams(window.location.search);
+    var switchId = params.get('switch_id');
+    var switchName = params.get('switch_name');
+    if (switchId && switchName) {
+      localStorage.setItem('id', switchId);
+      localStorage.setItem('name', switchName);
+      params.delete('switch_id');
+      params.delete('switch_name');
+      var newUrl = window.location.pathname;
+      var remaining = params.toString();
+      if (remaining) newUrl += '?' + remaining;
+      window.history.replaceState({}, '', newUrl);
+    }
+  })();
+
+  (function() {
+    var loc = window.location;
+    var gameUUID = document.getElementById('UUID').innerHTML.replace(/['"]+/g, '');
+    var fullUrl = loc.protocol + '//' + loc.host + '/game_waiting/' + gameUUID;
+    document.getElementById('share_link_input').value = fullUrl;
+    new QRCode(document.getElementById('share_qrcode'), {
+      text: fullUrl,
+      width: 160,
+      height: 160,
+      colorDark: '#000000',
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  })();
+
+  // Toggle between invite link and device-switch link
+  var _showingDeviceSwitch = false;
+  function toggleDeviceSwitch() {
+    var myId = localStorage.getItem('id');
+    var myName = localStorage.getItem('name');
+    if (!myId || !myName) {
+      alert('Du musst erst dem Spiel beitreten.');
+      return;
+    }
+    var btn = document.getElementById('switch_device_btn');
+    var linkInput = document.getElementById('share_link_input');
+    var qrContainer = document.getElementById('share_qrcode');
+    var loc = window.location;
+    var gameUUID = document.getElementById('UUID').innerHTML.replace(/['"]+/g, '').trim();
+
+    var heading = document.getElementById('share_heading');
+
+    if (!_showingDeviceSwitch) {
+      var deviceUrl = loc.protocol + '//' + loc.host + '/game_waiting/' + gameUUID
+                    + '?switch_id=' + encodeURIComponent(myId)
+                    + '&switch_name=' + encodeURIComponent(myName);
+      linkInput.value = deviceUrl;
+      qrContainer.innerHTML = '';
+      new QRCode(qrContainer, {
+        text: deviceUrl, width: 160, height: 160,
+        colorDark: '#000000', colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M
+      });
+      btn.textContent = 'Spieler einladen';
+      heading.textContent = 'Behalte diesen Link für dich:';
+      _showingDeviceSwitch = true;
+    } else {
+      var inviteUrl = loc.protocol + '//' + loc.host + '/game_waiting/' + gameUUID;
+      linkInput.value = inviteUrl;
+      qrContainer.innerHTML = '';
+      new QRCode(qrContainer, {
+        text: inviteUrl, width: 160, height: 160,
+        colorDark: '#000000', colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M
+      });
+      btn.textContent = 'Ger\u00e4t wechseln';
+      heading.textContent = 'Verteile diesen Link an alle Mitspieler:';
+      _showingDeviceSwitch = false;
+    }
+  }
+</script>
 <script type=text/javascript src="{{url_for('static', filename='scripts/faq.js') }}">
-  </script>
+</script>
 <script type=text/javascript src="{{url_for('static', filename='scripts/adminpanel.js') }}">
-  </script>
+</script>
 <script type=text/javascript src="{{url_for('static', filename='scripts/socket.io.js') }}">
-  </script>
+</script>
 <script type=text/javascript src="{{url_for('static', filename='scripts/jquery-3.5.1.min.js') }}">
-  </script>
+</script>
 
 <script>
 
+  // ============= H3: Sound handling =============
+  var audioUnlocked = false;
+
+  const soundDice = new Audio("{{ url_for('static', filename = 'audio/wuerfeln.mp3')}}");
+  soundDice.preload = 'auto';
+  const soundLift = new Audio("{{ url_for('static', filename = 'audio/hoch_die_Becher_Markus.mp3')}}");
+  soundLift.preload = 'auto';
+  const soundDiceY = new Audio("{{ url_for('static', filename = 'audio/wuerfelnYannick.mp3')}}");
+  soundDiceY.preload = 'auto';
+
+  // Preload
+  try { soundDice.load(); soundLift.load(); soundDiceY.load(); } catch(e) {}
+
+  // Unlock audio on first user interaction.
+  // Play each element muted so the browser marks it as user-initiated.
+  // (On iOS, audio.volume is read-only and always 1, so we must use .muted instead.)
+  // Only pause afterwards if no real playSound() call has claimed the element
+  // in the meantime (detected by .muted still being true).
+  function unlockAudio() {
+    if (audioUnlocked) return;
+    audioUnlocked = true;
+    [soundDice, soundLift, soundDiceY].forEach(function(audio) {
+      audio.muted = true;
+      var p = audio.play();
+      if (p) {
+        p.then(function() {
+          // If still muted, no real playSound happened — safe to reset.
+          if (audio.muted) {
+            audio.pause();
+            audio.currentTime = 0;
+          }
+          audio.muted = false;
+        }).catch(function() {
+          audio.muted = false;
+        });
+      } else {
+        // Older browser without promise-based play
+        setTimeout(function() {
+          if (audio.muted) {
+            audio.pause();
+            audio.currentTime = 0;
+          }
+          audio.muted = false;
+        }, 250);
+      }
+    });
+    document.removeEventListener('click', unlockAudio);
+    document.removeEventListener('touchstart', unlockAudio);
+    document.removeEventListener('touchend', unlockAudio);
+  }
+  document.addEventListener('click', unlockAudio);
+  document.addEventListener('touchstart', unlockAudio);
+  document.addEventListener('touchend', unlockAudio);
+
+  function playSound(audio) {
+    if (!audio) return;
+    audio.muted = false;  // claim element (prevents unlock from pausing it)
+    try { audio.currentTime = 0; } catch(e) {}
+    var p = audio.play();
+    if (p !== undefined) {
+      p.catch(function(e) { console.log('Sound konnte nicht abgespielt werden:', e.message); });
+    }
+  }
+
+  // ============= Helpers =============
+  var _lastGameState = null;  // cache for checking player status etc.
+  var _wasInRevealPhase = false; // track reveal phase to play sound only on transition
+  var _lastWaitingUserId = undefined; // undefined = first load (suppress sound on page load)
+
+  function getGameId() {
+    var el = document.getElementById('UUID');
+    return el.innerHTML.replace(/['"]+/g, '');
+  }
+
+  function getMyId() {
+    return parseInt(localStorage.getItem('id'));
+  }
+
+  // C2: Updated dicehelper -- returns null for null/0/undefined
+  function dicehelper(eyes) {
+    if (eyes === null || eyes === undefined || eyes === 0) return null;
+    switch (eyes) {
+      case 1: {
+        var div = document.createElement('div');
+        div.className = 'dice dice-first-face';
+        var span = document.createElement('span');
+        span.className = 'dot';
+        div.appendChild(span);
+        return div;
+      }
+      case 2: {
+        var div = document.createElement('div');
+        div.className = 'dice dice-second-face';
+        var span = document.createElement('span');
+        span.className = 'dot';
+        var span2 = document.createElement('span');
+        span2.className = 'dot';
+        div.appendChild(span);
+        div.appendChild(span2);
+        return div;
+      }
+      case 3: {
+        var div = document.createElement('div');
+        div.className = 'dice dice-third-face';
+        var span = document.createElement('span');
+        span.className = 'dot';
+        var span2 = document.createElement('span');
+        span2.className = 'dot';
+        var span3 = document.createElement('span');
+        span3.className = 'dot';
+        div.appendChild(span);
+        div.appendChild(span2);
+        div.appendChild(span3);
+        return div;
+      }
+      case 4: {
+        var div = document.createElement('div');
+        div.className = 'dice dice-fourth-face';
+        var divc1 = document.createElement('div');
+        divc1.className = 'dice-column';
+        var divc2 = document.createElement('div');
+        divc2.className = 'dice-column';
+        var span = document.createElement('span');
+        span.className = 'dot';
+        var span2 = document.createElement('span');
+        span2.className = 'dot';
+        var span3 = document.createElement('span');
+        span3.className = 'dot';
+        var span4 = document.createElement('span');
+        span4.className = 'dot';
+        divc1.appendChild(span);
+        divc1.appendChild(span2);
+        divc2.appendChild(span3);
+        divc2.appendChild(span4);
+        div.appendChild(divc1);
+        div.appendChild(divc2);
+        return div;
+      }
+      case 5: {
+        var div = document.createElement('div');
+        div.className = 'dice dice-fifth-face';
+        var divc1 = document.createElement('div');
+        divc1.className = 'dice-column';
+        var divc2 = document.createElement('div');
+        divc2.className = 'dice-column';
+        var divc3 = document.createElement('div');
+        divc3.className = 'dice-column';
+        var span = document.createElement('span');
+        span.className = 'dot';
+        var span2 = document.createElement('span');
+        span2.className = 'dot';
+        var span3 = document.createElement('span');
+        span3.className = 'dot';
+        var span4 = document.createElement('span');
+        span4.className = 'dot';
+        var span5 = document.createElement('span');
+        span5.className = 'dot';
+        divc1.appendChild(span);
+        divc1.appendChild(span2);
+        divc2.appendChild(span3);
+        divc3.appendChild(span4);
+        divc3.appendChild(span5);
+        div.appendChild(divc1);
+        div.appendChild(divc2);
+        div.appendChild(divc3);
+        return div;
+      }
+      case 6: {
+        var div = document.createElement('div');
+        div.className = 'dice dice-fourth-face';
+        var divc1 = document.createElement('div');
+        divc1.className = 'dice-column';
+        var divc2 = document.createElement('div');
+        divc2.className = 'dice-column';
+        var span = document.createElement('span');
+        span.className = 'dot';
+        var span2 = document.createElement('span');
+        span2.className = 'dot';
+        var span3 = document.createElement('span');
+        span3.className = 'dot';
+        var span4 = document.createElement('span');
+        span4.className = 'dot';
+        var span5 = document.createElement('span');
+        span5.className = 'dot';
+        var span6 = document.createElement('span');
+        span6.className = 'dot';
+        divc1.appendChild(span);
+        divc1.appendChild(span2);
+        divc1.appendChild(span3);
+        divc2.appendChild(span4);
+        divc2.appendChild(span5);
+        divc2.appendChild(span6);
+        div.appendChild(divc1);
+        div.appendChild(divc2);
+        return div;
+      }
+      default: return null;
+    }
+  }
+
+  // Format a scoring object (from game.Scoring or game.Last_Scoring) into display HTML
+  function formatScoringText(scoring) {
+    if (!scoring) return '';
+    var chipsPart;
+    if (scoring.From === 'schockaus') {
+      chipsPart = 'Schockaus! Alle Chips an ' + scoring.To_Name;
+    } else {
+      chipsPart = scoring.Chips + ' Chip(s) von '
+                + scoring.From_Name + ' an ' + scoring.To_Name;
+    }
+    return '<b>Hoch:</b> ' + scoring.High
+         + ' — <b>Tief:</b> ' + scoring.Low
+         + ' — ' + chipsPart;
+  }
+
+  // Append dice element if non-null
+  function appendDice(container, eyes) {
+    var el = dicehelper(eyes);
+    if (el) container.appendChild(el);
+  }
+
+  // C4: Check if any non-passive, non-pending user still has hidden dice
+  function isUndecided(game) {
+    var undecided = false;
+    game.User.forEach(function(user) {
+      if (!undecided && user.Passive !== true && user.Pending_Join !== true && user.Dices.length < 3)
+        undecided = true;
+    });
+    return undecided;
+  }
+
+  // ============= Game Actions =============
   function dice() {
     document.getElementById("btn_dice").disabled = true;
     setTimeout(function () { document.getElementById("btn_dice").disabled = false; }, 2500);
@@ -226,27 +552,29 @@
     var v2_6er_button = document.getElementById('2_6er');
     v2_6er_button.hidden = true;
 
-    var dice1_cb = document.getElementById('dice1_cb').checked;
-    var dice2_cb = document.getElementById('dice2_cb').checked;
-    var dice3_cb = document.getElementById('dice3_cb').checked;
+    var dice1_checked = document.getElementById('dice1_cb').checked;
+    var dice2_checked = document.getElementById('dice2_cb').checked;
+    var dice3_checked = document.getElementById('dice3_cb').checked;
 
     var dice1_v = document.getElementById('dice1_v');
     var dice2_v = document.getElementById('dice2_v');
     var dice3_v = document.getElementById('dice3_v');
 
-    var game = document.getElementById('UUID');
-    var gameid = game.innerHTML;
-    gameid = gameid.replace(/['"]+/g, '');
+    var gameid = getGameId();
     var id = localStorage.getItem('id');
 
-    var dicenumber = document.getElementById('Number_Dice' + id).innerHTML;
-    dicenumber = parseInt(dicenumber);
-    if (dicenumber == 0) {
-      if (!dice1_cb || !dice2_cb || !dice3_cb) {
-        alert('Beim ersten Wurf alle Würfel in den Becher Packen!');
-        return
+    var dicenumber = document.getElementById('Number_Dice' + id);
+    if (dicenumber) {
+      var dn = parseInt(dicenumber.innerHTML);
+      if (dn == 0) {
+        if (!dice1_checked || !dice2_checked || !dice3_checked) {
+          alert('Beim ersten Wurf alle Würfel in den Becher Packen!');
+          document.getElementById("btn_dice").disabled = false;
+          return;
+        }
       }
     }
+
     var xhttp = new XMLHttpRequest();
     xhttp.open("POST", "/api/game/" + gameid + "/user/" + id + "/dice");
     xhttp.setRequestHeader("Content-Type", "application/json");
@@ -257,52 +585,42 @@
           if (res.fallen) {
             alert('Würfel vom Tisch gefallen Schnapsrunde!');
           } else {
-            soundDice.play();
+            playSound(soundDice);
 
-            if (dice1_cb) {
-              dice1_v.className = "spin animated"
+            if (dice1_checked) {
+              dice1_v.className = "spin animated";
               dice1_v.style.animation = 'none';
-              dice1_v.offsetHeight; /* trigger reflow */
+              dice1_v.offsetHeight;
               dice1_v.style.animation = null;
             }
-            if (dice2_cb) {
-              dice2_v.className = "spin animated"
+            if (dice2_checked) {
+              dice2_v.className = "spin animated";
               dice2_v.style.animation = 'none';
-              dice2_v.offsetHeight; /* trigger reflow */
+              dice2_v.offsetHeight;
               dice2_v.style.animation = null;
             }
-            if (dice3_cb) {
-              dice3_v.className = "spin animated"
+            if (dice3_checked) {
+              dice3_v.className = "spin animated";
               dice3_v.style.animation = 'none';
-              dice3_v.offsetHeight; /* trigger reflow */
+              dice3_v.offsetHeight;
               dice3_v.style.animation = null;
             }
             dice1_v.innerHTML = '';
             dice2_v.innerHTML = '';
             dice3_v.innerHTML = '';
-            dice1_v.appendChild(dicehelper(res.dice1));
-            dice2_v.appendChild(dicehelper(res.dice2));
-            dice3_v.appendChild(dicehelper(res.dice3));
+            appendDice(dice1_v, res.dice1);
+            appendDice(dice2_v, res.dice2);
+            appendDice(dice3_v, res.dice3);
+
             var anzahlel_first_mumber = document.getElementById('first_user_dice_count_id').innerHTML;
             var first_user_id = document.getElementById('first_user_id').innerHTML;
             var me = localStorage.getItem('id');
 
             if (first_user_id != me || res.number_dice == 3) {
               if (String(res.number_dice) == anzahlel_first_mumber || first_user_id == me) {
-                if (dice1_cb) {
-                  dice1_v.style.display = "none";
-                  dice1_v.style.animation = 'none';
-                }
-                if (dice2_cb) {
-                  dice2_v.style.display = "none";
-                  dice2_v.style.animation = 'none';
-                }
-                if (dice3_cb) {
-                  dice3_v.style.display = "none";
-                  dice3_v.style.animation = 'none';
-                }
-
-
+                if (dice1_checked) { dice1_v.style.display = "none"; dice1_v.style.animation = 'none'; }
+                if (dice2_checked) { dice2_v.style.display = "none"; dice2_v.style.animation = 'none'; }
+                if (dice3_checked) { dice3_v.style.display = "none"; dice3_v.style.animation = 'none'; }
               } else {
                 dice1_v.style.display = "block";
                 dice2_v.style.display = "block";
@@ -331,152 +649,20 @@
         }
       }
     }
-    xhttp.send(JSON.stringify({ dice1: dice1_cb, dice2: dice2_cb, dice3: dice3_cb }));
-  }
-
-
-
-  function dicehelper(eyes) {
-    switch (eyes) {
-      case 1: {
-        var div = document.createElement('div');
-        div.className = 'dice dice-first-face'
-        var span = document.createElement('span');
-        span.className = 'dot'
-        div.appendChild(span);
-        return div
-      }
-      case 2: {
-        var div = document.createElement('div');
-        div.className = 'dice dice-second-face'
-        var span = document.createElement('span');
-        span.className = 'dot'
-        var span2 = document.createElement('span');
-        span2.className = 'dot'
-        div.appendChild(span);
-        div.appendChild(span2);
-        return div
-      }
-      case 3: {
-        var div = document.createElement('div');
-        div.className = 'dice dice-third-face'
-        var span = document.createElement('span');
-        span.className = 'dot'
-        var span2 = document.createElement('span');
-        span2.className = 'dot'
-        var span3 = document.createElement('span');
-        span3.className = 'dot'
-        div.appendChild(span);
-        div.appendChild(span2);
-        div.appendChild(span3);
-        return div
-      }
-      case 4: {
-        var div = document.createElement('div');
-        div.className = 'dice dice-fourth-face'
-        var divc1 = document.createElement('div');
-        divc1.className = 'dice-column'
-        var divc2 = document.createElement('div');
-        divc2.className = 'dice-column'
-        var span = document.createElement('span');
-        span.className = 'dot'
-        var span2 = document.createElement('span');
-        span2.className = 'dot'
-        var span3 = document.createElement('span');
-        span3.className = 'dot'
-        var span4 = document.createElement('span');
-        span4.className = 'dot'
-        divc1.appendChild(span);
-        divc1.appendChild(span2);
-        divc2.appendChild(span3);
-        divc2.appendChild(span4);
-        div.appendChild(divc1);
-        div.appendChild(divc2);
-        return div
-      }
-      case 5: {
-        var div = document.createElement('div');
-        div.className = 'dice dice-fifth-face'
-        var divc1 = document.createElement('div');
-        divc1.className = 'dice-column'
-        var divc2 = document.createElement('div');
-        divc2.className = 'dice-column'
-        var divc3 = document.createElement('div');
-        divc3.className = 'dice-column'
-        var span = document.createElement('span');
-        span.className = 'dot'
-        var span2 = document.createElement('span');
-        span2.className = 'dot'
-        var span3 = document.createElement('span');
-        span3.className = 'dot'
-        var span4 = document.createElement('span');
-        span4.className = 'dot'
-        var span5 = document.createElement('span');
-        span5.className = 'dot'
-        divc1.appendChild(span);
-        divc1.appendChild(span2);
-        divc2.appendChild(span3);
-        divc3.appendChild(span4);
-        divc3.appendChild(span5);
-        div.appendChild(divc1);
-        div.appendChild(divc2);
-        div.appendChild(divc3);
-        return div
-      }
-      case 6: {
-        var div = document.createElement('div');
-        div.className = 'dice dice-fourth-face'
-        var divc1 = document.createElement('div');
-        divc1.className = 'dice-column'
-        var divc2 = document.createElement('div');
-        divc2.className = 'dice-column'
-        var span = document.createElement('span');
-        span.className = 'dot'
-        var span2 = document.createElement('span');
-        span2.className = 'dot'
-        var span3 = document.createElement('span');
-        span3.className = 'dot'
-        var span4 = document.createElement('span');
-        span4.className = 'dot'
-        var span5 = document.createElement('span');
-        span5.className = 'dot'
-        var span6 = document.createElement('span');
-        span6.className = 'dot'
-        divc1.appendChild(span);
-        divc1.appendChild(span2);
-        divc1.appendChild(span3);
-        divc2.appendChild(span4);
-        divc2.appendChild(span5);
-        divc2.appendChild(span6);
-
-        div.appendChild(divc1);
-        div.appendChild(divc2);
-        return div
-      }
-      default: {
-        var div = document.createElement('div');
-        return div
-      }
-    }
+    xhttp.send(JSON.stringify({ dice1: dice1_checked, dice2: dice2_checked, dice3: dice3_checked }));
   }
 
   function set_user_passiv() {
     var id = localStorage.getItem('id');
-    var game = document.getElementById('UUID');
-    var gameid = game.innerHTML;
-    var userstateel = document.getElementById('setpassivid');
-    var userstate = userstateel.checked;
-
-    gameid = gameid.replace(/['"]+/g, '');
+    var gameid = getGameId();
+    var userstate = document.getElementById('setpassivid').checked;
     var xhttp = new XMLHttpRequest();
     xhttp.open("POST", "/api/game/" + gameid + "/user/" + id + "/passiv");
     xhttp.setRequestHeader("Content-Type", "application/json");
     xhttp.onreadystatechange = function () {
       if (xhttp.readyState == XMLHttpRequest.DONE) {
         var res = JSON.parse(xhttp.responseText);
-        if (xhttp.status != 200) {
-          alert('' + res.Message);
-        }
+        if (xhttp.status != 200 && xhttp.status != 201) { alert('' + res.Message); }
       }
     }
     xhttp.send(JSON.stringify({ userstate: userstate }));
@@ -484,41 +670,34 @@
 
   function finish() {
     var id = localStorage.getItem('id');
-    var game = document.getElementById('UUID');
-    var gameid = game.innerHTML;
-    gameid = gameid.replace(/['"]+/g, '');
+    var gameid = getGameId();
     var xhttp = new XMLHttpRequest();
     xhttp.open("POST", "/api/game/" + gameid + "/user/" + id + "/finisch");
     xhttp.setRequestHeader("Content-Type", "application/json");
     xhttp.onreadystatechange = function () {
       if (xhttp.readyState == XMLHttpRequest.DONE) {
         var res = JSON.parse(xhttp.responseText);
-        if (xhttp.status != 200) {
-          alert('' + res.Message);
-        }
+        if (xhttp.status != 200) { alert('' + res.Message); }
       }
     }
     xhttp.send(JSON.stringify({}));
   }
 
+  // C3: Move DOM changes into success callback
   function pullup() {
     var id = localStorage.getItem('id');
-    var game = document.getElementById('UUID');
-    var gameid = game.innerHTML;
-    gameid = gameid.replace(/['"]+/g, '');
+    var gameid = getGameId();
     var xhttp = new XMLHttpRequest();
-    var dice1_v = document.getElementById('dice1_v');
-    var dice2_v = document.getElementById('dice2_v');
-    var dice3_v = document.getElementById('dice3_v');
-    dice1_v.style.display = "block";
-    dice2_v.style.display = "block";
-    dice3_v.style.display = "block";
     xhttp.open("POST", "/api/game/" + gameid + "/user/" + id + "/visible");
     xhttp.setRequestHeader("Content-Type", "application/json");
     xhttp.onreadystatechange = function () {
       if (xhttp.readyState == XMLHttpRequest.DONE) {
         var res = JSON.parse(xhttp.responseText);
-        if (xhttp.status != 201) {
+        if (xhttp.status == 201) {
+          document.getElementById('dice1_v').style.display = "block";
+          document.getElementById('dice2_v').style.display = "block";
+          document.getElementById('dice3_v').style.display = "block";
+        } else {
           alert('' + res.Message);
         }
       }
@@ -528,22 +707,18 @@
 
   function pulldown() {
     var id = localStorage.getItem('id');
-    var game = document.getElementById('UUID');
-    var gameid = game.innerHTML;
-    gameid = gameid.replace(/['"]+/g, '');
-    var dice1_v = document.getElementById('dice1_v');
-    var dice2_v = document.getElementById('dice2_v');
-    var dice3_v = document.getElementById('dice3_v');
-    dice1_v.style.display = "none";
-    dice2_v.style.display = "none";
-    dice3_v.style.display = "none";
+    var gameid = getGameId();
     var xhttp = new XMLHttpRequest();
     xhttp.open("POST", "/api/game/" + gameid + "/user/" + id + "/visible");
     xhttp.setRequestHeader("Content-Type", "application/json");
     xhttp.onreadystatechange = function () {
       if (xhttp.readyState == XMLHttpRequest.DONE) {
         var res = JSON.parse(xhttp.responseText);
-        if (xhttp.status != 201) {
+        if (xhttp.status == 201) {
+          document.getElementById('dice1_v').style.display = "none";
+          document.getElementById('dice2_v').style.display = "none";
+          document.getElementById('dice3_v').style.display = "none";
+        } else {
           alert('' + res.Message);
         }
       }
@@ -555,18 +730,11 @@
     var dice1_cb = document.getElementById('dice1_cb');
     var dice2_cb = document.getElementById('dice2_cb');
     var dice3_cb = document.getElementById('dice3_cb');
-
     var dice1_v = document.getElementById('dice1_v');
     var dice2_v = document.getElementById('dice2_v');
     var dice3_v = document.getElementById('dice3_v');
-    ///game/<gid>/user/<uid>/dice
-
-    var game = document.getElementById('UUID');
-    var gameid = game.innerHTML;
-    gameid = gameid.replace(/['"]+/g, '');
+    var gameid = getGameId();
     var id = localStorage.getItem('id');
-
-
     var xhttp = new XMLHttpRequest();
     xhttp.open("POST", "/api/game/" + gameid + "/user/" + id + "/diceturn");
     xhttp.setRequestHeader("Content-Type", "application/json");
@@ -578,23 +746,17 @@
           dice2_v.innerHTML = '';
           dice3_v.innerHTML = '';
           if (res.dice1) {
-            dice1_v.appendChild(dicehelper(res.dice1));
-          } else {
-            dice1_cb.checked = true;
-            dice1_cb.disabled = true;
-          }
+            appendDice(dice1_v, res.dice1);
+            if (res.dice1 == 1) { dice1_cb.checked = false; }
+          } else { dice1_cb.checked = true; dice1_cb.disabled = true; }
           if (res.dice2) {
-            dice2_v.appendChild(dicehelper(res.dice2));
-          } else {
-            dice2_cb.checked = true;
-            dice2_cb.disabled = true;
-          }
+            appendDice(dice2_v, res.dice2);
+            if (res.dice2 == 1) { dice2_cb.checked = false; }
+          } else { dice2_cb.checked = true; dice2_cb.disabled = true; }
           if (res.dice3) {
-            dice3_v.appendChild(dicehelper(res.dice3));
-          } else {
-            dice3_cb.checked = true;
-            dice3_cb.disabled = true;
-          }
+            appendDice(dice3_v, res.dice3);
+            if (res.dice3 == 1) { dice3_cb.checked = false; }
+          } else { dice3_cb.checked = true; dice3_cb.disabled = true; }
         } else {
           alert('' + res.Message);
         }
@@ -603,248 +765,425 @@
     xhttp.send(JSON.stringify({ count: count }));
   }
 
-  function turn1() {
-    var count = 1;
-    turn(count);
-  }
-  function turn2() {
-    var count = 2;
-    turn(count);
-  }
+  function turn1() { turn(1); }
+  function turn2() { turn(2); }
 
-  var sound_is_played_once = 0;
-  function set_sound_play(val) {
-    sound_is_played_once = val
-  }
+  // ============= Player/Admin checks =============
+  function checkIfPlayer(game) {
+    var myId = getMyId();
+    var isPlayer = game.User.some(function(u) { return u.Id === myId; });
+    var gameControls = document.getElementById('game_controls');
+    var joinForm = document.getElementById('join_form');
+    var pendingNotice = document.getElementById('pending_notice');
 
-
-  function startup() {
-    faq();
-    initial_game_data();
-    var id = localStorage.getItem('id');
-    var user = document.getElementById('ownuser');
-    //var test = localStorage.getItem('name');
-    user.innerHTML = "Spieler: " + localStorage.getItem('name');
-
-    var admin_el = document.getElementById('admin_id');
-    var admin_id = admin_el.innerHTML;
-    if (id != admin_id) {
-      var x = document.getElementById("admin_interface");
-      //Disable admin interface for none admins
-      x.style.display = "none";
-    }
-    var game = document.getElementById('UUID');
-    var gameid = game.innerHTML;
-    gameid = gameid.replace(/['"]+/g, '');
-    var xhttp = new XMLHttpRequest();
-    xhttp.open("GET", "/api/game/" + gameid);
-    xhttp.setRequestHeader("Content-Type", "application/json");
-    xhttp.onreadystatechange = function () {
-      if (xhttp.readyState == XMLHttpRequest.DONE) {
-        var res = JSON.parse(xhttp.responseText);
-        if (xhttp.status == 200) {
-          var selectionchips = document.getElementById('stack_count_id');
-          for (let i = 1; i <= res.Stack_Max; i++){
-            var chipcount = document.createElement('option');
-            chipcount.value = i;
-            chipcount.innerHTML = i.toString();
-            selectionchips.appendChild(chipcount);
-          }
-          selectionchips.setAttribute('size', Math.floor(res.Stack_Max / 2) + 2);
-          var selectionsource = document.getElementById('transfer_source_user');
-          var selectiontarget = document.getElementById('transfer_target_user');
-          var delete_player = document.getElementById('select_delete_player')
-          var choose_admin = document.getElementById('select_choose_admin')
-          for (num in res.User) {
-            var juser = res.User[num];
-            var opt = document.createElement('option');
-            opt.value = juser['Id'];
-            opt.innerHTML = juser['Name'];
-            selectionsource.appendChild(opt);
-            var opt2 = document.createElement('option');
-            opt2.value = juser['Id'];
-            opt2.innerHTML = juser['Name'];
-            selectiontarget.appendChild(opt2);
-            var opt3 = document.createElement('option');
-            opt3.value = juser['Id'];
-            opt3.innerHTML = juser['Name'];
-            delete_player.appendChild(opt3);
-            var opt4 = document.createElement('option');
-            opt4.value = juser['Id'];
-            opt4.innerHTML = juser['Name'];
-            choose_admin.appendChild(opt4);
-          }
-          document.getElementById('transfer_source').setAttribute('size', res.User.length + 4);
-          document.getElementById('transfer_target').setAttribute('size', res.User.length + 1);
-        }
+    if (!isPlayer) {
+      gameControls.style.display = 'none';
+      joinForm.style.display = 'block';
+      pendingNotice.style.display = 'none';
+    } else {
+      var me = game.User.find(function(u) { return u.Id === myId; });
+      if (me && me.Pending_Join) {
+        gameControls.style.display = 'none';
+        joinForm.style.display = 'none';
+        pendingNotice.style.display = 'block';
+      } else {
+        gameControls.style.display = 'block';
+        joinForm.style.display = 'none';
+        pendingNotice.style.display = 'none';
       }
     }
-    xhttp.send(JSON.stringify({}));
   }
 
+  // H2: Dynamically rebuild table rows to match game.User
+  function updateTableRows(game) {
+    var tbody = document.getElementById('game_tbody');
+    var myId = getMyId();
+    var isAdmin = game.Admins && game.Admins.indexOf(myId) !== -1;
+    var showFinal = game.Ruleset && game.Ruleset.play_final;
+    var finalHeader = document.getElementById('finalcount_header');
+    if (finalHeader) finalHeader.style.display = showFinal ? '' : 'none';
+
+    // Build current set of user IDs in table
+    var existingRows = {};
+    var rows = tbody.querySelectorAll('tr');
+    for (var i = 0; i < rows.length; i++) {
+      var rowId = rows[i].id;
+      if (rowId && rowId.startsWith('row')) {
+        existingRows[rowId.replace('row', '')] = rows[i];
+      }
+    }
+
+    // Remove rows for users no longer in game
+    var gameUserIds = {};
+    game.User.forEach(function(u) { gameUserIds[u.Id] = true; });
+    Object.keys(existingRows).forEach(function(uid) {
+      if (!gameUserIds[uid]) {
+        tbody.removeChild(existingRows[uid]);
+      }
+    });
+
+    // Add/update rows for each user
+    game.User.forEach(function(juser, idx) {
+      var row = document.getElementById('row' + juser.Id);
+      if (!row) {
+        // Create new row
+        row = document.createElement('tr');
+        row.id = 'row' + juser.Id;
+        row.innerHTML = '<td class="col-counter"></td>'
+          + '<td id="user' + juser.Id + '" class="col-name"></td>'
+          + '<td id="chips' + juser.Id + '" class="col-chips"></td>'
+          + '<td id="Number_Dice' + juser.Id + '" class="col-throws"></td>'
+          + '<td id="dice1' + juser.Id + '" class="dice-cell col-dice"></td>'
+          + '<td id="dice2' + juser.Id + '" class="dice-cell col-dice"></td>'
+          + '<td id="dice3' + juser.Id + '" class="dice-cell col-dice"></td>'
+          + '<td id="first' + juser.Id + '" class="col-half"></td>'
+          + '<td id="finalcount' + juser.Id + '" class="col-final"' + (showFinal ? '' : ' style="display:none"') + '></td>';
+        tbody.appendChild(row);
+      }
+
+      // Counter: use first cell directly
+      row.cells[0].textContent = idx + 1;
+
+      // G5: Pending player display
+      if (juser.Pending_Join) {
+        row.className = 'pending-row';
+      } else {
+        row.className = '';
+      }
+
+      // F4: Name + admin badge + leave icon
+      var nameCell = document.getElementById('user' + juser.Id);
+      var nameHtml = juser.Name;
+
+      // Second line: status and/or leave icon
+      var secondLine = '';
+      if (juser.Pending_Join) secondLine += '<small>(wartet)</small> ';
+      // Leave icon: green if active, gray only if user can toggle it (own or admin)
+      var clickable = (juser.Id === myId || isAdmin);
+      if (juser.Leave_After_Game) {
+        secondLine += '<i class="fas fa-sign-out-alt leave-icon leave-active"'
+          + ' title="Verlassen vorgemerkt (klicken zum Aufheben)"'
+          + (clickable ? ' onclick="toggle_leave(' + juser.Id + ')"' : '')
+          + '></i>';
+      } else if (clickable) {
+        secondLine += '<i class="fas fa-sign-out-alt leave-icon leave-inactive"'
+          + ' title="Nach dem Spiel verlassen"'
+          + ' onclick="toggle_leave(' + juser.Id + ')"'
+          + '></i>';
+      }
+      if (secondLine) nameHtml += '<div>' + secondLine + '</div>';
+      nameCell.innerHTML = nameHtml;
+
+      // Chips
+      document.getElementById('chips' + juser.Id).innerHTML = juser.Chips;
+
+      // Halfcount
+      document.getElementById('first' + juser.Id).innerHTML = juser.Halfcount;
+
+      // Finalcount
+      var fcEl = document.getElementById('finalcount' + juser.Id);
+      if (fcEl) {
+        fcEl.innerHTML = juser.Finalcount;
+        fcEl.style.display = showFinal ? '' : 'none';
+      }
+
+      // Number of dice throws
+      document.getElementById('Number_Dice' + juser.Id).innerHTML = juser.Number_Dice;
+
+      // Dices in table
+      var d1 = document.getElementById('dice1' + juser.Id);
+      var d2 = document.getElementById('dice2' + juser.Id);
+      var d3 = document.getElementById('dice3' + juser.Id);
+      d1.innerHTML = '';
+      d2.innerHTML = '';
+      d3.innerHTML = '';
+      if (juser.Dices && juser.Dices.length > 0) {
+        for (var dn in juser.Dices) {
+          var jdice = juser.Dices[dn];
+          if (jdice['Dice1'] !== undefined) appendDice(d1, jdice['Dice1']);
+          if (jdice['Dice2'] !== undefined) appendDice(d2, jdice['Dice2']);
+          if (jdice['Dice3'] !== undefined) appendDice(d3, jdice['Dice3']);
+        }
+      }
+
+      // Row background color
+      if (juser.Pending_Join) {
+        // Already handled by pending-row class
+      } else if (juser.Id == game.First) {
+        row.style.backgroundColor = "lightblue";
+      } else if (juser.Passive) {
+        row.style.backgroundColor = "lightgray";
+      } else {
+        row.style.backgroundColor = "#11ffee00";
+      }
+    });
+  }
+
+  // ============= Main refresh function =============
   function refresh_game(game) {
-    window.console.log(game);
-    var game_uuid = document.getElementById('UUID');
-    var gameid = game_uuid.innerHTML;
-    gameid = gameid.replace(/['"]+/g, '');
-    var waiting_user_id = game.Move
+    _lastGameState = game;
+    var gameid = getGameId();
+    var waiting_user_id = game.Move;
     var waitinguserstorage = document.getElementById('waiting_id');
     var throwbutton = document.getElementById('startgame_id');
-    //Admin GAme Info Half count
-    var gamehalfs = game['Game_Half_Count'];
+    var id = getMyId();
+    var isAdmin = game.Admins && game.Admins.indexOf(id) !== -1;
+
+    // Admin info
     var admininfo = document.getElementById('admin_information');
-    admininfo.innerHTML = 'Admin gespielte Hälften: ' + gamehalfs;
-    if (localStorage.getItem('id') == game.Admin && !isUndecided(game)) {
-      setAdminpanel(game);
+    if (admininfo) admininfo.innerHTML = 'Admin gespielte Hälften: ' + game['Game_Half_Count'];
+
+    // H2: Toggle admin panel visibility dynamically
+    var adminPanel = document.getElementById('admin_interface');
+    if (adminPanel) {
+      adminPanel.style.display = isAdmin ? 'block' : 'none';
     }
+
+    // Check if player / pending / spectator
+    checkIfPlayer(game);
+
+    // Redirect to lobby if game returned to waiting
     var game_state = game['State'];
-    if (game_state == 'waiting'){
-      // Simulate an HTTP redirect:
+    if (game_state == 'waiting') {
       var getUrl = window.location;
       var baseUrl = getUrl.protocol + "//" + getUrl.host;
       window.location.replace(baseUrl + '/game_waiting/' + gameid);
+      return;
     }
-    var id = localStorage.getItem('id');
+
     var me_inactive = false;
-    for (num in game.User) {
+    for (var num in game.User) {
       if (game.User[num]['Id'] == id && game.User[num]['Passive']) {
         me_inactive = true;
       }
     }
-    //set stack Chips
-    var stackchips = document.getElementById('StackChips_id');
-    stackchips.innerHTML = 'Chips: ' + game.Stack
-    var firstuser_id = game['First']
-    var first_user_id_el = document.getElementById('first_user_id');
-    first_user_id_el.innerHTML = firstuser_id;
-    // set Game Message
-    var el_message = document.getElementById('Message');
-    if (game.Message) {
-      // Only animate once
-      if (el_message.innerHTML != 'Nachricht: ' + game.Message) {
-        if (game.Message.includes("Chip(s) von") || game.Message.includes("Schockaus! Alle Chips an") || game.Message.includes("Chip(s) vom Stapel an") || game.Message.includes("hat das Finale verloren") || game.Message.includes("Finale wird gespielt")) {
-          document.getElementById("dice1_cb").checked = true;
-          document.getElementById("dice2_cb").checked = true;
-          document.getElementById("dice3_cb").checked = true;
-        }
-        if (!me_inactive && game.Message.startsWith('Aufdecken')) {
-          soundLift.play();
-        }
-        el_message.className = "message"
-        el_message.style.animation = 'none';
-        el_message.offsetHeight; /* trigger reflow */
-        el_message.style.animation = null;
-      }
-      el_message.innerHTML = 'Nachricht: ' + game.Message
-    } else {
-      el_message.innerHTML = ''
-    }
-    if (waiting_user_id == -1) {
-      // set Waiting for
-      waitinguserstorage.innerHTML = 'Warten auf: Chipvergabe';
-    }
-    for (num in game.User) {
-      var juser = game.User[num];
-      // finale
-      var row = document.getElementById('row' + juser['Id']);
-      var str = 'chips' + juser['Id']
-      var chips = document.getElementById('chips' + juser['Id']);
-      chips.innerHTML = juser['Chips'];
-      //set anzahl würfe
-      if (juser['Id'] == firstuser_id) {
+
+    // Stack chips
+    document.getElementById('StackChips_id').innerHTML = 'Chips: ' + game.Stack;
+
+    // First user
+    var firstuser_id = game['First'];
+    document.getElementById('first_user_id').innerHTML = firstuser_id;
+
+    // First user dice count
+    for (var num in game.User) {
+      if (game.User[num].Id == firstuser_id) {
         var anzahlel = document.getElementById('throw_id');
         var anzahl_number_el = document.getElementById('throw_number_id');
-        anzahlel.innerHTML = 'Anzahl Würfe: ' + juser['Number_Dice'];
-        anzahl_number_el.innerHTML = juser['Number_Dice'];
-        var row = document.getElementById('row' + juser['Id']);
-        row.style.backgroundColor = "lightblue";
-        var anzahlel_first_mumber = document.getElementById('first_user_dice_count_id');
-        anzahlel_first_mumber.innerHTML = juser['Number_Dice'];
-      } else {
-        var row = document.getElementById('row' + juser['Id']);
-        if (juser['Passive']) {
-          row.style.backgroundColor = "lightgray";
-        } else {
-          row.style.backgroundColor = "#11ffee00";
-        }
-      }
-
-      var anzahluserel = document.getElementById('Number_Dice' + juser['Id']);
-      anzahluserel.innerHTML = juser['Number_Dice'];
-
-      if (game.Message) {
-        // sound whene i have to dice
-        if (juser['Id'] == waiting_user_id) {
-          if (waitinguserstorage.innerHTML != 'Warten auf: ' + juser['Name']) {
-            if (juser['Id'] == localStorage.getItem('id') && !game.Message.startsWith('Aufdecken')) {
-              soundDiceY.play();
-            }
-          }
-          // set Waiting user Name
-          waitinguserstorage.innerHTML = 'Warten auf: ' + juser['Name'];
-        }
-      } else {
-        if (juser['Id'] == waiting_user_id) {
-          // set Waiting user Name
-          waitinguserstorage.innerHTML = 'Warten auf: ' + juser['Name'];
-        }
-      }
-      // me as user
-      if (juser['Id'] == id) {
-        // Do not allow Users to skip if they already rolled the dice
-        if (game.Stack == 0 && juser['Chips'] == 0 && juser['Number_Dice'] == 0 && game_state != 'playfinal') {
-          var set_passiv_div_id = document.getElementById('set_passiv_div_id');
-          set_passiv_div_id.style.display = "block";
-        } else {
-          var set_passiv_div_id = document.getElementById('set_passiv_div_id');
-          set_passiv_div_id.style.display = "none";
-          var setpassivid = document.getElementById('setpassivid');
-          setpassivid.checked = false;
-        }
-      }
-      // set button color
-      if (id == waiting_user_id) {
-        throwbutton.className = 'buttongreen containerturner';
-      } else {
-        throwbutton.className = 'buttongray containerturner';
-      }
-      var userhalfs = juser['Halfcount']
-      var userfirsthalfel = document.getElementById('first' + juser['Id']);
-      userfirsthalfel.innerHTML = userhalfs;
-
-      var userfinals = juser['Finalcount']
-      var userfinalhalfel = document.getElementById('finalcount' + juser['Id']);
-      if (userfinalhalfel) {
-        userfinalhalfel.innerHTML = userfinals;
-      }
-
-      // set dices
-      var dice1_v = document.getElementById('dice1' + juser['Id']);
-      var dice2_v = document.getElementById('dice2' + juser['Id']);
-      var dice3_v = document.getElementById('dice3' + juser['Id']);
-      if (juser.Dices) {
-        dice1_v.innerHTML = '';
-        dice2_v.innerHTML = '';
-        dice3_v.innerHTML = '';
-        for (num in juser.Dices) {
-          var jdice = juser.Dices[num];
-          dice1_v.appendChild(dicehelper(jdice['Dice1']));
-          dice2_v.appendChild(dicehelper(jdice['Dice2']));
-          dice3_v.appendChild(dicehelper(jdice['Dice3']));
-        }
-      } else {
-        dice1_v.innerHTML = '';
-        dice2_v.innerHTML = '';
-        dice3_v.innerHTML = '';
+        anzahlel.innerHTML = 'Anzahl Würfe: ' + game.User[num]['Number_Dice'];
+        anzahl_number_el.innerHTML = game.User[num]['Number_Dice'];
+        document.getElementById('first_user_dice_count_id').innerHTML = game.User[num]['Number_Dice'];
+        break;
       }
     }
 
+    // Game message
+    var el_message = document.getElementById('Message');
+    if (game.Message) {
+      if (el_message.innerHTML != 'Nachricht: ' + game.Message) {
+        el_message.className = "message";
+        el_message.style.animation = 'none';
+        el_message.offsetHeight;
+        el_message.style.animation = null;
+      }
+      el_message.innerHTML = 'Nachricht: ' + game.Message;
+    } else {
+      el_message.innerHTML = '';
+    }
+
+    // Count active (non-pending) players
+    var activePlayerCount = 0;
+    for (var num in game.User) {
+      if (!game.User[num].Pending_Join) activePlayerCount++;
+    }
+    var notEnoughPlayers = activePlayerCount < 2 &&
+        (game_state == 'started' || game_state == 'playfinal');
+
+    // C4: Improved "Warten auf" display
+    if (notEnoughPlayers) {
+      waitinguserstorage.innerHTML = 'Warten auf: Mitspieler';
+    } else if (waiting_user_id == -1) {
+      if (isUndecided(game)) {
+        waitinguserstorage.innerHTML = 'Warten auf: Aufdecken';
+      } else {
+        waitinguserstorage.innerHTML = 'Warten auf: Chip Verteilung';
+      }
+    } else {
+      // Find the waiting user's name
+      for (var num in game.User) {
+        if (game.User[num]['Id'] == waiting_user_id) {
+          waitinguserstorage.innerHTML = 'Warten auf: ' + game.User[num]['Name'];
+          break;
+        }
+      }
+    }
+
+    // Play "your turn" sound when the waiting user changes to me.
+    // _lastWaitingUserId === undefined on first load → suppress sound on page load.
+    if (_lastWaitingUserId !== undefined
+        && waiting_user_id !== _lastWaitingUserId
+        && waiting_user_id === id) {
+      playSound(soundDiceY);
+    }
+    _lastWaitingUserId = waiting_user_id;
+
+    // H2: Update table rows dynamically
+    updateTableRows(game);
+
+    // C1: Restore own dice cup from server state
+    var me_data = null;
+    for (var num in game.User) {
+      if (game.User[num].Id == id) {
+        me_data = game.User[num];
+        break;
+      }
+    }
+    if (me_data) {
+      // Reset all dice checkboxes at the start of each round (before first roll)
+      if (me_data.Number_Dice == 0) {
+        document.getElementById('dice1_cb').checked = true;
+        document.getElementById('dice2_cb').checked = true;
+        document.getElementById('dice3_cb').checked = true;
+      }
+
+      var dice1_v = document.getElementById('dice1_v');
+      var dice2_v = document.getElementById('dice2_v');
+      var dice3_v = document.getElementById('dice3_v');
+      // Only restore if the cup area is currently empty (after reload)
+      // or if we're not in the middle of a roll animation
+      if (dice1_v.children.length === 0 && me_data.Number_Dice > 0) {
+        // Restore dice from the Dices array
+        if (me_data.Dices && me_data.Dices.length > 0) {
+          dice1_v.innerHTML = '';
+          dice2_v.innerHTML = '';
+          dice3_v.innerHTML = '';
+          for (var dn in me_data.Dices) {
+            var jdice = me_data.Dices[dn];
+            if (jdice['Dice1'] !== undefined) appendDice(dice1_v, jdice['Dice1']);
+            if (jdice['Dice2'] !== undefined) appendDice(dice2_v, jdice['Dice2']);
+            if (jdice['Dice3'] !== undefined) appendDice(dice3_v, jdice['Dice3']);
+          }
+          // Show dice if visible
+          dice1_v.style.display = "block";
+          dice2_v.style.display = "block";
+          dice3_v.style.display = "block";
+        }
+      }
+
+      // Passive checkbox
+      if (game.Stack == 0 && me_data.Chips == 0 && me_data.Number_Dice == 0 && game_state != 'playfinal') {
+        document.getElementById('set_passiv_div_id').style.display = "block";
+      } else {
+        document.getElementById('set_passiv_div_id').style.display = "none";
+        document.getElementById('setpassivid').checked = false;
+      }
+    }
+
+    // Throw button color and state
+    if (notEnoughPlayers) {
+      throwbutton.className = 'buttongray containerturner';
+      throwbutton.disabled = true;
+    } else if (id == waiting_user_id) {
+      throwbutton.className = 'buttongreen containerturner';
+      throwbutton.disabled = false;
+    } else {
+      throwbutton.className = 'buttongray containerturner';
+      throwbutton.disabled = false;
+    }
+
+    // Unified round status row
+    var roundRow = document.getElementById('round_status_row');
+    var roundFinished = (waiting_user_id == -1);
+    var needsReveal = roundFinished && isUndecided(game);
+    var readyToDistribute = roundFinished && !needsReveal;
+
+    // Play reveal sound only on transition into the reveal phase,
+    // and only for active players who still have hidden dice
+    if (needsReveal && !_wasInRevealPhase) {
+      if (me_data && !me_data.Passive && !me_data.Pending_Join
+          && me_data.Dices.length < 3 && me_data.Number_Dice > 0) {
+        playSound(soundLift);
+      }
+    }
+    _wasInRevealPhase = needsReveal;
+
+    if (readyToDistribute && game.Scoring) {
+      // Phase: all dice visible, ready to distribute
+      var fullInfo = formatScoringText(game.Scoring);
+      roundRow.innerHTML = '<button class="btn btn-success" id="distribute_btn" '
+        + 'onclick="distribute()" disabled>Verteilen</button> '
+        + '<span>' + fullInfo + '</span>';
+      // Enable button after 3s delay
+      setTimeout(function() {
+        var btn = document.getElementById('distribute_btn');
+        if (btn) btn.disabled = false;
+      }, 3000);
+    } else if (needsReveal) {
+      // Phase: waiting for reveal
+      var voteHtml = '';
+      if (game.Reveal_Votes > 0) {
+        voteHtml = ' <span>(' + game.Reveal_Votes + ' Stimme(n))</span>';
+      }
+      roundRow.innerHTML = '<button class="btn btn-warning" id="reveal_all_btn" onclick="vote_reveal_all()" disabled>'
+        + 'Alles aufdecken</button>' + voteHtml;
+      setTimeout(function() {
+        var btn = document.getElementById('reveal_all_btn');
+        if (btn) btn.disabled = false;
+      }, 10000);
+    } else if (!roundFinished) {
+      // Phase: game is running – show last round result from server state
+      var lastText = formatScoringText(game.Last_Scoring);
+      if (lastText) {
+        roundRow.innerHTML = '<span>Letzte Runde: ' + lastText + '</span>';
+      } else {
+        roundRow.innerHTML = '';
+      }
+    } else {
+      roundRow.innerHTML = '';
+    }
+
+    // Lobby after game button
+    var lobbyBtn = document.getElementById('mark_lobby_btn');
+    if (lobbyBtn) {
+      if (game.Lobby_After_Game) {
+        lobbyBtn.className = 'btn btn-success btn-sm';
+        lobbyBtn.innerHTML = 'Lobby nach dem Spiel geplant (klicken zum Aufheben)';
+      } else {
+        lobbyBtn.className = 'btn btn-warning btn-sm';
+        lobbyBtn.innerHTML = 'Zurück zur Lobby nach dem Spiel';
+      }
+    }
+
+    // H2: Update player select lists
+    if (typeof updatePlayerSelects === 'function') {
+      updatePlayerSelects(game);
+    }
+
+    // R6: Update rules display data
+    if (game.Ruleset) {
+      updateRulesModal(game.Ruleset);
+    }
+  }
+
+  // R6: Build rules modal content
+  function updateRulesModal(ruleset) {
+    var title = document.getElementById('rules_title');
+    var content = document.getElementById('rules_content');
+    if (!title || !content) return;
+    title.innerHTML = 'Regeln: ' + ruleset.name;
+    var html = '<p><strong>Chips:</strong> ' + ruleset.stack_max + ' | <strong>Finale:</strong> ' + (ruleset.play_final ? 'Ja' : 'Nein') + '</p>';
+    html += '<table class="table table-condensed"><thead><tr><th>Kombination</th><th>Name</th><th>Chips</th></tr></thead><tbody>';
+    for (var i = 0; i < ruleset.rules.length; i++) {
+      var r = ruleset.rules[i];
+      html += '<tr><td>' + r.dice + '</td><td>' + r.name + '</td><td>' + (r.chips == -1 ? 'Alle (Schock aus)' : r.chips) + '</td></tr>';
+    }
+    html += '</tbody></table>';
+    html += '<p><small>Alle weiteren Kombinationen: Schrott (1 Chip)</small></p>';
+    content.innerHTML = html;
   }
 
   function initial_game_data() {
-    var game = document.getElementById('UUID');
-    var gameid = game.innerHTML;
-    gameid = gameid.replace(/['"]+/g, '');
+    var gameid = getGameId();
     var xhttp = new XMLHttpRequest();
     xhttp.open("GET", "/api/game/" + gameid);
     xhttp.setRequestHeader("Content-Type", "application/json");
@@ -859,235 +1198,27 @@
     xhttp.send(JSON.stringify({}));
   }
 
-  var ruleSet = [];
-  function getRuleSet() {
-    if (ruleSet.length == 0) {
-      ruleSet = [
-        {
-          "dice": 111,
-          "name": "Schock aus",
-          "chips": -1
-        },
-        {
-          "dice": 421,
-          "name": "Jule",
-          "chips": 7
-        },
-        {
-          "dice": 611,
-          "name": "Schock 6",
-          "chips": 6
-        },
-        {
-          "dice": 511,
-          "name": "Schock 5",
-          "chips": 5
-        },
-        {
-          "dice": 411,
-          "name": "Schock 4",
-          "chips": 4
-        },
-        {
-          "dice": 311,
-          "name": "Schock 3",
-          "chips": 3
-        },
-        {
-          "dice": 211,
-          "name": "Schock doof",
-          "chips": 2
-        },
-        {
-          "dice": 666,
-          "name": "Kardinal 6",
-          "chips": 3
-        },
-        {
-          "dice": 555,
-          "name": "Kardinal 5",
-          "chips": 3
-        },
-        {
-          "dice": 444,
-          "name": "Kardinal 4",
-          "chips": 3
-        },
-        {
-          "dice": 333,
-          "name": "Kardinal 3",
-          "chips": 3
-        },
-        {
-          "dice": 222,
-          "name": "Kardinal 2",
-          "chips": 3
-        },
-        {
-          "dice": 654,
-          "name": "Große Straße",
-          "chips": 2
-        },
-        {
-          "dice": 543,
-          "name": "Straße",
-          "chips": 2
-        },
-        {
-          "dice": 432,
-          "name": "Straße",
-          "chips": 2
-        },
-        {
-          "dice": 321,
-          "name": "Kleine Straße",
-          "chips": 2
-        }
-      ];
-      for (let i = 6; i >= 1; i--) {
-        for (let j = i; j >= 1; j--) {
-          for (let k = j; k >= 1; k--) {
-            const wurf = (i * 100 + j * 10 + k);
-            if (ruleSet.findIndex((diceInfo) => diceInfo.dice === wurf) == -1) {
-              ruleSet.push({
-                dice: wurf,
-                name: "Schrott (" + wurf.toString() + ")",
-                chips: 1,
-              });
-            }
-          }
-        }
-      }
-    }
-    return ruleSet;
-  }
-  function getDice(dices) {
-    if (dices.length != 3) {
-      return 0;
-    } else {
-      const values = dices.map((dice) => Object.values(dice)[0]);
-      values.sort((a, b) => b - a);
-      return values[0] * 100 + values[1] * 10 + values[2];
-    }
-  }
-  function getScoring(dice) {
-    const rules = getRuleSet();
-    const matchIndex = rules.findIndex(
-      (diceInfo) => diceInfo.dice === dice
-    );
-    if (matchIndex > -1) {
-      return {
-        Order: matchIndex,
-        Chips: rules[matchIndex].chips,
-        Name: rules[matchIndex].name,
-      }
-    } else {
-      return {
-        Order: 99999,
-        Chips: 0,
-        Name: "Kaputt " + dice.toString(),
-      }
-    }
-    return result;
-  }
-  function compareScores(a, b) {
-    return b.Result.Order === a.Result.Order
-      ? a.Number_Dice - b.Number_Dice
-      : a.Result.Order - b.Result.Order;
-  }
-  function getScores(game) {
-    const playingUsers = [];
-    const firstIndex = game.User.findIndex(
-      (user) => user.Id === game.First,
-    );
-    if (firstIndex > -1) {
-      for (let i = 0; i < game.User.length; i++) {
-        var u = (firstIndex + i) % game.User.length;
-        if (game.User[u].Passive !== true) {
-          playingUsers.push({
-            Chips: game.User[u].Chips,
-            Id: game.User[u].Id,
-            Name: game.User[u].Name,
-            Number_Dice: game.User[u].Number_Dice,
-            Result: getScoring(getDice(game.User[u].Dices))
-          });
-        }
-      }
-    }
-    playingUsers.sort(compareScores);
-
-    const h = playingUsers[0];
-    const l = playingUsers[playingUsers.length - 1];
-    if (
-      playingUsers.length > 1 &&
-      playingUsers[playingUsers.length - 2].Number_Dice === l.Number_Dice &&
-      playingUsers[playingUsers.length - 2].Result.Order === l.Result.Order
-    ) {
-      l.Result.Name = l.Result.Name + " nachgelegt";
-    };
-    return {
-      High: h.Name + " mit " + h.Result.Name + " im " + h.Number_Dice + ". Wurf",
-      Low: l.Name + " mit " + l.Result.Name + " im " + l.Number_Dice + ". Wurf",
-      Chips: (h.Result.Chips == -1) ? (0) : (
-        (game.Stack > 0) ? (
-          (h.Result.Chips > game.Stack ? game.Stack : h.Result.Chips)
-        ) : (
-          (h.Result.Chips > h.Chips ? h.Chips : h.Result.Chips)
-        )),
-      From: (h.Result.Chips == -1) ? ("schockaus") : (
-        (game.Stack > 0) ? ("stack") : (h.Id)),
-      To: l.Id,
-    };
-  }
-  function isUndecided(game) {
-    var undecided = false;
-    game.User.forEach((user) => {
-      if (!undecided && user.Passive !== true && user.Dices.length < 3)
-        undecided = true;
-    });
-    return undecided;
-  }
-  function setAdminpanel(game) {
-    const result = getScores(game);
-    if (result.High && result.Low) {
-      var admininfo = document.getElementById('admin_information');
-      admininfo.innerHTML = 'Hoch: ' + result.High + ', Tief: ' + result.Low;
-    }
-    document.getElementById('stack_count_id').value = result.Chips;
-    document.getElementById('transfer_source').value = result.From;
-    document.getElementById('transfer_target').value = result.To;
-    document.getElementById('admin_alert').innerHTML = '';
+  function startup() {
+    faq();
+    var id = localStorage.getItem('id');
+    var user = document.getElementById('ownuser');
+    user.innerHTML = "Spieler: " + (localStorage.getItem('name') || '');
+    initial_game_data();
   }
 
-  const soundDice = new Audio("{{ url_for('static', filename = 'audio/wuerfeln.mp3')}}");
-  const soundLift = new Audio("{{ url_for('static', filename = 'audio/hoch_die_Becher_Markus.mp3')}}");
-  const soundDiceY = new Audio("{{ url_for('static', filename = 'audio/wuerfelnYannick.mp3')}}");
-  startup()
-
+  startup();
 </script>
 <script type="text/javascript" charset="utf-8">
-  // Use a "/game_waiting" namespace.
-  // An application can open a connection on multiple namespaces, and
-  // Socket.IO will multiplex all those connections on a single
-  // physical channel. If you don't care about multiple channels, you
-  // can set the namespace to an empty string.
   namespace = '/game';
 
-  // Connect to the Socket.IO server.
-  // The connection URL has the following format, relative to the current page:
-  //     http[s]://<domain>:<port>[/<namespace>]
-  // var socket = io(namespace);
   const socket = io(namespace, {
-    reconnection: true,             // whether to reconnect automatically
-    reconnectionAttempts: Infinity, // number of reconnection attempts before giving up
-    reconnectionDelay: 1000,        // how long to initially wait before attempting a new reconnection
-    reconnectionDelayMax: 5000,     // maximum amount of time to wait between reconnection attempts. Each attempt increases the reconnection delay by 2x along with a randomization factor
+    reconnection: true,
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
     randomizationFactor: 0.5
   });
 
-  // Event handler for new connections.
-  // The callback function is invoked when a connection with the
-  // server is established.
   socket.on('connect', function () {
     var game = document.getElementById('UUID');
     var gameid = game.innerHTML;
@@ -1100,16 +1231,5 @@
       refresh_game(game);
     }
   });
-  /*
-window.on('beforeunload', function(){
-  socket.close();
-});
-
-window.addEventListener('beforeunload', function (e) {
-  socket.close();
-});
-*/
-
-
 </script>
 {% endblock %}

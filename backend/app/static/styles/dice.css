@@ -1,10 +1,14 @@
+/* Prevent horizontal scrollbar from Bootstrap .row negative margins */
+body {
+  overflow-x: hidden;
+}
+
 .dice {
   border: 1px solid black;
   border-radius: 10%;
   width: 50px;
   height: 50px;
-  margin-left: 2px;
-  margin-right: 2px;
+  margin: 2px auto;
   padding: 5px;
 }
 
@@ -79,4 +83,146 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+}
+
+/* H1: Stable table row height – match dice height (50px + border + cell padding) */
+.dice-cell {
+  height: 62px;
+  vertical-align: middle;
+}
+#player_table {
+  width: auto;
+}
+#player_table th {
+  vertical-align: middle;
+  padding: 2px 4px;
+  font-size: 14px;
+  white-space: nowrap;
+}
+#player_table td {
+  vertical-align: middle;
+  height: 62px;
+  padding: 2px 4px;
+  white-space: nowrap;
+}
+/* Column styles */
+.col-counter { width: 1.5em; text-align: right; }
+.col-name    { font-size: 21px; white-space: normal; }
+.col-chips   { text-align: right; font-size: 28px; }
+.col-half    { text-align: right; font-size: 28px; }
+.col-throws  { text-align: right; font-size: 28px; }
+.col-final   { text-align: right; font-size: 28px; }
+.col-dice    { width: 81px; min-width: 81px; max-width: 81px; padding: 2px !important; text-align: center; }
+
+/* Mobile: smaller dice and hide less critical columns */
+@media (max-width: 575px) {
+  .dice {
+    width: 36px;
+    height: 36px;
+    padding: 3px;
+  }
+  .dot {
+    width: 8px;
+    height: 8px;
+  }
+  .dice-cell {
+    height: 48px;
+  }
+  #player_table th {
+    height: auto;
+    padding: 1px 2px;
+    font-size: 12px;
+  }
+  #player_table td {
+    height: 48px;
+    padding: 1px 2px;
+  }
+  .col-dice    { width: 40px; min-width: 40px; max-width: 40px; }
+  .col-name    { font-size: 18px; }
+  .col-chips   { font-size: 24px; }
+  .col-throws  { font-size: 24px; }
+  .col-counter { display: none; }
+  .col-half    { display: none; }
+  .col-final   { display: none; }
+}
+
+/* Unified round status row – match button height so it doesn't jump */
+#round_status_row {
+  min-height: 42px;
+  line-height: 34px;
+  padding: 4px 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* F4: Leave icon styles */
+.leave-icon {
+  cursor: pointer;
+  font-size: 14px;
+  margin-top: 2px;
+}
+.leave-inactive {
+  color: #ccc;
+}
+.leave-inactive:hover {
+  color: #999;
+}
+.leave-active {
+  color: #5cb85c;
+}
+.leave-active:hover {
+  color: #449d44;
+}
+
+
+
+/* Pending player styling */
+.pending-row {
+  opacity: 0.5;
+}
+
+/* Tablet: slightly smaller dice */
+@media (max-width: 767px) and (min-width: 576px) {
+  .dice {
+    width: 42px;
+    height: 42px;
+    padding: 4px;
+  }
+  .dot {
+    width: 10px;
+    height: 10px;
+  }
+  .col-dice { width: 46px; min-width: 46px; max-width: 46px; }
+  #player_table th {
+    padding: 2px 3px;
+    font-size: 13px;
+  }
+  #player_table td {
+    padding: 2px 3px;
+  }
+}
+
+/* Desktop: more padding in table cells */
+@media (min-width: 768px) {
+  #player_table td,
+  #player_table th {
+    padding: 4px 10px;
+  }
+}
+
+/* Larger checkboxes on desktop screens */
+@media (min-width: 992px) {
+  #dice1_cb,
+  #dice2_cb,
+  #dice3_cb {
+    scale: 2;
+    translate: 0px -30px;
+  }
+
+  #setpassivid {
+    scale: 2;
+    translate: 10px 40px;
+  }
 }
