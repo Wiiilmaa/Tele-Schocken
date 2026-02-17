@@ -14,7 +14,10 @@
 </div>
 <div class="container-fluid">
   <div class="row">
-    <div class="col-xs-6 col-md-offset-1 col-md-2">
+    <div id="game_phase_col" class="col-md-offset-1 col-md-2 hidden-xs hidden-sm" style="display:none">
+      <h3 id="game_phase_text"></h3>
+    </div>
+    <div id="chips_col" class="col-xs-6 col-md-offset-1 col-md-2">
       <h3 id="StackChips_id">Chips: {{game.stack}}</h3>
     </div>
     <div class="clearfix visible-xs-block visible-sm-block"></div>
@@ -960,6 +963,28 @@
 
     // Stack chips
     document.getElementById('StackChips_id').innerHTML = 'Chips: ' + game.Stack;
+
+    // Game phase indicator (1. Hälfte / 2. Hälfte / Finale)
+    var phaseCol = document.getElementById('game_phase_col');
+    var phaseText = document.getElementById('game_phase_text');
+    var chipsCol = document.getElementById('chips_col');
+    var showFinalPhase = game.Ruleset && game.Ruleset.play_final;
+    if (showFinalPhase) {
+      var phaseLabel = '';
+      if (game_state == 'playfinal') {
+        phaseLabel = 'Finale';
+      } else if (game['Game_Half_Count'] >= 1) {
+        phaseLabel = '2. H\u00e4lfte';
+      } else {
+        phaseLabel = '1. H\u00e4lfte';
+      }
+      phaseText.innerHTML = phaseLabel;
+      phaseCol.style.display = '';
+      chipsCol.className = 'col-xs-6 col-md-2';
+    } else {
+      phaseCol.style.display = 'none';
+      chipsCol.className = 'col-xs-6 col-md-offset-1 col-md-2';
+    }
 
     // First user
     var firstuser_id = game['First'];
