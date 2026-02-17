@@ -4,13 +4,13 @@ body {
 }
 
 .dice {
-  border: 1px solid var(--dice-border, black);
+  border: 1px solid #999;
   border-radius: 10%;
   width: 50px;
   height: 50px;
   margin: 2px auto;
   padding: 5px;
-  background-color: var(--dice-bg, transparent);
+  background-color: #ffffff;
 }
 
 .dot{
@@ -18,7 +18,7 @@ body {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background-color: var(--dice-dot, black);
+  background-color: #222222;
 }
 
 .dice-first-face {
@@ -90,6 +90,7 @@ body {
 .dice-cell {
   height: 62px;
   vertical-align: middle;
+  background-color: #1a5c2a !important;
 }
 #player_table {
   width: auto;
