@@ -40,91 +40,69 @@
 <!-- Game controls: visible for active players only -->
 <div id="game_controls">
 <div class="container-fluid">
-  <div class="row ">
-    <div class="col-xs-6 col-md-2 col-md-offset-1">
-      <div class="col-xs-6 col-md-6 ">
-        <div class="containerturner" id='startgame_id'>
-          <img src="{{ url_for('static', filename = 'image/throw_the_dice.svg')}}" alt="throw the dice">
-          <button id='btn_dice' onclick="dice()" class="btn" title="Würfeln">Würfeln</button>
-          <p style="text-align: center">Würfeln</p>
-        </div>
-      </div>
-
-      <div class="col-xs-1 col-md-2">
-        <div class="row" style="white-space:nowrap">
-          <button class="btn btn-primary" id='finishgame_id' onclick="finish()">Ende</button>
-        </div>
-        <div class="row" style="white-space:nowrap" id='set_passiv_div_id'>
-          <input type="checkbox" title="Du wirst übersprungen bis die Runde ausgespielt ist" id="setpassivid"
-            name="setpassivid" value="False" onchange="set_user_passiv(this)">
-          <label for="setpassivid">Pause</label>
-        </div>
-      </div>
-    </div>
-    <div class="col-xs-6 col-md-3">
-      <div class="col-xs-6 col-md-6">
-        <div class="containercup">
-          <img src="{{ url_for('static', filename = 'image/pulldiceup.svg')}}" alt="pull dice cup up">
-          <button onclick="pullup()" class="btn" title="Aufdecken">Aufdecken</button>
-          <p style="text-align: center">Aufdecken</p>
-        </div>
-      </div>
-      <div class="col-xs-6 col-md-6 ">
-        <div class="containercup">
-          <img src="{{ url_for('static', filename = 'image/pulldicedown.svg')}}" alt="pull dice cup down">
-          <button onclick="pulldown()" class="btn" title="Zudecken">Zudecken</button>
-          <p style="text-align: center">Zudecken</p>
-        </div>
-      </div>
-    </div>
-    <div class="clearfix visible-xs-block visible-sm-block"></div>
-
-    <div class="col-xs-12 col-md-3">
-      <div class="row col-md-offset-1">
-        <div class="col-xs-12 col-md-9 text-center">
-          <p>Würfel für Becher wählen<br>Letzter Wurf muss aufgedeckt werden</p>
-        </div>
-      </div>
-      <div class="clearfix visible-xs-block visible-sm-block"></div>
-      <div class="row col-md-offset-1">
-        <div class="col-xs-4 col-md-3 text-center">
-          <input type="checkbox" id="dice1_cb" name="dice1" value="False" checked>
-        </div>
-        <div class="col-xs-4 col-md-3 text-center">
-          <input type="checkbox" id="dice2_cb" name="dice2" value="False" checked>
-        </div>
-        <div class="col-xs-4 col-md-3 text-center">
-          <input type="checkbox" id="dice3_cb" name="dice3" value="False" checked>
-        </div>
-      </div>
-      <div class="clearfix visible-xs-block visible-sm-block"></div>
-      <div class="row col-md-offset-1">
-        <div class="col-xs-4 col-md-3">
-          <div class="text-center" id="dice1_v">
+  <!-- Block 1: Action buttons -->
+  <div class="row">
+    <div class="col-xs-12 col-md-10 col-md-offset-1">
+      <div id="controls_block1" class="controls-block">
+        <div class="controls-btn-row">
+          <div class="controls-left">
+            <div class="containerturner" id='startgame_id'>
+              <img src="{{ url_for('static', filename = 'image/throw_the_dice.svg')}}" alt="throw the dice">
+              <button id='btn_dice' onclick="dice()" class="btn" title="Würfeln">Würfeln</button>
+              <p style="text-align: center">Würfeln</p>
+            </div>
           </div>
-        </div>
-        <div class="col-xs-4 col-md-3">
-          <div class="text-center" id="dice2_v">
+          <div class="controls-center">
+            <div class="containercup">
+              <img src="{{ url_for('static', filename = 'image/pulldiceup.svg')}}" alt="pull dice cup up">
+              <button onclick="pullup()" class="btn" title="Aufdecken">Aufdecken</button>
+              <p style="text-align: center">Aufdecken</p>
+            </div>
+            <div class="containercup">
+              <img src="{{ url_for('static', filename = 'image/pulldicedown.svg')}}" alt="pull dice cup down">
+              <button onclick="pulldown()" class="btn" title="Zudecken">Zudecken</button>
+              <p style="text-align: center">Zudecken</p>
+            </div>
           </div>
-        </div>
-        <div class="col-xs-4 col-md-3 text-center">
-          <div class="text-center" id="dice3_v">
+          <div class="controls-right">
+            <button class="btn btn-primary btn-endpause" id="btn_endpause" onclick="endpause_click()">Pause</button>
           </div>
         </div>
       </div>
     </div>
-    <div class="clearfix visible-xs-block visible-sm-block"></div>
-    <div class="col-xs-12  col-md-3">
-      <div id='2_6er' class="col-xs-6 col-md-6" hidden>
-        <div class="containerturner">
-          <img src="{{ url_for('static', filename = 'image/2_6er.svg')}}" alt="change two 6er against one 1er">
-          <button onclick="turn1()" class="btn" title="6er drehen"></button>
-        </div>
-      </div>
-      <div id='3_6er' class="col-xs-6 col-md-6" hidden>
-        <div class="containerturner">
-          <img src="{{ url_for('static', filename = 'image/3_6er.svg')}}" alt="change three 6er against two 1er">
-          <button onclick="turn2()" class="btn" title="6er drehen"></button>
+  </div>
+  <!-- Block 2: Dice selection -->
+  <div class="row">
+    <div class="col-xs-12 col-md-10 col-md-offset-1">
+      <div id="controls_block2" class="controls-block">
+        <div class="dice-selection-row">
+          <div class="dice-select-area">
+            <p class="text-center dice-select-label">Würfel für Becher wählen<br>Letzter Wurf muss aufgedeckt werden</p>
+            <div class="dice-checkboxes">
+              <div class="text-center"><input type="checkbox" id="dice1_cb" name="dice1" value="False" checked></div>
+              <div class="text-center"><input type="checkbox" id="dice2_cb" name="dice2" value="False" checked></div>
+              <div class="text-center"><input type="checkbox" id="dice3_cb" name="dice3" value="False" checked></div>
+            </div>
+            <div class="dice-displays">
+              <div class="text-center" id="dice1_v"></div>
+              <div class="text-center" id="dice2_v"></div>
+              <div class="text-center" id="dice3_v"></div>
+            </div>
+          </div>
+          <div class="dice-turn-area">
+            <div id='2_6er' class="dice-turn-btn" hidden>
+              <div class="containerturner">
+                <img src="{{ url_for('static', filename = 'image/2_6er.svg')}}" alt="change two 6er against one 1er">
+                <button onclick="turn1()" class="btn" title="6er drehen"></button>
+              </div>
+            </div>
+            <div id='3_6er' class="dice-turn-btn" hidden>
+              <div class="containerturner">
+                <img src="{{ url_for('static', filename = 'image/3_6er.svg')}}" alt="change three 6er against two 1er">
+                <button onclick="turn2()" class="btn" title="6er drehen"></button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -180,6 +158,7 @@
           <th class="col-dice"></th>
           <th class="col-half">Hälften</th>
           <th id="finalcount_header" class="col-final" {% if not game.play_final %}style="display:none"{% endif %}>Runden</th>
+          <th id="penalty_header" class="col-penalty" style="display:none">Strafe</th>
         </tr>
       </thead>
       <tbody id="game_tbody">
@@ -641,35 +620,45 @@
     xhttp.send(JSON.stringify({ dice1: dice1_checked, dice2: dice2_checked, dice3: dice3_checked }));
   }
 
-  function set_user_passiv() {
+  // Combined End/Pause button handler
+  function endpause_click() {
+    var btn = document.getElementById('btn_endpause');
+    var mode = btn.getAttribute('data-mode');
     var id = localStorage.getItem('id');
     var gameid = getGameId();
-    var userstate = document.getElementById('setpassivid').checked;
-    var xhttp = new XMLHttpRequest();
-    xhttp.open("POST", "/api/game/" + gameid + "/user/" + id + "/passiv");
-    xhttp.setRequestHeader("Content-Type", "application/json");
-    xhttp.onreadystatechange = function () {
-      if (xhttp.readyState == XMLHttpRequest.DONE) {
-        var res = JSON.parse(xhttp.responseText);
-        if (xhttp.status != 200 && xhttp.status != 201) { alert('' + res.Message); }
-      }
-    }
-    xhttp.send(JSON.stringify({ userstate: userstate }));
-  }
 
-  function finish() {
-    var id = localStorage.getItem('id');
-    var gameid = getGameId();
-    var xhttp = new XMLHttpRequest();
-    xhttp.open("POST", "/api/game/" + gameid + "/user/" + id + "/finisch");
-    xhttp.setRequestHeader("Content-Type", "application/json");
-    xhttp.onreadystatechange = function () {
-      if (xhttp.readyState == XMLHttpRequest.DONE) {
-        var res = JSON.parse(xhttp.responseText);
-        if (xhttp.status != 200) { alert('' + res.Message); }
+    if (mode === 'pause') {
+      // Check if player is currently passive -> un-pause
+      var me = _lastGameState ? _lastGameState.User.find(function(u) { return u.Id === getMyId(); }) : null;
+      var userstate = !(me && me.Passive);
+      var xhttp = new XMLHttpRequest();
+      xhttp.open("POST", "/api/game/" + gameid + "/user/" + id + "/passiv");
+      xhttp.setRequestHeader("Content-Type", "application/json");
+      xhttp.onreadystatechange = function () {
+        if (xhttp.readyState == XMLHttpRequest.DONE) {
+          var res = JSON.parse(xhttp.responseText);
+          if (xhttp.status != 200 && xhttp.status != 201) {
+            if (res.Penalty) {
+              alert(res.Message);
+            } else {
+              alert('' + res.Message);
+            }
+          }
+        }
       }
+      xhttp.send(JSON.stringify({ userstate: userstate }));
+    } else if (mode === 'ende') {
+      var xhttp = new XMLHttpRequest();
+      xhttp.open("POST", "/api/game/" + gameid + "/user/" + id + "/finisch");
+      xhttp.setRequestHeader("Content-Type", "application/json");
+      xhttp.onreadystatechange = function () {
+        if (xhttp.readyState == XMLHttpRequest.DONE) {
+          var res = JSON.parse(xhttp.responseText);
+          if (xhttp.status != 200) { alert('' + res.Message); }
+        }
+      }
+      xhttp.send(JSON.stringify({}));
     }
-    xhttp.send(JSON.stringify({}));
   }
 
   // C3: Move DOM changes into success callback
@@ -792,6 +781,11 @@
     var finalHeader = document.getElementById('finalcount_header');
     if (finalHeader) finalHeader.style.display = showFinal ? '' : 'none';
 
+    // Check if any player has penalty > 0
+    var anyPenalty = game.User.some(function(u) { return (u.Penalty_Count || 0) > 0; });
+    var penaltyHeader = document.getElementById('penalty_header');
+    if (penaltyHeader) penaltyHeader.style.display = anyPenalty ? '' : 'none';
+
     // Build current set of user IDs in table
     var existingRows = {};
     var rows = tbody.querySelectorAll('tr');
@@ -826,7 +820,8 @@
           + '<td id="dice2' + juser.Id + '" class="dice-cell col-dice"></td>'
           + '<td id="dice3' + juser.Id + '" class="dice-cell col-dice"></td>'
           + '<td id="first' + juser.Id + '" class="col-half"></td>'
-          + '<td id="finalcount' + juser.Id + '" class="col-final"' + (showFinal ? '' : ' style="display:none"') + '></td>';
+          + '<td id="finalcount' + juser.Id + '" class="col-final"' + (showFinal ? '' : ' style="display:none"') + '></td>'
+          + '<td id="penalty' + juser.Id + '" class="col-penalty"' + (anyPenalty ? '' : ' style="display:none"') + '></td>';
         tbody.appendChild(row);
       }
 
@@ -874,6 +869,14 @@
       if (fcEl) {
         fcEl.innerHTML = juser.Finalcount;
         fcEl.style.display = showFinal ? '' : 'none';
+      }
+
+      // Penalty count
+      var pcEl = document.getElementById('penalty' + juser.Id);
+      if (pcEl) {
+        var pc = juser.Penalty_Count || 0;
+        pcEl.innerHTML = pc > 0 ? pc : '';
+        pcEl.style.display = anyPenalty ? '' : 'none';
       }
 
       // Number of dice throws
@@ -1083,12 +1086,65 @@
         }
       }
 
-      // Passive checkbox
-      if (game.Stack == 0 && me_data.Chips == 0 && me_data.Number_Dice == 0 && game_state != 'playfinal') {
-        document.getElementById('set_passiv_div_id').style.display = "block";
+    }
+
+    // End/Pause button logic
+    var btnEP = document.getElementById('btn_endpause');
+    var gameControls = document.getElementById('game_controls');
+    if (btnEP && me_data) {
+      var isMyTurn = (id == waiting_user_id);
+      var myDiceCount = me_data.Number_Dice;
+      var firstDiceCount = parseInt(document.getElementById('first_user_dice_count_id').innerHTML) || 3;
+      var amFirst = (id == game['First']);
+      var penaltyCount = me_data.Penalty_Count || 0;
+      var canPause = (game.Stack == 0 && me_data.Chips == 0 && game_state != 'playfinal');
+
+      // Remove paused overlay by default
+      gameControls.classList.remove('controls-paused');
+
+      if (me_data.Passive) {
+        // Player is paused: show Pause button to un-pause, gray out controls
+        btnEP.textContent = 'Pause';
+        btnEP.setAttribute('data-mode', 'pause');
+        btnEP.disabled = false;
+        btnEP.className = 'btn btn-endpause btn-pause-locked';
+        gameControls.classList.add('controls-paused');
+      } else if (myDiceCount == 0) {
+        // Start of round: show Pause button
+        btnEP.textContent = 'Pause';
+        btnEP.setAttribute('data-mode', 'pause');
+        btnEP.className = 'btn btn-primary btn-endpause';
+
+        if (game_state == 'playfinal') {
+          // Finale: pause is never allowed
+          btnEP.disabled = true;
+        } else if (!isMyTurn || notEnoughPlayers) {
+          btnEP.disabled = true;
+        } else if (canPause && penaltyCount > 0) {
+          // Must roll instead of pausing (penalty)
+          btnEP.disabled = true;
+        } else {
+          // Either can legitimately pause, or pressing will trigger penalty
+          btnEP.disabled = false;
+        }
       } else {
-        document.getElementById('set_passiv_div_id').style.display = "none";
-        document.getElementById('setpassivid').checked = false;
+        // After rolling: show Ende button
+        btnEP.textContent = 'Ende';
+        btnEP.setAttribute('data-mode', 'ende');
+        btnEP.className = 'btn btn-primary btn-endpause';
+
+        if (!isMyTurn || notEnoughPlayers) {
+          btnEP.disabled = true;
+        } else {
+          // Active while player can still roll
+          var canStillRoll = false;
+          if (amFirst) {
+            canStillRoll = myDiceCount < 3;
+          } else {
+            canStillRoll = myDiceCount < firstDiceCount;
+          }
+          btnEP.disabled = !canStillRoll;
+        }
       }
     }
 

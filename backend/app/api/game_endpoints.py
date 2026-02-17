@@ -283,6 +283,57 @@ def set_user_passiv(gid, uid):
     if 'userstate' in data:
         escapeduserstate = str(utils.escape(data['userstate']))
         val = escapeduserstate.lower() in ['true', '1']
+
+        # Finale: pause is never allowed, reject immediately without penalty
+        if val and game.status == Status.PLAYFINAL:
+            response = jsonify(Message='Pause im Finale nicht erlaubt')
+            response.status_code = 400
+            return response
+
+        # Penalty check: pressing pause when not allowed
+        if val and not user.passive:
+            has_stack = game.stack > 0
+            has_chips = (user.chips or 0) > 0
+
+            if has_stack or has_chips:
+                # Invalid pause attempt -> penalty
+                user.penalty_count = (user.penalty_count or 0) + 1
+
+                # Build penalty reason
+                reasons = []
+                if has_stack:
+                    reasons.append('Chips auf dem Stapel')
+                if has_chips:
+                    reasons.append('eigener Chips')
+
+                # Broadcast message to all
+                if has_stack and has_chips:
+                    game.message = '{}: Pause trotz Chips auf Stapel und eigener Chips'.format(user.name)
+                elif has_stack:
+                    game.message = '{}: Pause trotz Chips auf Stapel'.format(user.name)
+                elif has_chips:
+                    game.message = '{}: Pause trotz Chips'.format(user.name)
+
+                db.session.add(user)
+                db.session.add(game)
+                db.session.commit()
+
+                penalty_reason = ' und '.join(reasons)
+                popup_msg = 'Pausierversuch trotz {}. Dafür musst Du Dich {} mal Einwürfeln'.format(
+                    penalty_reason, user.penalty_count)
+
+                emit('reload_game', game.to_dict(), room=gid, namespace='/game')
+                response = jsonify(Message=popup_msg, Penalty=True, Penalty_Count=user.penalty_count)
+                response.status_code = 400
+                return response
+
+            # Check penalty counter: must roll instead of pausing
+            if (user.penalty_count or 0) > 0:
+                response = jsonify(Message='Du musst Dich {} mal Einwürfeln bevor Du pausieren darfst'.format(
+                    user.penalty_count))
+                response.status_code = 400
+                return response
+
         user.passive = val
 
         # If the player goes passive while it's their turn, auto-advance
@@ -345,6 +396,12 @@ def roll_dice(gid, uid):
     # Once someone rolls, no more immediate player changes until next game
     if game.player_changes_allowed:
         game.player_changes_allowed = False
+
+    # Decrement penalty counter on first roll when player could have paused
+    if (user.number_dice == 0 and (user.penalty_count or 0) > 0
+            and game.stack == 0 and (user.chips or 0) == 0
+            and game.status != Status.PLAYFINAL):
+        user.penalty_count = user.penalty_count - 1
 
     game.refreshed = datetime.now()
     if user.id == game.move_user_id:

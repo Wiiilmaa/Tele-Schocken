@@ -183,6 +183,8 @@ class User(db.Model):
     leave_after_game = db.Column(db.Boolean(), default=False)
     # Mid-game joining
     pending_join = db.Column(db.Boolean(), default=False)
+    # Penalty counter for invalid pause attempts
+    penalty_count = db.Column(db.Integer, default=0)
 
     def user_name(self):
         return Markup(self.name)
@@ -211,6 +213,7 @@ class User(db.Model):
             'Is_Admin': self.is_admin or False,
             'Leave_After_Game': self.leave_after_game or False,
             'Pending_Join': self.pending_join or False,
+            'Penalty_Count': self.penalty_count or 0,
         }
         return data
 
@@ -226,3 +229,4 @@ class User(db.Model):
         self.is_admin = False
         self.leave_after_game = False
         self.pending_join = False
+        self.penalty_count = 0

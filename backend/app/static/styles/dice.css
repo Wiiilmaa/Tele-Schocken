@@ -215,6 +215,119 @@ body {
   .col-dice { width: 100px; min-width: 100px; max-width: 100px; }
 }
 
+/* ============= Controls layout ============= */
+.controls-block {
+  padding: 8px 0;
+}
+
+/* Block 1: Button row */
+.controls-btn-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 80px;
+}
+
+.controls-left {
+  flex: 1 1 0;
+  max-width: calc(1.5 * (100% / 5));
+  display: flex;
+  justify-content: flex-start;
+}
+.controls-left .containerturner {
+  width: 80px;
+}
+
+.controls-center {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.controls-center .containercup {
+  width: 60px;
+}
+
+.controls-right {
+  flex: 1 1 0;
+  max-width: calc(1.5 * (100% / 5));
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-endpause {
+  min-width: 90px;
+  padding: 10px 20px;
+  font-size: 16px;
+  white-space: nowrap;
+}
+.btn-endpause:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn-endpause.btn-pause-active {
+  background-color: #f0ad4e;
+  border-color: #eea236;
+  color: #fff;
+}
+.btn-endpause.btn-pause-locked {
+  background-color: #5cb85c;
+  border-color: #4cae4c;
+  color: #fff;
+}
+
+/* Grayed-out overlay for paused state */
+.controls-paused .controls-left,
+.controls-paused .controls-center,
+.controls-paused .dice-selection-row {
+  opacity: 0.3;
+  pointer-events: none;
+}
+.controls-paused .controls-right {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Block 2: Dice selection */
+.dice-selection-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  min-height: 80px;
+}
+.dice-select-area {
+  flex: 1;
+}
+.dice-select-label {
+  margin: 0 0 6px 0;
+  font-size: 13px;
+}
+.dice-checkboxes {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-bottom: 6px;
+}
+.dice-displays {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+}
+.dice-displays > div {
+  width: 60px;
+}
+.dice-turn-area {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 8px;
+}
+.dice-turn-btn {
+  width: 80px;
+}
+
+/* Penalty column */
+.col-penalty { text-align: right; font-size: 28px; color: #d9534f; }
+
 /* Larger checkboxes on desktop screens */
 @media (min-width: 992px) {
   #dice1_cb,
@@ -223,9 +336,36 @@ body {
     scale: 2;
     translate: 0px -30px;
   }
+}
 
-  #setpassivid {
-    scale: 2;
-    translate: 10px 40px;
+/* Mobile adjustments */
+@media (max-width: 575px) {
+  .controls-btn-row {
+    min-height: 60px;
+    gap: 4px;
   }
+  .controls-left .containerturner {
+    width: 60px;
+  }
+  .controls-center .containercup {
+    width: 45px;
+  }
+  .btn-endpause {
+    min-width: 70px;
+    padding: 6px 12px;
+    font-size: 14px;
+  }
+  .dice-checkboxes {
+    gap: 16px;
+  }
+  .dice-displays {
+    gap: 16px;
+  }
+  .dice-displays > div {
+    width: 40px;
+  }
+  .dice-turn-btn {
+    width: 60px;
+  }
+  .col-penalty { font-size: 24px; }
 }
