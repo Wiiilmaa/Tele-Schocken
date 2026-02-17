@@ -78,8 +78,11 @@ def _handle_round_end(game, loser):
                         game.status = Status.PLAYFINAL
                         game.halfcount = 0
                         for user in game.active_users:
-                            user.passive = False
                             user.chips = 0
+                            if user.halfcount == 1:
+                                user.passive = False
+                            else:
+                                user.passive = True
                         message = 'Finale wird gespielt'
                         game.message = 'Finale wird gespielt, grau hinterlegte Spieler müssen warten'
                     else:

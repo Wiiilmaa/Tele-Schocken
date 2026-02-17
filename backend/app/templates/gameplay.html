@@ -1102,7 +1102,14 @@
       // Remove paused overlay by default
       gameControls.classList.remove('controls-paused');
 
-      if (me_data.Passive) {
+      if (me_data.Passive && game_state == 'playfinal') {
+        // Non-finalist in finale: fully disabled controls, no unpause
+        btnEP.textContent = 'Pause';
+        btnEP.setAttribute('data-mode', 'pause');
+        btnEP.disabled = true;
+        btnEP.className = 'btn btn-endpause btn-pause-locked';
+        gameControls.classList.add('controls-paused');
+      } else if (me_data.Passive) {
         // Player is paused: show Pause button to un-pause, gray out controls
         btnEP.textContent = 'Pause';
         btnEP.setAttribute('data-mode', 'pause');
@@ -1110,7 +1117,7 @@
         btnEP.className = 'btn btn-endpause btn-pause-locked';
         gameControls.classList.add('controls-paused');
       } else if (myDiceCount == 0) {
-        // Start of round: show Pause button
+        // Start of round: show Pause button (available to all players, not just active)
         btnEP.textContent = 'Pause';
         btnEP.setAttribute('data-mode', 'pause');
         btnEP.className = 'btn btn-primary btn-endpause';
@@ -1118,7 +1125,7 @@
         if (game_state == 'playfinal') {
           // Finale: pause is never allowed
           btnEP.disabled = true;
-        } else if (!isMyTurn || notEnoughPlayers) {
+        } else if (notEnoughPlayers) {
           btnEP.disabled = true;
         } else if (canPause && penaltyCount > 0) {
           // Must roll instead of pausing (penalty)

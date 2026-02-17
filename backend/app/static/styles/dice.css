@@ -231,6 +231,7 @@ body {
 .controls-left {
   flex: 1 1 0;
   max-width: 150px;
+  min-width: 0;
   display: flex;
   justify-content: flex-start;
 }
@@ -239,10 +240,11 @@ body {
 }
 
 .controls-center {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
   display: flex;
   gap: 8px;
   align-items: center;
+  min-width: 0;
 }
 .controls-center .containercup {
   width: 70px;
@@ -251,6 +253,7 @@ body {
 .controls-right {
   flex: 1 1 0;
   max-width: 150px;
+  min-width: 0;
   display: flex;
   justify-content: flex-end;
 }
@@ -328,7 +331,7 @@ body {
 /* Penalty column */
 .col-penalty { text-align: right; font-size: 28px; color: #d9534f; }
 
-/* Larger checkboxes on desktop screens */
+/* Larger checkboxes and buttons on desktop screens */
 @media (min-width: 992px) {
   #dice1_cb,
   #dice2_cb,
@@ -336,24 +339,49 @@ body {
     scale: 2;
     translate: 0px -30px;
   }
-}
-
-/* Mobile adjustments */
-@media (max-width: 575px) {
-  .controls-btn-row {
-    min-height: 60px;
-    gap: 4px;
-  }
   .controls-left .containerturner {
-    width: 50px;
+    width: 140px;
   }
   .controls-center .containercup {
-    width: 50px;
+    width: 140px;
+  }
+  .controls-btn-row {
+    min-height: 140px;
+  }
+}
+
+/* Mobile adjustments: keep control row within screen width */
+@media (max-width: 575px) {
+  .controls-btn-row {
+    min-height: 50px;
+    gap: 4px;
+    flex-wrap: nowrap;
+  }
+  .controls-left {
+    max-width: 80px;
+    flex: 0 1 80px;
+  }
+  .controls-left .containerturner {
+    width: 100%;
+    min-width: 0;
+  }
+  .controls-center .containercup {
+    width: 100%;
+    min-width: 0;
+  }
+  .controls-center {
+    flex: 0 1 auto;
+    gap: 4px;
+    max-width: 120px;
+  }
+  .controls-right {
+    max-width: 80px;
+    flex: 0 1 80px;
   }
   .btn-endpause {
-    min-width: 70px;
-    padding: 6px 12px;
-    font-size: 14px;
+    min-width: 60px;
+    padding: 6px 8px;
+    font-size: 13px;
   }
   .dice-checkboxes {
     gap: 16px;
