@@ -29,6 +29,14 @@
 </script>
 
 <script>
+  function toggleTheme() {
+    var html = document.documentElement;
+    var current = html.getAttribute('data-theme');
+    var next = (current === 'dark') ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    localStorage.setItem('theme', next);
+  }
+
   function startup(){
     donate();
   }
@@ -111,6 +119,12 @@
 
   </div>
 
+  <div id="floating-icons" class="floating-icons">
+    <button class="floating-icon-btn" onclick="toggleTheme()" title="Dark Mode umschalten">
+      <span class="icon-moon"><i class="fas fa-moon"></i></span>
+      <span class="icon-sun"><i class="fas fa-sun"></i></span>
+    </button>
+  </div>
 </footer>
 
 

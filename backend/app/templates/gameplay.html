@@ -4,12 +4,8 @@
 {{ super() }}
 
 <div class="row col-md-offset-1 col-xs-offset-1">
-  <div class="col-md-9 col-xs-7" style="text-align: center">
+  <div class="col-md-10 col-xs-11" style="text-align: center">
     <h2 class="message" id="Message"></h2>
-  </div>
-  <div class="col-md-1 col-xs-2">
-    <a class="roundetb" id="rulesBtn" href="#" onclick="showRules(); return false;" style="margin-right:8px;"><i class="fas fa-book" title="Regeln"></i></a>
-    <a class="roundetb" id="faqBtn" href="#"><i class="fas fa-question" title="Fragen?"></i></a>
   </div>
 </div>
 <div class="container-fluid">
@@ -194,8 +190,6 @@
 
 {% include "snippet/adminpanel.html" %}
 
-{% include "snippet/game_play_faq.html" %}
-
 <!-- Share link + QR code for mid-game joining -->
 <div class="row" style="margin-top: 20px;">
   <div class="col-xs-12 col-md-10 col-md-offset-1">
@@ -296,8 +290,6 @@
       _showingDeviceSwitch = false;
     }
   }
-</script>
-<script type=text/javascript src="{{url_for('static', filename='scripts/faq.js') }}">
 </script>
 <script type=text/javascript src="{{url_for('static', filename='scripts/adminpanel.js') }}">
 </script>
@@ -909,15 +901,17 @@
         }
       }
 
-      // Row background color
+      // Row background color via CSS classes (dark-mode safe)
+      row.classList.remove('row-first-user', 'row-passive', 'row-normal');
+      row.style.backgroundColor = '';
       if (juser.Pending_Join) {
         // Already handled by pending-row class
       } else if (juser.Id == game.First) {
-        row.style.backgroundColor = "lightblue";
+        row.classList.add('row-first-user');
       } else if (juser.Passive) {
-        row.style.backgroundColor = "lightgray";
+        row.classList.add('row-passive');
       } else {
-        row.style.backgroundColor = "#11ffee00";
+        row.classList.add('row-normal');
       }
     });
   }
@@ -1187,6 +1181,8 @@
     // R6: Update rules display data
     if (game.Ruleset) {
       updateRulesModal(game.Ruleset);
+      var rulesetLabel = document.getElementById('floating-ruleset-name');
+      if (rulesetLabel) rulesetLabel.textContent = game.Ruleset.name;
     }
   }
 
@@ -1224,7 +1220,6 @@
   }
 
   function startup() {
-    faq();
     var id = localStorage.getItem('id');
     var user = document.getElementById('ownuser');
     user.innerHTML = "Spieler: " + (localStorage.getItem('name') || '');
@@ -1232,6 +1227,30 @@
   }
 
   startup();
+
+  document.addEventListener('DOMContentLoaded', function() {
+    var container = document.getElementById('floating-icons');
+    if (container) {
+      var label = document.createElement('span');
+      label.id = 'floating-ruleset-name';
+      label.className = 'floating-ruleset-label';
+      container.insertBefore(label, container.firstChild);
+
+      var btn = document.createElement('a');
+      btn.className = 'floating-icon-btn';
+      btn.href = '#';
+      btn.onclick = function(e) { e.preventDefault(); showRules(); };
+      btn.title = 'Regeln';
+      btn.innerHTML = '<i class="fas fa-book"></i>';
+      container.insertBefore(btn, label.nextSibling);
+    }
+    var rulesModal = document.getElementById('rulesModal');
+    if (rulesModal) {
+      window.addEventListener('click', function(e) {
+        if (e.target === rulesModal) rulesModal.style.display = 'none';
+      });
+    }
+  });
 </script>
 <script type="text/javascript" charset="utf-8">
   namespace = '/game';

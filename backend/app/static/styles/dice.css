@@ -4,12 +4,13 @@ body {
 }
 
 .dice {
-  border: 1px solid black;
+  border: 1px solid var(--dice-border, black);
   border-radius: 10%;
   width: 50px;
   height: 50px;
   margin: 2px auto;
   padding: 5px;
+  background-color: var(--dice-bg, transparent);
 }
 
 .dot{
@@ -17,7 +18,7 @@ body {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background-color: black;
+  background-color: var(--dice-dot, black);
 }
 
 .dice-first-face {
