@@ -324,14 +324,15 @@ body {
   flex-wrap: wrap;
 }
 .dice-cup-control {
-  display: inline-block;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
 }
 .dice-cup-headers {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  display: flex;
 }
 .dice-cup-label {
-  grid-column: 1 / 4;
+  flex: 1 1 50%;
   background-color: #c8a876;
   text-align: center;
   padding: 4px 8px;
@@ -342,7 +343,7 @@ body {
   font-size: 13px;
 }
 .dice-out-label {
-  grid-column: 4 / 7;
+  flex: 1 1 50%;
   background-color: #1a5c2a;
   text-align: center;
   padding: 4px 8px;
@@ -353,10 +354,11 @@ body {
   font-size: 13px;
 }
 .dice-cup-cells {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  display: flex;
 }
 .dcell {
+  flex: 1 1 0;
+  min-width: 0;
   width: 62px;
   height: 62px;
   display: flex;
@@ -365,6 +367,18 @@ body {
   border: 1px solid;
   padding: 4px;
   cursor: default;
+}
+.dcell-empty {
+  flex: 0 0 0 !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  overflow: hidden;
+}
+.dcell-empty .dice-placeholder {
+  width: 0 !important;
+  height: 0 !important;
 }
 .dcell-cup {
   background-color: #c8a876;

@@ -522,7 +522,10 @@
     return _diceSwapped[0] || _diceSwapped[1] || _diceSwapped[2];
   }
 
-  function addPlaceholder(cell) {
+  function addPlaceholder(cell, collapsible) {
+    if (collapsible) {
+      cell.classList.add('dcell-empty');
+    }
     var ph = document.createElement('div');
     ph.className = 'dice dice-placeholder';
     cell.appendChild(ph);
@@ -555,7 +558,7 @@
       if (isNull && _diceSwapped[i] && i === _diceSwapCupIdx) {
         appendDice(cupCell, 6);
         cupCell.classList.add('dcell-disabled');
-        addPlaceholder(outCell);
+        addPlaceholder(outCell, true);
         continue;
       }
 
@@ -569,9 +572,9 @@
         appendDice(cupCell, val);
         cupCell.classList.add('dcell-clickable');
         cupCell.onclick = (function(idx) { return function() { toggleDice(idx); }; })(i);
-        addPlaceholder(outCell);
+        addPlaceholder(outCell, true);
       } else {
-        addPlaceholder(cupCell);
+        addPlaceholder(cupCell, true);
         appendDice(outCell, val);
         if (_diceSwapped[i]) {
           outCell.classList.add('dcell-swapped', 'dcell-clickable');
