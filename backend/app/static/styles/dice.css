@@ -378,13 +378,13 @@ body {
 /* Larger buttons on desktop screens */
 @media (min-width: 992px) {
   .controls-left .containerturner {
-    width: 140px;
+    width: 105px;
   }
   .controls-center .containercup {
-    width: 140px;
+    width: 105px;
   }
   .controls-btn-row {
-    min-height: 140px;
+    min-height: 105px;
   }
   .dcell {
     width: 100px;
@@ -400,8 +400,8 @@ body {
     flex-wrap: nowrap;
   }
   .controls-left {
-    max-width: 80px;
-    flex: 0 1 80px;
+    max-width: 150px;
+    flex: 1 1 0;
   }
   .controls-left .containerturner {
     width: 100%;
@@ -414,11 +414,10 @@ body {
   .controls-center {
     flex: 0 1 auto;
     gap: 4px;
-    max-width: 120px;
   }
   .controls-right {
-    max-width: 80px;
-    flex: 0 1 80px;
+    max-width: 150px;
+    flex: 1 1 0;
   }
   .btn-endpause {
     min-width: 60px;
