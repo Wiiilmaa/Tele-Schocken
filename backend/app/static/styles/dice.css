@@ -230,12 +230,12 @@ body {
 
 .controls-left {
   flex: 1 1 0;
-  max-width: calc(1.5 * (100% / 5));
+  max-width: 150px;
   display: flex;
   justify-content: flex-start;
 }
 .controls-left .containerturner {
-  width: 80px;
+  width: 70px;
 }
 
 .controls-center {
@@ -245,12 +245,12 @@ body {
   align-items: center;
 }
 .controls-center .containercup {
-  width: 60px;
+  width: 70px;
 }
 
 .controls-right {
   flex: 1 1 0;
-  max-width: calc(1.5 * (100% / 5));
+  max-width: 150px;
   display: flex;
   justify-content: flex-end;
 }
@@ -345,10 +345,10 @@ body {
     gap: 4px;
   }
   .controls-left .containerturner {
-    width: 60px;
+    width: 50px;
   }
   .controls-center .containercup {
-    width: 45px;
+    width: 50px;
   }
   .btn-endpause {
     min-width: 70px;
