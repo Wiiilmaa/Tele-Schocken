@@ -5,6 +5,13 @@ body {
   margin: 0 auto;
 }
 
+/* Prevent iOS auto-zoom on input focus (Safari zooms if font-size < 16px) */
+@media (max-width: 767px) {
+  input.form-control, select.form-control, textarea.form-control {
+    font-size: 16px !important;
+  }
+}
+
 .dice {
   border: 1px solid #999;
   border-radius: 10%;

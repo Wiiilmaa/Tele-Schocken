@@ -341,6 +341,7 @@
   var _lastGameState = null;  // cache for checking player status etc.
   var _wasInRevealPhase = false; // track reveal phase to play sound only on transition
   var _lastWaitingUserId = undefined; // undefined = first load (suppress sound on page load)
+  var _currentRoundPhase = null; // track current round-status phase to avoid restarting countdowns
 
   // Dice cup state
   var _diceInCup = [true, true, true];
@@ -857,6 +858,8 @@
       gameControls.style.display = 'none';
       joinForm.style.display = 'block';
       pendingNotice.style.display = 'none';
+      var joinInput = document.getElementById('join_name');
+      if (joinInput) joinInput.focus();
     } else {
       var me = game.User.find(function(u) { return u.Id === myId; });
       if (me && me.Pending_Join) {
@@ -1300,29 +1303,42 @@
     _wasInRevealPhase = needsReveal;
 
     if (readyToDistribute && game.Scoring) {
-      // Phase: all dice visible, ready to distribute
-      var fullInfo = formatScoringText(game.Scoring);
-      roundRow.innerHTML = '<button class="btn btn-success" id="distribute_btn" '
-        + 'onclick="distribute()" disabled>Verteilen</button> '
-        + '<span>' + fullInfo + '</span>';
-      // Enable button after 3s delay
-      setTimeout(function() {
-        var btn = document.getElementById('distribute_btn');
-        if (btn) btn.disabled = false;
-      }, 3000);
+      if (_currentRoundPhase !== 'distribute') {
+        // Phase: all dice visible, ready to distribute
+        _currentRoundPhase = 'distribute';
+        var fullInfo = formatScoringText(game.Scoring);
+        roundRow.innerHTML = '<button class="btn btn-success" id="distribute_btn" '
+          + 'onclick="distribute()" disabled>Verteilen</button> '
+          + '<span>' + fullInfo + '</span>';
+        // Enable button after 3s delay
+        setTimeout(function() {
+          var btn = document.getElementById('distribute_btn');
+          if (btn) btn.disabled = false;
+        }, 3000);
+      }
     } else if (needsReveal) {
-      // Phase: waiting for reveal
+      // Update vote count without restarting countdown
       var voteHtml = '';
       if (game.Reveal_Votes > 0) {
         voteHtml = ' <span>(' + game.Reveal_Votes + ' Stimme(n))</span>';
       }
-      roundRow.innerHTML = '<button class="btn btn-warning" id="reveal_all_btn" onclick="vote_reveal_all()" disabled>'
-        + 'Alles aufdecken</button>' + voteHtml;
-      setTimeout(function() {
-        var btn = document.getElementById('reveal_all_btn');
-        if (btn) btn.disabled = false;
-      }, 10000);
+      if (_currentRoundPhase !== 'reveal') {
+        _currentRoundPhase = 'reveal';
+        roundRow.innerHTML = '<button class="btn btn-warning" id="reveal_all_btn" onclick="vote_reveal_all()" disabled>'
+          + 'Alles aufdecken</button>' + voteHtml;
+        setTimeout(function() {
+          var btn = document.getElementById('reveal_all_btn');
+          if (btn) btn.disabled = false;
+        }, 10000);
+      } else {
+        // Just update the vote count next to the existing button
+        var revealBtn = document.getElementById('reveal_all_btn');
+        if (revealBtn && revealBtn.nextElementSibling) {
+          revealBtn.nextElementSibling.innerHTML = game.Reveal_Votes > 0 ? '(' + game.Reveal_Votes + ' Stimme(n))' : '';
+        }
+      }
     } else if (!roundFinished) {
+      _currentRoundPhase = 'playing';
       // Phase: game is running – show last round result from server state
       var lastText = formatScoringText(game.Last_Scoring);
       if (lastText) {
@@ -1331,6 +1347,7 @@
         roundRow.innerHTML = '';
       }
     } else {
+      _currentRoundPhase = null;
       roundRow.innerHTML = '';
     }
 

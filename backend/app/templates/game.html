@@ -13,7 +13,7 @@
   <div class="row col-md-offset-1">
     <div class="col-md-3 " >
       <div class="input-group mb-6">
-        <input id="Name" placeholder="Spielername" type="text" size="20" class="form-control" onkeydown="if(event.key==='Enter')joinGame()">
+        <input id="Name" placeholder="Spielername" type="text" size="20" class="form-control" onkeydown="if(event.key==='Enter')joinGame()" autofocus>
         <div class="input-group-btn">
           <button id="jointbtn" class="btn btn-primary btn-outline-secondary" type="button" onclick="joinGame()">Beitreten</button>
         </div>
@@ -63,7 +63,7 @@
 <div class="row">
   <div class="col-md-offset-1 col-md-4" >
     <div class="input-group mb-6">
-      <input id="link_input" type="text" size="80" class="form-control" value="/game_waiting/{{game.UUID}}">
+      <input id="link_input" type="text" class="form-control" value="/game_waiting/{{game.UUID}}">
       <div class="input-group-btn">
         <button onclick="coppy()" class="btn btn-outline-secondary" type="button">kopieren</button>
       </div>
