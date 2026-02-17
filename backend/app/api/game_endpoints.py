@@ -207,9 +207,6 @@ def pull_up_dice_cup(gid, uid):
     response.status_code = 201
     emit('reload_game', game.to_dict(), room=gid, namespace='/game')
     return response
-        response = jsonify(Message="Request must include visible")
-        response.status_code = 400
-        return response
 
 
 # user finishes before third roll
