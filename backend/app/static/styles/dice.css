@@ -363,9 +363,18 @@ body {
 }
 .dcell-clickable {
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
 }
 .dcell-clickable:hover {
-  opacity: 0.8;
+  opacity: 0.85;
+}
+.dcell-clickable:active {
+  opacity: 1;
+}
+.dcell:focus, .dcell:active {
+  outline: none;
 }
 .dcell-disabled {
   opacity: 0.3;

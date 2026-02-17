@@ -91,8 +91,14 @@
                 </div>
               </div>
               <div class="dice-turn-buttons" id="dice_turn_buttons">
-                <button id="btn_turn_2" class="btn btn-default btn-sm" onclick="turnSixes(1)" style="display:none">Zwei Sechsen zu Eins</button>
-                <button id="btn_turn_3" class="btn btn-default btn-sm" onclick="turnSixes(2)" style="display:none">Drei Sechsen zu zwei Einsen</button>
+                <div id="btn_turn_2" class="containerturner" style="display:none">
+                  <img src="{{ url_for('static', filename = 'image/2_6er.svg')}}" alt="Zwei Sechsen zu Eins">
+                  <button onclick="turnSixes(1)" class="btn" title="Zwei Sechsen zu Eins"></button>
+                </div>
+                <div id="btn_turn_3" class="containerturner" style="display:none">
+                  <img src="{{ url_for('static', filename = 'image/3_6er.svg')}}" alt="Drei Sechsen zu zwei Einsen">
+                  <button onclick="turnSixes(2)" class="btn" title="Drei Sechsen zu zwei Einsen"></button>
+                </div>
               </div>
             </div>
           </div>
@@ -719,8 +725,6 @@
             alert('Würfel vom Tisch gefallen Schnapsrunde!');
           } else {
             playSound(soundDice);
-            _myDiceValues = [res.dice1, res.dice2, res.dice3];
-            _diceHiddenAfterRoll = false;
 
             var firstDiceCount = document.getElementById('first_user_dice_count_id').innerHTML;
             var first_user_id = document.getElementById('first_user_id').innerHTML;
@@ -733,8 +737,16 @@
               isLastRoll = (String(res.number_dice) == firstDiceCount);
             }
 
+            _myDiceValues = [
+              res.dice1 || 0,
+              res.dice2 || 0,
+              res.dice3 || 0
+            ];
+
             if (isLastRoll) {
               _diceHiddenAfterRoll = true;
+            } else {
+              _diceHiddenAfterRoll = false;
             }
             renderDiceCup();
           }
@@ -1150,22 +1162,37 @@
         _diceHiddenAfterRoll = false;
       }
 
-      // Restore dice from server state on page reload
-      if (_myDiceValues[0] === 0 && _myDiceValues[1] === 0 && _myDiceValues[2] === 0 && me_data.Number_Dice > 0) {
-        if (me_data.Dices && me_data.Dices.length > 0) {
-          var hasVisible = [false, false, false];
-          for (var dn in me_data.Dices) {
-            var jdice = me_data.Dices[dn];
-            if (jdice['Dice1'] !== undefined) { _myDiceValues[0] = jdice['Dice1']; hasVisible[0] = true; }
-            if (jdice['Dice2'] !== undefined) { _myDiceValues[1] = jdice['Dice2']; hasVisible[1] = true; }
-            if (jdice['Dice3'] !== undefined) { _myDiceValues[2] = jdice['Dice3']; hasVisible[2] = true; }
+      // Fill in dice values from server state (page reload or after pullup)
+      if (me_data.Number_Dice > 0 && me_data.Dices && me_data.Dices.length > 0) {
+        var anyFilled = false;
+        for (var dn in me_data.Dices) {
+          var jdice = me_data.Dices[dn];
+          if (jdice['Dice1'] !== undefined && _myDiceValues[0] === 0) {
+            _myDiceValues[0] = jdice['Dice1'];
+            _diceInCup[0] = false;
+            anyFilled = true;
           }
-          _diceInCup = [!hasVisible[0], !hasVisible[1], !hasVisible[2]];
-          _diceOutAtRoll = [hasVisible[0], hasVisible[1], hasVisible[2]];
-          _diceHiddenAfterRoll = (me_data.Dices.length < 3);
-        } else {
-          _diceHiddenAfterRoll = true;
+          if (jdice['Dice2'] !== undefined && _myDiceValues[1] === 0) {
+            _myDiceValues[1] = jdice['Dice2'];
+            _diceInCup[1] = false;
+            anyFilled = true;
+          }
+          if (jdice['Dice3'] !== undefined && _myDiceValues[2] === 0) {
+            _myDiceValues[2] = jdice['Dice3'];
+            _diceInCup[2] = false;
+            anyFilled = true;
+          }
         }
+        // After pullup reveals all dice, clear hidden state
+        if (_myDiceValues[0] > 0 && _myDiceValues[1] > 0 && _myDiceValues[2] > 0) {
+          _diceHiddenAfterRoll = false;
+        }
+        if (anyFilled) {
+          _diceOutAtRoll = [!_diceInCup[0], !_diceInCup[1], !_diceInCup[2]];
+        }
+      } else if (me_data.Number_Dice > 0 && (!me_data.Dices || me_data.Dices.length === 0)
+                 && _myDiceValues[0] === 0 && _myDiceValues[1] === 0 && _myDiceValues[2] === 0) {
+        _diceHiddenAfterRoll = true;
       }
 
       renderDiceCup();

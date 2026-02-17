@@ -427,7 +427,9 @@ def roll_dice(gid, uid):
                 return response
             user.number_dice = user.number_dice + 1
             # Check if this was the last roll for this user
-            if user.number_dice == 3 or (user.id != game.first_user_id and user.number_dice == first_user_dice):
+            is_last_roll = (user.number_dice == 3 or
+                            (user.id != game.first_user_id and user.number_dice == first_user_dice))
+            if is_last_roll:
                 next_id, is_round_complete = _get_next_active_user(game, user_index)
                 if is_round_complete:
                     game.move_user_id = -1
@@ -468,7 +470,16 @@ def roll_dice(gid, uid):
         db.session.add(user)
         db.session.commit()
 
-        response = jsonify(fallen=fallen, dice1=user.dice1, dice2=user.dice2, dice3=user.dice3, number_dice=user.number_dice)
+        # On the last roll, withhold in-cup dice values from the client
+        if is_last_roll:
+            resp_dice1 = user.dice1 if user.dice1_visible else 0
+            resp_dice2 = user.dice2 if user.dice2_visible else 0
+            resp_dice3 = user.dice3 if user.dice3_visible else 0
+        else:
+            resp_dice1 = user.dice1
+            resp_dice2 = user.dice2
+            resp_dice3 = user.dice3
+        response = jsonify(fallen=fallen, dice1=resp_dice1, dice2=resp_dice2, dice3=resp_dice3, number_dice=user.number_dice)
         response.status_code = 201
         emit('reload_game', game.to_dict(), room=gid, namespace='/game')
         return response
