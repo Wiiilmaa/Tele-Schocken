@@ -2,18 +2,18 @@
 
 {% block content %}
 {{ super() }}
-<div class=”main-container”>
+<div class="main-container">
     <div class="row">
       <div class="col-md-11 col-md-offset-1 col-xs-offset-1">
         <h1>Online Schocken</h1>
       </div>
     </div>
 
-    <div class="row ">
+    <div class="row">
         <div class="col-md-5 col-md-offset-1 col-xs-offset-1">
           <div class="row">
             <div class="col-md-12">
-              <p>Egal ob du <b>Schocken</b>, <b>Jule</b>,  <b>Mörkeln</b>, <b>Knobeln</b>,  <b>Maxen</b> oder <b>Meiern</b> willst, hier bist du richtig!</p>
+              <p>Egal ob du <b>Schocken</b>, <b>Jule</b>, <b>Mörkeln</b>, <b>Knobeln</b>, <b>Maxen</b> oder <b>Meiern</b> willst, hier bist du richtig!</p>
             </div>
           </div>
           <div class="row">
@@ -22,9 +22,9 @@
             </div>
           </div>
           <div class="row">
-            <div class="col-xs-11 col-md-8" >
+            <div class="col-xs-11 col-md-8">
               <div class="input-group mb-6">
-                <input id="adminname" placeholder="Spielername" type="text" size="20" class="form-control" >
+                <input id="adminname" placeholder="Spielername" type="text" size="20" class="form-control">
                 <div class="input-group-btn">
                   <button class="btn btn-primary btn-outline-secondary" type="button" onclick="createGame()">Erzeugen</button>
                 </div>
@@ -37,83 +37,10 @@
             </div>
           </div>
         </div>
-        <div class="col-md-6">
-          <div class="row">
-            <div class="col-md-4">
-              <h3>Erläuterung:</h3>
-            </div>
-          </div>
-          {% include "snippet/rules.html" %}
-        </div>
     </div>
-    <br/>
-    <hr>
-    <div class="row">
-      <div class="col-md-11 col-md-offset-1">
-        <h3>Leitfaden Online-Schocken</h3>
-      </div>
-    </div>
-    <div class="row">
-      <div class="col-md-9 col-md-offset-1">
-        <ul>
-          <li>Wenn man an der Reihe ist zu würfeln wird der Würfelbutton grün hinterlegt</li>
-          <li>Der blau hinterlegte Spieler hat die Runde begonnen (nicht im Edge oder Internetexplorer)</li>
-          <li>Die Würfel, die raus gelegt werden müssen abgehakt werden</li>
-          <li>Nur der Admin hat die Felder zum Verteilen der Chips</li>
-          <li>Die Button zum 6er drehen erscheienen nur wenn in einem Wurf mindestens zwei 6er enthalten sind</li>
-          <li>Im oberen Breich werden Nachrichten in rot angezeigt, welche durch das Spiel leiten</li>
-        </ul>
-      </div>
-    </div>
-
-    <div class="row">
-      <div class="col-md-11 col-md-offset-1 example_img">
-        <picture>
-          <source type="image/webp" media="(min-width: 1281px)" srcset="{{ url_for('static',filename='image/Gameplay01_webp_big.webp') }}">
-          <source type="image/png" media="(min-width: 1281px)" srcset="{{ url_for('static',filename='image/Gameplay01.png') }}">
-          <source type="image/webp" media="(min-width: 374px) and (max-width: 1280px)" srcset="{{ url_for('static',filename='image/Gameplay01_webp_small.webp') }}">
-          <source type="image/png" media="(min-width: 374px) and (max-width: 1280px)" srcset="{{ url_for('static',filename='image/Gameplay01_png_small.png') }}">
-          <img alt="Gameplay1" title="Spielaufbau" style="width:100%; height:auto;" src="{{ url_for('static',filename='image/Gameplay01.png') }}">
-        </picture>
-      </div>
-    </div>
-    <hr>
-    <div class="row">
-      <div class="col-md-11 col-md-offset-1 example_img">
-        <picture>
-          <source type="image/webp" media="(min-width: 1281px)" srcset="{{ url_for('static',filename='image/Gameplay03_webp_big.webp') }}">
-          <source type="image/png" media="(min-width: 1281px)" srcset="{{ url_for('static',filename='image/Gameplay03.png') }}">
-          <source type="image/webp" media="(min-width: 374px) and (max-width: 1280px)" srcset="{{ url_for('static',filename='image/Gameplay03_webp_small.webp') }}">
-          <source type="image/png" media="(min-width: 374px) and (max-width: 1280px)" srcset="{{ url_for('static',filename='image/Gameplay03_png_small.png') }}">
-          <img alt="Gameplay2" title="Spielaufbau" style="width:100%; height:auto;" src="{{ url_for('static',filename='image/Gameplay03.png') }}">
-        </picture>
-      </div>
-    </div>
-    <hr>
-    <div class="row">
-      <div class="col-md-11 col-md-offset-1 example_img">
-        <picture>
-          <source type="image/webp" media="(min-width: 1281px)" srcset="{{ url_for('static',filename='image/Gameplay02_webp_big.webp') }}">
-          <source type="image/png" media="(min-width: 1281px)" srcset="{{ url_for('static',filename='image/Gameplay02.png') }}">
-          <source type="image/webp" media="(min-width: 374px) and (max-width: 1280px)" srcset="{{ url_for('static',filename='image/Gameplay02_webp_small.webp') }}">
-          <source type="image/png" media="(min-width: 374px) and (max-width: 1280px)" srcset="{{ url_for('static',filename='image/Gameplay02_png_small.png') }}">
-          <img alt="Gameplay3" title="Spielaufbau" style="width:100%; height:auto;" src="{{ url_for('static',filename='image/Gameplay02.png') }}">
-        </picture>
-      </div>
-    </div>
-
 </div>
 
-
-
-{% block footer %}
-{{ super() }}
 {% endblock %}
-
-{% endblock %}
-
-
-
 
 {% block scripts %}
 {{ super() }}
@@ -134,45 +61,12 @@
         }else{
           localStorage.setItem('name', adminname);
           localStorage.setItem('id', res.Admin_Id);
-          // Simulate a mouse click:
           window.location.href = "/game_waiting/"+res.UUID;
         }
       }
     }
     xhttp.send(JSON.stringify({name:adminname}));
   }
-  function joinGame(){
-    var user = document.getElementById('Name');
-    var game = document.getElementById('UUID');
-    var uuid = game.value;
-    uuid = uuid.replace(/\s/g, '');
-    var usernname = user.value;
-    var xhttp = new XMLHttpRequest();
-    xhttp.open("POST", "/api/game/"+uuid+"/user");
-    xhttp.setRequestHeader("Content-Type", "application/json");
-    xhttp.onreadystatechange = function() {
-      if (xhttp.readyState == XMLHttpRequest.DONE) {
-        var res=JSON.parse(xhttp.responseText);
-        if (xhttp.status != 200){
-          alert('Fehler beim erzeugen: '+res.Message);
-          location=location;
-        }else{
-          localStorage.setItem('name', usernname);
-          for (num in res.User) {
-            var juser = res.User[num];
-            var name = juser['Name'];
-            if (name == usernname){
-              localStorage.setItem('id', juser['Id']);
-            }
-          }
-          var id = localStorage.getItem('id');
-          window.location.href = "/game_waiting/"+uuid;
-        }
-      }
-    }
-    xhttp.send(JSON.stringify({name:usernname}));
-  }
-
 
 </script>
 {% endblock %}
