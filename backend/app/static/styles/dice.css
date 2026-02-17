@@ -405,11 +405,13 @@ body {
   }
   .controls-left .containerturner {
     width: 100%;
-    min-width: 0;
+    max-width: 80px;
+    min-width: 20;
   }
   .controls-center .containercup {
     width: 100%;
-    min-width: 0;
+    max-width: 80px;
+    min-width: 20px;
   }
   .controls-center {
     flex: 0 1 auto;
