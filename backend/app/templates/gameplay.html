@@ -40,59 +40,61 @@
 <!-- Game controls: visible for active players only -->
 <div id="game_controls">
 <div class="container-fluid">
-  <!-- Block 1: Action buttons -->
   <div class="row">
     <div class="col-xs-12 col-md-10 col-md-offset-1">
-      <div id="controls_block1" class="controls-block">
-        <div class="controls-btn-row">
-          <div class="controls-left">
-            <div class="containerturner" id='startgame_id'>
-              <img src="{{ url_for('static', filename = 'image/throw_the_dice.svg')}}" alt="throw the dice">
-              <button id='btn_dice' onclick="dice()" class="btn" title="Würfeln">Würfeln</button>
-              <p style="text-align: center">Würfeln</p>
+      <div class="controls-main-row">
+        <!-- Block 1: Action buttons -->
+        <div class="controls-block1-col">
+          <div id="controls_block1" class="controls-block">
+            <div class="controls-btn-row">
+              <div class="controls-left">
+                <div class="containerturner" id='startgame_id'>
+                  <img src="{{ url_for('static', filename = 'image/throw_the_dice.svg')}}" alt="throw the dice">
+                  <button id='btn_dice' onclick="dice()" class="btn" title="Würfeln">Würfeln</button>
+                  <p style="text-align: center">Würfeln</p>
+                </div>
+              </div>
+              <div class="controls-center">
+                <div class="containercup">
+                  <img src="{{ url_for('static', filename = 'image/pulldiceup.svg')}}" alt="pull dice cup up">
+                  <button onclick="pullup()" class="btn" title="Aufdecken">Aufdecken</button>
+                  <p style="text-align: center">Aufdecken</p>
+                </div>
+                <div class="containercup">
+                  <img src="{{ url_for('static', filename = 'image/pulldicedown.svg')}}" alt="pull dice cup down">
+                  <button onclick="pulldown()" class="btn" title="Zudecken">Zudecken</button>
+                  <p style="text-align: center">Zudecken</p>
+                </div>
+              </div>
+              <div class="controls-right">
+                <button class="btn btn-primary btn-endpause" id="btn_endpause" onclick="endpause_click()">Pause</button>
+              </div>
             </div>
-          </div>
-          <div class="controls-center">
-            <div class="containercup">
-              <img src="{{ url_for('static', filename = 'image/pulldiceup.svg')}}" alt="pull dice cup up">
-              <button onclick="pullup()" class="btn" title="Aufdecken">Aufdecken</button>
-              <p style="text-align: center">Aufdecken</p>
-            </div>
-            <div class="containercup">
-              <img src="{{ url_for('static', filename = 'image/pulldicedown.svg')}}" alt="pull dice cup down">
-              <button onclick="pulldown()" class="btn" title="Zudecken">Zudecken</button>
-              <p style="text-align: center">Zudecken</p>
-            </div>
-          </div>
-          <div class="controls-right">
-            <button class="btn btn-primary btn-endpause" id="btn_endpause" onclick="endpause_click()">Pause</button>
           </div>
         </div>
-      </div>
-    </div>
-  </div>
-  <!-- Block 2: Dice cup display -->
-  <div class="row">
-    <div class="col-xs-12 col-md-10 col-md-offset-1">
-      <div id="controls_block2" class="controls-block">
-        <div class="dice-cup-wrapper">
-          <div class="dice-cup-control">
-            <div class="dice-cup-headers">
-              <div class="dice-cup-label">Würfelbecher</div>
-              <div class="dice-out-label">rausgelegt</div>
+        <!-- Block 2: Dice cup display -->
+        <div class="controls-block2-col">
+          <div id="controls_block2" class="controls-block">
+            <div class="dice-cup-wrapper">
+              <div class="dice-cup-control">
+                <div class="dice-cup-headers">
+                  <div class="dice-cup-label">Würfelbecher</div>
+                  <div class="dice-out-label">rausgelegt</div>
+                </div>
+                <div class="dice-cup-cells">
+                  <div class="dcell dcell-cup" id="dcell0"></div>
+                  <div class="dcell dcell-cup" id="dcell1"></div>
+                  <div class="dcell dcell-cup" id="dcell2"></div>
+                  <div class="dcell dcell-out" id="dcell3"></div>
+                  <div class="dcell dcell-out" id="dcell4"></div>
+                  <div class="dcell dcell-out" id="dcell5"></div>
+                </div>
+              </div>
+              <div class="dice-turn-buttons" id="dice_turn_buttons">
+                <button id="btn_turn_2" class="btn btn-default btn-sm" onclick="turnSixes(1)" style="display:none">Zwei Sechsen zu Eins</button>
+                <button id="btn_turn_3" class="btn btn-default btn-sm" onclick="turnSixes(2)" style="display:none">Drei Sechsen zu zwei Einsen</button>
+              </div>
             </div>
-            <div class="dice-cup-cells">
-              <div class="dcell dcell-cup" id="dcell0"></div>
-              <div class="dcell dcell-cup" id="dcell1"></div>
-              <div class="dcell dcell-cup" id="dcell2"></div>
-              <div class="dcell dcell-out" id="dcell3"></div>
-              <div class="dcell dcell-out" id="dcell4"></div>
-              <div class="dcell dcell-out" id="dcell5"></div>
-            </div>
-          </div>
-          <div class="dice-turn-buttons" id="dice_turn_buttons">
-            <button id="btn_turn_2" class="btn btn-default btn-sm" onclick="turnSixes(1)" style="display:none">Zwei Sechsen zu Eins</button>
-            <button id="btn_turn_3" class="btn btn-default btn-sm" onclick="turnSixes(2)" style="display:none">Drei Sechsen zu zwei Einsen</button>
           </div>
         </div>
       </div>
@@ -339,6 +341,7 @@
   var _diceSwapped = [false, false, false];
   var _diceSwapCupIdx = -1;
   var _diceHiddenAfterRoll = false;
+  var _diceOutAtRoll = [false, false, false];
 
   function getGameId() {
     var el = document.getElementById('UUID');
@@ -512,6 +515,12 @@
     return _diceSwapped[0] || _diceSwapped[1] || _diceSwapped[2];
   }
 
+  function addPlaceholder(cell) {
+    var ph = document.createElement('div');
+    ph.className = 'dice dice-placeholder';
+    cell.appendChild(ph);
+  }
+
   function renderDiceCup() {
     for (var i = 0; i < 6; i++) {
       var cell = document.getElementById('dcell' + i);
@@ -520,56 +529,52 @@
       cell.className = (i < 3) ? 'dcell dcell-cup' : 'dcell dcell-out';
     }
 
-    var cupDice = [];
-    var outDice = [];
+    var cupLabel = document.querySelector('.dice-cup-label');
+    if (_diceHiddenAfterRoll) {
+      for (var i = 0; i < 3; i++) {
+        document.getElementById('dcell' + i).classList.add('dcell-cup-covered');
+      }
+      if (cupLabel) cupLabel.classList.add('dice-cup-label-covered');
+    } else {
+      if (cupLabel) cupLabel.classList.remove('dice-cup-label-covered');
+    }
 
     for (var i = 0; i < 3; i++) {
       var val = _myDiceValues[i];
       var isNull = (val === null || val === undefined);
+      var cupCell = document.getElementById('dcell' + i);
+      var outCell = document.getElementById('dcell' + (3 + i));
 
       if (isNull && _diceSwapped[i] && i === _diceSwapCupIdx) {
-        cupDice.push({ idx: i, val: 6, disabled: true, swapped: true });
+        appendDice(cupCell, 6);
+        cupCell.classList.add('dcell-disabled');
+        addPlaceholder(outCell);
         continue;
       }
-      if (!val && val !== 0) continue;
-      if (val === 0) continue;
 
-      if (_diceHiddenAfterRoll && _diceInCup[i]) {
-        cupDice.push({ idx: i, val: 0, disabled: true, swapped: false });
+      if (!val || val === 0) {
+        addPlaceholder(cupCell);
+        addPlaceholder(outCell);
         continue;
       }
 
       if (_diceInCup[i]) {
-        cupDice.push({ idx: i, val: val, disabled: false, swapped: _diceSwapped[i] });
+        appendDice(cupCell, val);
+        cupCell.classList.add('dcell-clickable');
+        cupCell.onclick = (function(idx) { return function() { toggleDice(idx); }; })(i);
+        addPlaceholder(outCell);
       } else {
-        outDice.push({ idx: i, val: val, disabled: false, swapped: _diceSwapped[i] });
+        addPlaceholder(cupCell);
+        appendDice(outCell, val);
+        if (_diceSwapped[i]) {
+          outCell.classList.add('dcell-swapped', 'dcell-clickable');
+          outCell.onclick = (function(idx) { return function() { undoSwap(idx); }; })(i);
+        } else {
+          outCell.classList.add('dcell-clickable');
+          outCell.onclick = (function(idx) { return function() { toggleDice(idx); }; })(i);
+        }
       }
     }
-
-    cupDice.forEach(function(d, ci) {
-      if (ci > 2) return;
-      var cell = document.getElementById('dcell' + ci);
-      if (d.val > 0) appendDice(cell, d.val);
-      if (d.disabled) {
-        cell.classList.add('dcell-disabled');
-      } else {
-        cell.classList.add('dcell-clickable');
-        cell.onclick = (function(idx) { return function() { toggleDice(idx); }; })(d.idx);
-      }
-    });
-
-    outDice.forEach(function(d, ci) {
-      if (ci > 2) return;
-      var cell = document.getElementById('dcell' + (3 + ci));
-      if (d.val > 0) appendDice(cell, d.val);
-      if (d.swapped) {
-        cell.classList.add('dcell-swapped', 'dcell-clickable');
-        cell.onclick = (function(idx) { return function() { undoSwap(idx); }; })(d.idx);
-      } else {
-        cell.classList.add('dcell-clickable');
-        cell.onclick = (function(idx) { return function() { toggleDice(idx); }; })(d.idx);
-      }
-    });
 
     updateTurnButtons();
   }
@@ -738,6 +743,7 @@
         }
       }
     }
+    _diceOutAtRoll = [!_diceInCup[0], !_diceInCup[1], !_diceInCup[2]];
     xhttp.send(JSON.stringify({ dice1: _diceInCup[0], dice2: _diceInCup[1], dice3: _diceInCup[2] }));
   }
 
@@ -819,7 +825,11 @@
         }
       }
     }
-    xhttp.send(JSON.stringify({ visible: false }));
+    xhttp.send(JSON.stringify({
+      dice1_visible: _diceOutAtRoll[0],
+      dice2_visible: _diceOutAtRoll[1],
+      dice3_visible: _diceOutAtRoll[2]
+    }));
   }
 
   // ============= Player/Admin checks =============
@@ -1135,6 +1145,7 @@
       if (me_data.Number_Dice == 0) {
         _diceInCup = [true, true, true];
         _myDiceValues = [0, 0, 0];
+        _diceOutAtRoll = [false, false, false];
         clearSwapState();
         _diceHiddenAfterRoll = false;
       }
@@ -1142,14 +1153,16 @@
       // Restore dice from server state on page reload
       if (_myDiceValues[0] === 0 && _myDiceValues[1] === 0 && _myDiceValues[2] === 0 && me_data.Number_Dice > 0) {
         if (me_data.Dices && me_data.Dices.length > 0) {
+          var hasVisible = [false, false, false];
           for (var dn in me_data.Dices) {
             var jdice = me_data.Dices[dn];
-            if (jdice['Dice1'] !== undefined) _myDiceValues[0] = jdice['Dice1'];
-            if (jdice['Dice2'] !== undefined) _myDiceValues[1] = jdice['Dice2'];
-            if (jdice['Dice3'] !== undefined) _myDiceValues[2] = jdice['Dice3'];
+            if (jdice['Dice1'] !== undefined) { _myDiceValues[0] = jdice['Dice1']; hasVisible[0] = true; }
+            if (jdice['Dice2'] !== undefined) { _myDiceValues[1] = jdice['Dice2']; hasVisible[1] = true; }
+            if (jdice['Dice3'] !== undefined) { _myDiceValues[2] = jdice['Dice3']; hasVisible[2] = true; }
           }
-          _diceHiddenAfterRoll = false;
-          _diceInCup = [false, false, false];
+          _diceInCup = [!hasVisible[0], !hasVisible[1], !hasVisible[2]];
+          _diceOutAtRoll = [hasVisible[0], hasVisible[1], hasVisible[2]];
+          _diceHiddenAfterRoll = (me_data.Dices.length < 3);
         } else {
           _diceHiddenAfterRoll = true;
         }

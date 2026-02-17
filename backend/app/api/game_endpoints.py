@@ -178,7 +178,11 @@ def pull_up_dice_cup(gid, uid):
         return response
 
     data = request.get_json() or {}
-    if 'visible' in data:
+    if 'dice1_visible' in data:
+        user.dice1_visible = bool(data.get('dice1_visible', False))
+        user.dice2_visible = bool(data.get('dice2_visible', False))
+        user.dice3_visible = bool(data.get('dice3_visible', False))
+    elif 'visible' in data:
         escapedvisible = str(utils.escape(data['visible']))
         val = escapedvisible.lower() in ['true', '1']
         user.dice1_visible = val

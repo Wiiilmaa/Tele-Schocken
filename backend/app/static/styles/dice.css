@@ -216,6 +216,18 @@ body {
 }
 
 /* ============= Controls layout ============= */
+.controls-main-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-start;
+}
+.controls-block1-col {
+  flex: 1 1 300px;
+}
+.controls-block2-col {
+  flex: 0 0 auto;
+}
 .controls-block {
   padding: 8px 0;
 }
@@ -282,7 +294,7 @@ body {
 /* Grayed-out overlay for paused state */
 .controls-paused .controls-left,
 .controls-paused .controls-center,
-.controls-paused .dice-cup-wrapper {
+.controls-paused .controls-block2-col {
   opacity: 0.3;
   pointer-events: none;
 }
@@ -358,6 +370,18 @@ body {
 .dcell-disabled {
   opacity: 0.3;
   cursor: not-allowed;
+}
+.dcell-cup-covered {
+  background-color: #6b4226;
+  border-color: #553218;
+}
+.dice-cup-label-covered {
+  background-color: #6b4226;
+  border-color: #553218;
+  color: #d4a86a;
+}
+.dice-placeholder {
+  visibility: hidden;
 }
 .dcell-swapped .dice {
   box-shadow: 0 0 4px 2px #f0ad4e;
