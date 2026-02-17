@@ -1181,8 +1181,6 @@
     // R6: Update rules display data
     if (game.Ruleset) {
       updateRulesModal(game.Ruleset);
-      var rulesetLabel = document.getElementById('floating-ruleset-name');
-      if (rulesetLabel) rulesetLabel.textContent = game.Ruleset.name;
     }
   }
 
@@ -1231,18 +1229,13 @@
   document.addEventListener('DOMContentLoaded', function() {
     var container = document.getElementById('floating-icons');
     if (container) {
-      var label = document.createElement('span');
-      label.id = 'floating-ruleset-name';
-      label.className = 'floating-ruleset-label';
-      container.insertBefore(label, container.firstChild);
-
       var btn = document.createElement('a');
       btn.className = 'floating-icon-btn';
       btn.href = '#';
       btn.onclick = function(e) { e.preventDefault(); showRules(); };
       btn.title = 'Regeln';
       btn.innerHTML = '<i class="fas fa-book"></i>';
-      container.insertBefore(btn, label.nextSibling);
+      container.insertBefore(btn, container.firstChild);
     }
     var rulesModal = document.getElementById('rulesModal');
     if (rulesModal) {

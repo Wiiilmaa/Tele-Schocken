@@ -14,8 +14,14 @@
 
 {% block content %}
 <main>
-  <div class="row ">
+  <div class="hero-container">
     <img alt="Dicecup" style="width:100%; height:auto;" src="{{ url_for('static',filename='image/cube.jpg') }}">
+    <div id="floating-icons" class="floating-icons">
+      <button class="floating-icon-btn" onclick="toggleTheme()" title="Dark Mode umschalten">
+        <span class="icon-moon"><i class="fas fa-moon"></i></span>
+        <span class="icon-sun"><i class="fas fa-sun"></i></span>
+      </button>
+    </div>
   </div>
 </main>
 {% endblock %}
@@ -119,12 +125,6 @@
 
   </div>
 
-  <div id="floating-icons" class="floating-icons">
-    <button class="floating-icon-btn" onclick="toggleTheme()" title="Dark Mode umschalten">
-      <span class="icon-moon"><i class="fas fa-moon"></i></span>
-      <span class="icon-sun"><i class="fas fa-sun"></i></span>
-    </button>
-  </div>
 </footer>
 
 
