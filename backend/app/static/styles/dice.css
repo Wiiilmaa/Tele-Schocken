@@ -282,7 +282,7 @@ body {
 /* Grayed-out overlay for paused state */
 .controls-paused .controls-left,
 .controls-paused .controls-center,
-.controls-paused .dice-selection-row {
+.controls-paused .dice-cup-wrapper {
   opacity: 0.3;
   pointer-events: none;
 }
@@ -291,54 +291,92 @@ body {
   pointer-events: auto;
 }
 
-/* Block 2: Dice selection */
-.dice-selection-row {
+/* Block 2: Dice cup display */
+.dice-cup-wrapper {
   display: flex;
   align-items: flex-start;
   gap: 16px;
-  min-height: 80px;
+  flex-wrap: wrap;
 }
-.dice-select-area {
-  flex: 1;
+.dice-cup-control {
+  display: inline-block;
 }
-.dice-select-label {
-  margin: 0 0 6px 0;
+.dice-cup-headers {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+}
+.dice-cup-label {
+  grid-column: 1 / 4;
+  background-color: #c8a876;
+  text-align: center;
+  padding: 4px 8px;
+  font-weight: bold;
+  border: 1px solid #b08850;
+  border-bottom: none;
+  color: #3a2a10;
   font-size: 13px;
 }
-.dice-checkboxes {
+.dice-out-label {
+  grid-column: 4 / 7;
+  background-color: #1a5c2a;
+  text-align: center;
+  padding: 4px 8px;
+  font-weight: bold;
+  border: 1px solid #145020;
+  border-bottom: none;
+  color: #ffffff;
+  font-size: 13px;
+}
+.dice-cup-cells {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+}
+.dcell {
+  width: 62px;
+  height: 62px;
   display: flex;
+  align-items: center;
   justify-content: center;
-  gap: 24px;
-  margin-bottom: 6px;
+  border: 1px solid;
+  padding: 4px;
+  cursor: default;
 }
-.dice-displays {
+.dcell-cup {
+  background-color: #c8a876;
+  border-color: #b08850;
+}
+.dcell-out {
+  background-color: #1a5c2a;
+  border-color: #145020;
+}
+.dcell-clickable {
+  cursor: pointer;
+}
+.dcell-clickable:hover {
+  opacity: 0.8;
+}
+.dcell-disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.dcell-swapped .dice {
+  box-shadow: 0 0 4px 2px #f0ad4e;
+}
+.dice-turn-buttons {
   display: flex;
-  justify-content: center;
-  gap: 24px;
+  flex-direction: column;
+  gap: 6px;
+  align-self: center;
 }
-.dice-displays > div {
-  width: 60px;
-}
-.dice-turn-area {
-  flex: 0 0 auto;
-  display: flex;
-  gap: 8px;
-}
-.dice-turn-btn {
-  width: 80px;
+.dice-turn-buttons .btn {
+  white-space: nowrap;
 }
 
 /* Penalty column */
 .col-penalty { text-align: right; font-size: 28px; color: #d9534f; }
 
-/* Larger checkboxes and buttons on desktop screens */
+/* Larger buttons on desktop screens */
 @media (min-width: 992px) {
-  #dice1_cb,
-  #dice2_cb,
-  #dice3_cb {
-    scale: 2;
-    translate: 0px -30px;
-  }
   .controls-left .containerturner {
     width: 140px;
   }
@@ -347,6 +385,10 @@ body {
   }
   .controls-btn-row {
     min-height: 140px;
+  }
+  .dcell {
+    width: 100px;
+    height: 80px;
   }
 }
 
@@ -383,17 +425,18 @@ body {
     padding: 6px 8px;
     font-size: 13px;
   }
-  .dice-checkboxes {
-    gap: 16px;
+  .dcell {
+    width: 42px;
+    height: 48px;
+    padding: 2px;
   }
-  .dice-displays {
-    gap: 16px;
+  .dice-cup-label, .dice-out-label {
+    font-size: 11px;
+    padding: 2px 4px;
   }
-  .dice-displays > div {
-    width: 40px;
-  }
-  .dice-turn-btn {
-    width: 60px;
+  .dice-turn-buttons .btn {
+    font-size: 12px;
+    padding: 4px 8px;
   }
   .col-penalty { font-size: 24px; }
 }

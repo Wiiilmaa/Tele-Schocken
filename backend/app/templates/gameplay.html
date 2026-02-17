@@ -71,37 +71,28 @@
       </div>
     </div>
   </div>
-  <!-- Block 2: Dice selection -->
+  <!-- Block 2: Dice cup display -->
   <div class="row">
     <div class="col-xs-12 col-md-10 col-md-offset-1">
       <div id="controls_block2" class="controls-block">
-        <div class="dice-selection-row">
-          <div class="dice-select-area">
-            <p class="text-center dice-select-label">Würfel für Becher wählen<br>Letzter Wurf muss aufgedeckt werden</p>
-            <div class="dice-checkboxes">
-              <div class="text-center"><input type="checkbox" id="dice1_cb" name="dice1" value="False" checked></div>
-              <div class="text-center"><input type="checkbox" id="dice2_cb" name="dice2" value="False" checked></div>
-              <div class="text-center"><input type="checkbox" id="dice3_cb" name="dice3" value="False" checked></div>
+        <div class="dice-cup-wrapper">
+          <div class="dice-cup-control">
+            <div class="dice-cup-headers">
+              <div class="dice-cup-label">Würfelbecher</div>
+              <div class="dice-out-label">rausgelegt</div>
             </div>
-            <div class="dice-displays">
-              <div class="text-center" id="dice1_v"></div>
-              <div class="text-center" id="dice2_v"></div>
-              <div class="text-center" id="dice3_v"></div>
+            <div class="dice-cup-cells">
+              <div class="dcell dcell-cup" id="dcell0"></div>
+              <div class="dcell dcell-cup" id="dcell1"></div>
+              <div class="dcell dcell-cup" id="dcell2"></div>
+              <div class="dcell dcell-out" id="dcell3"></div>
+              <div class="dcell dcell-out" id="dcell4"></div>
+              <div class="dcell dcell-out" id="dcell5"></div>
             </div>
           </div>
-          <div class="dice-turn-area">
-            <div id='2_6er' class="dice-turn-btn" hidden>
-              <div class="containerturner">
-                <img src="{{ url_for('static', filename = 'image/2_6er.svg')}}" alt="change two 6er against one 1er">
-                <button onclick="turn1()" class="btn" title="6er drehen"></button>
-              </div>
-            </div>
-            <div id='3_6er' class="dice-turn-btn" hidden>
-              <div class="containerturner">
-                <img src="{{ url_for('static', filename = 'image/3_6er.svg')}}" alt="change three 6er against two 1er">
-                <button onclick="turn2()" class="btn" title="6er drehen"></button>
-              </div>
-            </div>
+          <div class="dice-turn-buttons" id="dice_turn_buttons">
+            <button id="btn_turn_2" class="btn btn-default btn-sm" onclick="turnSixes(1)" style="display:none">Zwei Sechsen zu Eins</button>
+            <button id="btn_turn_3" class="btn btn-default btn-sm" onclick="turnSixes(2)" style="display:none">Drei Sechsen zu zwei Einsen</button>
           </div>
         </div>
       </div>
@@ -342,6 +333,13 @@
   var _wasInRevealPhase = false; // track reveal phase to play sound only on transition
   var _lastWaitingUserId = undefined; // undefined = first load (suppress sound on page load)
 
+  // Dice cup state
+  var _diceInCup = [true, true, true];
+  var _myDiceValues = [0, 0, 0];
+  var _diceSwapped = [false, false, false];
+  var _diceSwapCupIdx = -1;
+  var _diceHiddenAfterRoll = false;
+
   function getGameId() {
     var el = document.getElementById('UUID');
     return el.innerHTML.replace(/['"]+/g, '');
@@ -504,29 +502,191 @@
     return undecided;
   }
 
+  // ============= Dice cup rendering =============
+  function clearSwapState() {
+    _diceSwapped = [false, false, false];
+    _diceSwapCupIdx = -1;
+  }
+
+  function isSwapActive() {
+    return _diceSwapped[0] || _diceSwapped[1] || _diceSwapped[2];
+  }
+
+  function renderDiceCup() {
+    for (var i = 0; i < 6; i++) {
+      var cell = document.getElementById('dcell' + i);
+      cell.innerHTML = '';
+      cell.onclick = null;
+      cell.className = (i < 3) ? 'dcell dcell-cup' : 'dcell dcell-out';
+    }
+
+    var cupDice = [];
+    var outDice = [];
+
+    for (var i = 0; i < 3; i++) {
+      var val = _myDiceValues[i];
+      var isNull = (val === null || val === undefined);
+
+      if (isNull && _diceSwapped[i] && i === _diceSwapCupIdx) {
+        cupDice.push({ idx: i, val: 6, disabled: true, swapped: true });
+        continue;
+      }
+      if (!val && val !== 0) continue;
+      if (val === 0) continue;
+
+      if (_diceHiddenAfterRoll && _diceInCup[i]) {
+        cupDice.push({ idx: i, val: 0, disabled: true, swapped: false });
+        continue;
+      }
+
+      if (_diceInCup[i]) {
+        cupDice.push({ idx: i, val: val, disabled: false, swapped: _diceSwapped[i] });
+      } else {
+        outDice.push({ idx: i, val: val, disabled: false, swapped: _diceSwapped[i] });
+      }
+    }
+
+    cupDice.forEach(function(d, ci) {
+      if (ci > 2) return;
+      var cell = document.getElementById('dcell' + ci);
+      if (d.val > 0) appendDice(cell, d.val);
+      if (d.disabled) {
+        cell.classList.add('dcell-disabled');
+      } else {
+        cell.classList.add('dcell-clickable');
+        cell.onclick = (function(idx) { return function() { toggleDice(idx); }; })(d.idx);
+      }
+    });
+
+    outDice.forEach(function(d, ci) {
+      if (ci > 2) return;
+      var cell = document.getElementById('dcell' + (3 + ci));
+      if (d.val > 0) appendDice(cell, d.val);
+      if (d.swapped) {
+        cell.classList.add('dcell-swapped', 'dcell-clickable');
+        cell.onclick = (function(idx) { return function() { undoSwap(idx); }; })(d.idx);
+      } else {
+        cell.classList.add('dcell-clickable');
+        cell.onclick = (function(idx) { return function() { toggleDice(idx); }; })(d.idx);
+      }
+    });
+
+    updateTurnButtons();
+  }
+
+  function toggleDice(diceIdx) {
+    _diceInCup[diceIdx] = !_diceInCup[diceIdx];
+    renderDiceCup();
+  }
+
+  function updateTurnButtons() {
+    var btn2 = document.getElementById('btn_turn_2');
+    var btn3 = document.getElementById('btn_turn_3');
+    btn2.style.display = 'none';
+    btn3.style.display = 'none';
+
+    if (isSwapActive()) return;
+    if (_diceHiddenAfterRoll) return;
+
+    var sixes = 0;
+    for (var i = 0; i < 3; i++) {
+      if (_myDiceValues[i] === 6) sixes++;
+    }
+
+    var me = _lastGameState ? _lastGameState.User.find(function(u) { return u.Id === getMyId(); }) : null;
+    if (!me || me.Number_Dice === 0) return;
+    var firstDiceCount = parseInt(document.getElementById('first_user_dice_count_id').innerHTML) || 3;
+    var amFirst = (getMyId() == _lastGameState.First);
+    var canRoll = amFirst ? me.Number_Dice < 3 : me.Number_Dice < firstDiceCount;
+    if (!canRoll) return;
+
+    if (sixes >= 2) btn2.style.display = '';
+    if (sixes >= 3) btn3.style.display = '';
+  }
+
+  function turnSixes(count) {
+    var gameid = getGameId();
+    var id = localStorage.getItem('id');
+    var xhttp = new XMLHttpRequest();
+    xhttp.open("POST", "/api/game/" + gameid + "/user/" + id + "/diceturn");
+    xhttp.setRequestHeader("Content-Type", "application/json");
+    xhttp.onreadystatechange = function () {
+      if (xhttp.readyState == XMLHttpRequest.DONE) {
+        var res = JSON.parse(xhttp.responseText);
+        if (xhttp.status == 201) {
+          var newVals = [res.dice1, res.dice2, res.dice3];
+          for (var i = 0; i < 3; i++) {
+            if (newVals[i] === null || newVals[i] === undefined || newVals[i] === 0) {
+              _diceSwapCupIdx = i;
+              _diceInCup[i] = true;
+              _diceSwapped[i] = true;
+              _myDiceValues[i] = null;
+            } else if (_myDiceValues[i] === 6 && newVals[i] === 1) {
+              _diceInCup[i] = false;
+              _diceSwapped[i] = true;
+              _myDiceValues[i] = 1;
+            } else {
+              _myDiceValues[i] = newVals[i];
+            }
+          }
+          renderDiceCup();
+        } else {
+          alert('' + res.Message);
+        }
+      }
+    }
+    xhttp.send(JSON.stringify({ count: count }));
+  }
+
+  function undoSwap(diceIdx) {
+    var remainingSwapped1s = 0;
+    for (var i = 0; i < 3; i++) {
+      if (i !== diceIdx && _diceSwapped[i] && _myDiceValues[i] === 1) {
+        remainingSwapped1s++;
+      }
+    }
+    var restoreIdx = null;
+    if (remainingSwapped1s === 0 && _diceSwapCupIdx >= 0) {
+      restoreIdx = _diceSwapCupIdx + 1;
+    }
+
+    var gameid = getGameId();
+    var id = localStorage.getItem('id');
+    var xhttp = new XMLHttpRequest();
+    xhttp.open("POST", "/api/game/" + gameid + "/user/" + id + "/diceturn_undo");
+    xhttp.setRequestHeader("Content-Type", "application/json");
+    xhttp.onreadystatechange = function () {
+      if (xhttp.readyState == XMLHttpRequest.DONE) {
+        var res = JSON.parse(xhttp.responseText);
+        if (xhttp.status == 201) {
+          _myDiceValues[diceIdx] = 6;
+          _diceSwapped[diceIdx] = false;
+          if (restoreIdx !== null) {
+            var cupIdx = _diceSwapCupIdx;
+            _myDiceValues[cupIdx] = 6;
+            _diceInCup[cupIdx] = false;
+            _diceSwapped[cupIdx] = false;
+            _diceSwapCupIdx = -1;
+          }
+          renderDiceCup();
+        } else {
+          alert('' + res.Message);
+        }
+      }
+    }
+    var body = { revert_index: diceIdx + 1 };
+    if (restoreIdx !== null) body.restore_index = restoreIdx;
+    xhttp.send(JSON.stringify(body));
+  }
+
   // ============= Game Actions =============
   function dice() {
     document.getElementById("btn_dice").disabled = true;
     setTimeout(function () { document.getElementById("btn_dice").disabled = false; }, 2500);
-    var dice1_cb = document.getElementById('dice1_cb');
-    dice1_cb.disabled = false;
-    var dice2_cb = document.getElementById('dice2_cb');
-    dice2_cb.disabled = false;
-    var dice3_cb = document.getElementById('dice3_cb');
-    dice3_cb.disabled = false;
 
-    var v3_6er_button = document.getElementById('3_6er');
-    v3_6er_button.hidden = true;
-    var v2_6er_button = document.getElementById('2_6er');
-    v2_6er_button.hidden = true;
-
-    var dice1_checked = document.getElementById('dice1_cb').checked;
-    var dice2_checked = document.getElementById('dice2_cb').checked;
-    var dice3_checked = document.getElementById('dice3_cb').checked;
-
-    var dice1_v = document.getElementById('dice1_v');
-    var dice2_v = document.getElementById('dice2_v');
-    var dice3_v = document.getElementById('dice3_v');
+    clearSwapState();
+    document.getElementById('btn_turn_2').style.display = 'none';
+    document.getElementById('btn_turn_3').style.display = 'none';
 
     var gameid = getGameId();
     var id = localStorage.getItem('id');
@@ -535,7 +695,7 @@
     if (dicenumber) {
       var dn = parseInt(dicenumber.innerHTML);
       if (dn == 0) {
-        if (!dice1_checked || !dice2_checked || !dice3_checked) {
+        if (!_diceInCup[0] || !_diceInCup[1] || !_diceInCup[2]) {
           alert('Beim ersten Wurf alle Würfel in den Becher Packen!');
           document.getElementById("btn_dice").disabled = false;
           return;
@@ -554,70 +714,31 @@
             alert('Würfel vom Tisch gefallen Schnapsrunde!');
           } else {
             playSound(soundDice);
+            _myDiceValues = [res.dice1, res.dice2, res.dice3];
+            _diceHiddenAfterRoll = false;
 
-            if (dice1_checked) {
-              dice1_v.className = "spin animated";
-              dice1_v.style.animation = 'none';
-              dice1_v.offsetHeight;
-              dice1_v.style.animation = null;
-            }
-            if (dice2_checked) {
-              dice2_v.className = "spin animated";
-              dice2_v.style.animation = 'none';
-              dice2_v.offsetHeight;
-              dice2_v.style.animation = null;
-            }
-            if (dice3_checked) {
-              dice3_v.className = "spin animated";
-              dice3_v.style.animation = 'none';
-              dice3_v.offsetHeight;
-              dice3_v.style.animation = null;
-            }
-            dice1_v.innerHTML = '';
-            dice2_v.innerHTML = '';
-            dice3_v.innerHTML = '';
-            appendDice(dice1_v, res.dice1);
-            appendDice(dice2_v, res.dice2);
-            appendDice(dice3_v, res.dice3);
-
-            var anzahlel_first_mumber = document.getElementById('first_user_dice_count_id').innerHTML;
+            var firstDiceCount = document.getElementById('first_user_dice_count_id').innerHTML;
             var first_user_id = document.getElementById('first_user_id').innerHTML;
             var me = localStorage.getItem('id');
+            var isLastRoll = false;
 
-            if (first_user_id != me || res.number_dice == 3) {
-              if (String(res.number_dice) == anzahlel_first_mumber || first_user_id == me) {
-                if (dice1_checked) { dice1_v.style.display = "none"; dice1_v.style.animation = 'none'; }
-                if (dice2_checked) { dice2_v.style.display = "none"; dice2_v.style.animation = 'none'; }
-                if (dice3_checked) { dice3_v.style.display = "none"; dice3_v.style.animation = 'none'; }
-              } else {
-                dice1_v.style.display = "block";
-                dice2_v.style.display = "block";
-                dice3_v.style.display = "block";
-                if (res.dice1 == 6 && res.dice2 == 6 || res.dice1 == 6 && res.dice3 == 6 || res.dice2 == 6 && res.dice3 == 6) {
-                  v2_6er_button.hidden = false;
-                }
-                if (res.dice1 == 6 && res.dice2 == 6 && res.dice3 == 6) {
-                  v3_6er_button.hidden = false;
-                }
-              }
+            if (first_user_id == me) {
+              isLastRoll = (res.number_dice >= 3);
             } else {
-              dice1_v.style.display = "block";
-              dice2_v.style.display = "block";
-              dice3_v.style.display = "block";
-              if (res.dice1 == 6 && res.dice2 == 6 || res.dice1 == 6 && res.dice3 == 6 || res.dice2 == 6 && res.dice3 == 6) {
-                v2_6er_button.hidden = false;
-              }
-              if (res.dice1 == 6 && res.dice2 == 6 && res.dice3 == 6) {
-                v3_6er_button.hidden = false;
-              }
+              isLastRoll = (String(res.number_dice) == firstDiceCount);
             }
+
+            if (isLastRoll) {
+              _diceHiddenAfterRoll = true;
+            }
+            renderDiceCup();
           }
         } else {
           alert('' + res.Message);
         }
       }
     }
-    xhttp.send(JSON.stringify({ dice1: dice1_checked, dice2: dice2_checked, dice3: dice3_checked }));
+    xhttp.send(JSON.stringify({ dice1: _diceInCup[0], dice2: _diceInCup[1], dice3: _diceInCup[2] }));
   }
 
   // Combined End/Pause button handler
@@ -661,7 +782,6 @@
     }
   }
 
-  // C3: Move DOM changes into success callback
   function pullup() {
     var id = localStorage.getItem('id');
     var gameid = getGameId();
@@ -672,9 +792,8 @@
       if (xhttp.readyState == XMLHttpRequest.DONE) {
         var res = JSON.parse(xhttp.responseText);
         if (xhttp.status == 201) {
-          document.getElementById('dice1_v').style.display = "block";
-          document.getElementById('dice2_v').style.display = "block";
-          document.getElementById('dice3_v').style.display = "block";
+          _diceHiddenAfterRoll = false;
+          renderDiceCup();
         } else {
           alert('' + res.Message);
         }
@@ -693,9 +812,8 @@
       if (xhttp.readyState == XMLHttpRequest.DONE) {
         var res = JSON.parse(xhttp.responseText);
         if (xhttp.status == 201) {
-          document.getElementById('dice1_v').style.display = "none";
-          document.getElementById('dice2_v').style.display = "none";
-          document.getElementById('dice3_v').style.display = "none";
+          _diceHiddenAfterRoll = true;
+          renderDiceCup();
         } else {
           alert('' + res.Message);
         }
@@ -703,48 +821,6 @@
     }
     xhttp.send(JSON.stringify({ visible: false }));
   }
-
-  function turn(count) {
-    var dice1_cb = document.getElementById('dice1_cb');
-    var dice2_cb = document.getElementById('dice2_cb');
-    var dice3_cb = document.getElementById('dice3_cb');
-    var dice1_v = document.getElementById('dice1_v');
-    var dice2_v = document.getElementById('dice2_v');
-    var dice3_v = document.getElementById('dice3_v');
-    var gameid = getGameId();
-    var id = localStorage.getItem('id');
-    var xhttp = new XMLHttpRequest();
-    xhttp.open("POST", "/api/game/" + gameid + "/user/" + id + "/diceturn");
-    xhttp.setRequestHeader("Content-Type", "application/json");
-    xhttp.onreadystatechange = function () {
-      if (xhttp.readyState == XMLHttpRequest.DONE) {
-        var res = JSON.parse(xhttp.responseText);
-        if (xhttp.status == 201) {
-          dice1_v.innerHTML = '';
-          dice2_v.innerHTML = '';
-          dice3_v.innerHTML = '';
-          if (res.dice1) {
-            appendDice(dice1_v, res.dice1);
-            if (res.dice1 == 1) { dice1_cb.checked = false; }
-          } else { dice1_cb.checked = true; dice1_cb.disabled = true; }
-          if (res.dice2) {
-            appendDice(dice2_v, res.dice2);
-            if (res.dice2 == 1) { dice2_cb.checked = false; }
-          } else { dice2_cb.checked = true; dice2_cb.disabled = true; }
-          if (res.dice3) {
-            appendDice(dice3_v, res.dice3);
-            if (res.dice3 == 1) { dice3_cb.checked = false; }
-          } else { dice3_cb.checked = true; dice3_cb.disabled = true; }
-        } else {
-          alert('' + res.Message);
-        }
-      }
-    }
-    xhttp.send(JSON.stringify({ count: count }));
-  }
-
-  function turn1() { turn(1); }
-  function turn2() { turn(2); }
 
   // ============= Player/Admin checks =============
   function checkIfPlayer(game) {
@@ -1055,37 +1131,31 @@
       }
     }
     if (me_data) {
-      // Reset all dice checkboxes at the start of each round (before first roll)
+      // Reset dice state at the start of each round (before first roll)
       if (me_data.Number_Dice == 0) {
-        document.getElementById('dice1_cb').checked = true;
-        document.getElementById('dice2_cb').checked = true;
-        document.getElementById('dice3_cb').checked = true;
+        _diceInCup = [true, true, true];
+        _myDiceValues = [0, 0, 0];
+        clearSwapState();
+        _diceHiddenAfterRoll = false;
       }
 
-      var dice1_v = document.getElementById('dice1_v');
-      var dice2_v = document.getElementById('dice2_v');
-      var dice3_v = document.getElementById('dice3_v');
-      // Only restore if the cup area is currently empty (after reload)
-      // or if we're not in the middle of a roll animation
-      if (dice1_v.children.length === 0 && me_data.Number_Dice > 0) {
-        // Restore dice from the Dices array
+      // Restore dice from server state on page reload
+      if (_myDiceValues[0] === 0 && _myDiceValues[1] === 0 && _myDiceValues[2] === 0 && me_data.Number_Dice > 0) {
         if (me_data.Dices && me_data.Dices.length > 0) {
-          dice1_v.innerHTML = '';
-          dice2_v.innerHTML = '';
-          dice3_v.innerHTML = '';
           for (var dn in me_data.Dices) {
             var jdice = me_data.Dices[dn];
-            if (jdice['Dice1'] !== undefined) appendDice(dice1_v, jdice['Dice1']);
-            if (jdice['Dice2'] !== undefined) appendDice(dice2_v, jdice['Dice2']);
-            if (jdice['Dice3'] !== undefined) appendDice(dice3_v, jdice['Dice3']);
+            if (jdice['Dice1'] !== undefined) _myDiceValues[0] = jdice['Dice1'];
+            if (jdice['Dice2'] !== undefined) _myDiceValues[1] = jdice['Dice2'];
+            if (jdice['Dice3'] !== undefined) _myDiceValues[2] = jdice['Dice3'];
           }
-          // Show dice if visible
-          dice1_v.style.display = "block";
-          dice2_v.style.display = "block";
-          dice3_v.style.display = "block";
+          _diceHiddenAfterRoll = false;
+          _diceInCup = [false, false, false];
+        } else {
+          _diceHiddenAfterRoll = true;
         }
       }
 
+      renderDiceCup();
     }
 
     // End/Pause button logic
@@ -1141,6 +1211,8 @@
         btnEP.className = 'btn btn-primary btn-endpause';
 
         if (!isMyTurn || notEnoughPlayers) {
+          btnEP.disabled = true;
+        } else if (isSwapActive()) {
           btnEP.disabled = true;
         } else {
           // Active while player can still roll

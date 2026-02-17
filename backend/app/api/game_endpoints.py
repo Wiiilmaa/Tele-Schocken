@@ -554,6 +554,50 @@ def turn_dice(gid, uid):
     return response
 
 
+# undo a diceturn (revert 1->6, optionally restore None->6)
+@bp.route('/game/<gid>/user/<uid>/diceturn_undo', methods=['POST'])
+def undo_turn_dice(gid, uid):
+    game = Game.query.filter_by(UUID=gid).first()
+    if game is None:
+        return jsonify(Message='Spiel nicht gefunden'), 404
+
+    if game.status not in (Status.STARTED, Status.PLAYFINAL):
+        return jsonify(Message='Spiel ist nicht in einer spielbaren Phase'), 400
+
+    user_index = get_Index_Of_User(game, uid)
+    if user_index > -1:
+        user = game.users[user_index]
+    if user_index < 0 or user.game_id != game.id:
+        return jsonify(Message='Spieler ist nicht in diesem Spiel'), 404
+
+    if user.id != game.move_user_id:
+        return jsonify(Message='Du bist nicht dran!'), 400
+
+    data = request.get_json() or {}
+    revert_index = data.get('revert_index')
+    restore_index = data.get('restore_index')
+
+    dice_vals = [user.dice1, user.dice2, user.dice3]
+
+    if revert_index is not None:
+        ri = int(revert_index) - 1
+        if ri < 0 or ri > 2 or dice_vals[ri] != 1:
+            return jsonify(Message='Ungültiger Würfel zum Zurücksetzen'), 400
+        dice_vals[ri] = 6
+
+    if restore_index is not None:
+        rsi = int(restore_index) - 1
+        if rsi < 0 or rsi > 2 or dice_vals[rsi] is not None:
+            return jsonify(Message='Ungültiger Würfel zum Wiederherstellen'), 400
+        dice_vals[rsi] = 6
+
+    user.dice1, user.dice2, user.dice3 = dice_vals
+    db.session.add(user)
+    db.session.commit()
+    emit('reload_game', game.to_dict(), room=gid, namespace='/game')
+    return jsonify(dice1=user.dice1, dice2=user.dice2, dice3=user.dice3), 201
+
+
 # XHR Route: sort dice for visual comparison
 @bp.route('/game/<gid>/sort', methods=['PUT'])
 def sort_dice(gid):
