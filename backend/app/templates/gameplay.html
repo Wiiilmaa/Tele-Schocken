@@ -16,12 +16,12 @@
     <div id="chips_col" class="col-xs-6 col-md-offset-1 col-md-2">
       <h3 id="StackChips_id">Chips: {{game.stack}}</h3>
     </div>
-    <div class="clearfix visible-xs-block visible-sm-block"></div>
     <div class="col-xs-6 col-md-3">
-      <h3 id="throw_id">Anzahl Würfe:</h3>
+      <h3 id="throw_id">Würfe:</h3>
       <p id="throw_number_id" hidden></p>
     </div>
-    <div class="col-xs-6 col-md-3">
+    <div class="clearfix visible-xs-block visible-sm-block"></div>
+    <div class="col-xs-12 col-md-3">
       <h3 id="waiting_id">Warten auf: {{game.moveName(game.move_user_id)}}</h3>
       <p id="UUID" hidden>{{game.UUID}}</p>
       <p id="admin_id" hidden>{{game.admin_user_id}}</p>
@@ -1084,7 +1084,7 @@
       if (game.User[num].Id == firstuser_id) {
         var anzahlel = document.getElementById('throw_id');
         var anzahl_number_el = document.getElementById('throw_number_id');
-        anzahlel.innerHTML = 'Anzahl Würfe: ' + game.User[num]['Number_Dice'];
+        anzahlel.innerHTML = 'Würfe: ' + game.User[num]['Number_Dice'];
         anzahl_number_el.innerHTML = game.User[num]['Number_Dice'];
         document.getElementById('first_user_dice_count_id').innerHTML = game.User[num]['Number_Dice'];
         break;
@@ -1169,17 +1169,14 @@
           var jdice = me_data.Dices[dn];
           if (jdice['Dice1'] !== undefined && _myDiceValues[0] === 0) {
             _myDiceValues[0] = jdice['Dice1'];
-            _diceInCup[0] = false;
             anyFilled = true;
           }
           if (jdice['Dice2'] !== undefined && _myDiceValues[1] === 0) {
             _myDiceValues[1] = jdice['Dice2'];
-            _diceInCup[1] = false;
             anyFilled = true;
           }
           if (jdice['Dice3'] !== undefined && _myDiceValues[2] === 0) {
             _myDiceValues[2] = jdice['Dice3'];
-            _diceInCup[2] = false;
             anyFilled = true;
           }
         }
