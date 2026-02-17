@@ -188,22 +188,25 @@ def pull_up_dice_cup(gid, uid):
         user.dice1_visible = val
         user.dice2_visible = val
         user.dice3_visible = val
-
-        # Check if all active non-passive users have revealed
-        allvisible = True
-        for u in game.active_users:
-            if not (u.passive or (u.dice1_visible and u.dice2_visible and u.dice3_visible)):
-                allvisible = False
-        if allvisible and game.move_user_id == -1:
-            game.message = "Warten auf Vergabe der Chips!"
-
-        db.session.add(game)
-        db.session.commit()
-        response = jsonify(Message='Hat geklappt!')
-        response.status_code = 201
-        emit('reload_game', game.to_dict(), room=gid, namespace='/game')
-        return response
     else:
+        response = jsonify(Message="Request must include visible")
+        response.status_code = 400
+        return response
+
+    # Check if all active non-passive users have revealed
+    allvisible = True
+    for u in game.active_users:
+        if not (u.passive or (u.dice1_visible and u.dice2_visible and u.dice3_visible)):
+            allvisible = False
+    if allvisible and game.move_user_id == -1:
+        game.message = "Warten auf Vergabe der Chips!"
+
+    db.session.add(game)
+    db.session.commit()
+    response = jsonify(Message='Hat geklappt!')
+    response.status_code = 201
+    emit('reload_game', game.to_dict(), room=gid, namespace='/game')
+    return response
         response = jsonify(Message="Request must include visible")
         response.status_code = 400
         return response
