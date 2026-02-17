@@ -6,7 +6,7 @@ from flask_socketio import emit
 from flask import jsonify
 from flask import request
 from app.models import User, Game, Status
-from random import seed, randrange
+from random import choice
 from jinja2 import utils
 
 import json
@@ -117,31 +117,28 @@ def _handle_round_end(game, loser):
 def execute_deferred_actions(game):
     """
     Called when game reaches GAMEFINISCH.
-    Removes leaving players, activates pending players,
+    Activates pending players, removes leaving players,
     sets first_user to loser, handles lobby transition or auto-restart.
     """
     loser_id = game.first_user_id
 
-    # 1. Remove players marked for leaving
-    leaving_users = [u for u in game.users if u.leave_after_game]
-    for user in leaving_users:
-        if user.id == loser_id:
-            # Find next in seat order who stays
-            all_users = list(game.users)
-            loser_index = next((i for i, u in enumerate(all_users) if u.id == loser_id), 0)
-            for offset in range(1, len(all_users)):
-                candidate = all_users[(loser_index + offset) % len(all_users)]
-                if not candidate.leave_after_game and not candidate.pending_join:
-                    loser_id = candidate.id
-                    break
-        db.session.delete(user)
-
-    # 2. Activate pending players
+    # 1. Activate pending players first so they are eligible as starter
     for user in game.users:
         if user.pending_join:
             user.pending_join = False
             user.chips = 0
             _reset_user_dice(user)
+
+    # 2. Remove players marked for leaving
+    leaving_users = [u for u in game.users if u.leave_after_game]
+    for user in leaving_users:
+        if user.id == loser_id:
+            # Pick a random remaining player who stays
+            remaining = [u for u in game.users
+                         if not u.leave_after_game]
+            if remaining:
+                loser_id = choice(remaining).id
+        db.session.delete(user)
 
     # 3. Set first_user for next game to loser
     game.first_user_id = loser_id
@@ -185,7 +182,6 @@ def list_rulesets():
 @bp.route('/game', methods=['POST'])
 def create_Game():
     """Create a new Game the creator is the Admin"""
-    seed(1)
     data = request.get_json() or {}
     response = jsonify()
     if 'name' not in data:
@@ -250,13 +246,14 @@ def start_game(gid):
 
     game.status = Status.STARTED
 
-    # Pick first user: use first_user_id if set (e.g. from previous game), else random
+    # Pick first user: reuse stored starter if still active, else random
     active = game.active_users
     if game.first_user_id and any(u.id == game.first_user_id for u in active):
         game.move_user_id = game.first_user_id
     else:
-        game.first_user_id = active[randrange(len(active))].id
-        game.move_user_id = game.first_user_id
+        starter = choice(active)
+        game.first_user_id = starter.id
+        game.move_user_id = starter.id
 
     # Reset all users for fresh start
     for user in active:
@@ -548,23 +545,15 @@ def mark_leave_after_game(gid, uid):
         can_remove_now = game.player_changes_allowed or target_user.pending_join
         if can_remove_now:
             # Remove immediately
-            if target_user.id == game.first_user_id:
-                # Find next user
-                users = list(game.users)
-                idx = next((i for i, u in enumerate(users) if u.id == target_user.id), 0)
-                for offset in range(1, len(users)):
-                    candidate = users[(idx + offset) % len(users)]
-                    if candidate.id != target_user.id and not candidate.pending_join:
-                        game.first_user_id = candidate.id
-                        break
-            if target_user.id == game.move_user_id:
-                users = list(game.users)
-                idx = next((i for i, u in enumerate(users) if u.id == target_user.id), 0)
-                for offset in range(1, len(users)):
-                    candidate = users[(idx + offset) % len(users)]
-                    if candidate.id != target_user.id and not candidate.pending_join:
-                        game.move_user_id = candidate.id
-                        break
+            if target_user.id == game.first_user_id or target_user.id == game.move_user_id:
+                remaining = [u for u in game.users
+                             if u.id != target_user.id]
+                if remaining:
+                    new_starter = choice(remaining)
+                    if target_user.id == game.first_user_id:
+                        game.first_user_id = new_starter.id
+                    if target_user.id == game.move_user_id:
+                        game.move_user_id = new_starter.id
 
             game.message = "Spieler {} hat das Spiel verlassen".format(target_user.name)
             db.session.delete(target_user)
@@ -624,17 +613,13 @@ def delete_player(gid, uid):
             return jsonify(Message='Letzter Admin kann nicht entfernt werden'), 400
 
     if delete_user.id == game.first_user_id:
-        aktualuserid = [i for i, x in enumerate(game.users) if x == delete_user]
-        if len(game.users) > aktualuserid[0]+1:
-            game.first_user_id = game.users[aktualuserid[0]+1].id
-        else:
-            game.first_user_id = game.users[0].id
-    if delete_user.id == game.move_user_id:
-        aktualuserid = [i for i, x in enumerate(game.users) if x == delete_user]
-        if len(game.users) > aktualuserid[0]+1:
-            game.move_user_id = game.users[aktualuserid[0]+1].id
-        else:
-            game.move_user_id = game.users[0].id
+        # Starter was removed — pick a random replacement
+        remaining = [u for u in game.users if u.id != delete_user.id]
+        if remaining:
+            game.first_user_id = choice(remaining).id
+
+    # Game resets after removal, so the starter begins the new round
+    game.move_user_id = game.first_user_id
 
     for user in game.users:
         user.chips = 0
