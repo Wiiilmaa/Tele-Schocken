@@ -159,7 +159,7 @@ def calculate_scoring(game):
         # Schockaus: loser gets ALL chips (stack_max), half/finale is over
         transfer_chips = game.stack_max
         from_source = 'schockaus'
-        from_name = 'Schock aus'
+        from_name = high['scoring']['name']
     elif game.stack > 0:
         # Chips come from stack
         transfer_chips = min(high_chips, game.stack)

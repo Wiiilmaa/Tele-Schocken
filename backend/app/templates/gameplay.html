@@ -182,6 +182,7 @@
     <button id="switch_device_btn" onclick="toggleDeviceSwitch()" class="btn btn-outline-secondary btn-sm" style="margin-top: 8px;">Gerät wechseln</button>
   </div>
 </div>
+</div>
 
 {% endblock %}
 {% block scripts %}
@@ -485,7 +486,7 @@
     if (!scoring) return '';
     var chipsPart;
     if (scoring.From === 'schockaus') {
-      chipsPart = 'Schockaus! Alle Chips an ' + scoring.To_Name;
+      chipsPart = scoring.From_Name + '! Alle Chips an ' + scoring.To_Name;
     } else {
       chipsPart = scoring.Chips + ' Chip(s) von '
                 + scoring.From_Name + ' an ' + scoring.To_Name;
@@ -997,7 +998,7 @@
       }
 
       // Row background color via CSS classes (dark-mode safe)
-      row.classList.remove('row-first-user', 'row-passive', 'row-normal');
+      row.classList.remove('row-first-user', 'row-passive', 'row-normal', 'row-stripe', 'row-own-player');
       row.style.backgroundColor = '';
       if (juser.Pending_Join) {
         // Already handled by pending-row class
@@ -1007,6 +1008,12 @@
         row.classList.add('row-passive');
       } else {
         row.classList.add('row-normal');
+        if (idx % 2 === 1) {
+          row.classList.add('row-stripe');
+        }
+      }
+      if (juser.Id == myId && juser.Id != game.First) {
+        row.classList.add('row-own-player');
       }
     });
   }
@@ -1360,7 +1367,7 @@
     html += '<table class="table table-condensed"><thead><tr><th>Kombination</th><th>Name</th><th>Chips</th></tr></thead><tbody>';
     for (var i = 0; i < ruleset.rules.length; i++) {
       var r = ruleset.rules[i];
-      html += '<tr><td>' + r.dice + '</td><td>' + r.name + '</td><td>' + (r.chips == -1 ? 'Alle (Schock aus)' : r.chips) + '</td></tr>';
+      html += '<tr><td>' + r.dice + '</td><td>' + r.name + '</td><td>' + (r.chips == -1 ? 'Alle (' + r.name + ')' : r.chips) + '</td></tr>';
     }
     html += '</tbody></table>';
     html += '<p><small>Alle weiteren Kombinationen: Schrott (1 Chip)</small></p>';

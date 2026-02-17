@@ -1,6 +1,8 @@
 /* Prevent horizontal scrollbar from Bootstrap .row negative margins */
 body {
   overflow-x: hidden;
+  max-width: 1500px;
+  margin: 0 auto;
 }
 
 .dice {
@@ -118,6 +120,10 @@ body {
 
 /* Mobile: smaller dice and hide less critical columns */
 @media (max-width: 575px) {
+  /* Smaller fonts in top status area */
+  #Message { font-size: 16px; }
+  #StackChips_id, #throw_id, #waiting_id, #game_phase_text { font-size: 14px; }
+  #ownuser { font-size: 18px; }
   .dice {
     width: 36px;
     height: 36px;
@@ -180,9 +186,16 @@ body {
 
 
 
-/* Pending player styling */
+/* Table row styling */
 .pending-row {
   opacity: 0.5;
+}
+#player_table .row-stripe {
+  background-color: var(--table-stripe-bg) !important;
+}
+#player_table .row-own-player {
+  outline: 2px solid var(--link-color);
+  outline-offset: -2px;
 }
 
 /* Tablet: slightly smaller dice */
@@ -403,6 +416,10 @@ body {
 }
 .dice-turn-buttons .btn {
   white-space: nowrap;
+}
+.dice-turn-buttons .containerturner {
+  background-color: #ddd;
+  border-radius: 10px;
 }
 
 /* Penalty column */

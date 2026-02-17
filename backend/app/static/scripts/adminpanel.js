@@ -309,6 +309,19 @@ function updatePlayerSelects(game) {
     });
   });
 
+  // Update schockaus option label from ruleset
+  if (game.Ruleset && game.Ruleset.rules) {
+    var schockausOpt = document.querySelector('#transfer_source option[value="schockaus"]');
+    if (schockausOpt) {
+      for (var ri = 0; ri < game.Ruleset.rules.length; ri++) {
+        if (game.Ruleset.rules[ri].chips === -1) {
+          schockausOpt.textContent = game.Ruleset.rules[ri].name;
+          break;
+        }
+      }
+    }
+  }
+
   // Update stack count options
   var selectionchips = document.getElementById('stack_count_id');
   if (selectionchips) {
