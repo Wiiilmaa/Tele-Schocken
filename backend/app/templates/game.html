@@ -13,7 +13,7 @@
   <div class="row col-md-offset-1">
     <div class="col-md-3 " >
       <div class="input-group mb-6">
-        <input id="Name" placeholder="Spielername" type="text" size="20" class="form-control" >
+        <input id="Name" placeholder="Spielername" type="text" size="20" class="form-control" onkeydown="if(event.key==='Enter')joinGame()">
         <div class="input-group-btn">
           <button id="jointbtn" class="btn btn-primary btn-outline-secondary" type="button" onclick="joinGame()">Beitreten</button>
         </div>

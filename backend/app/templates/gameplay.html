@@ -118,7 +118,7 @@
         <p>Du wirst sofort hinzugefügt, falls die aktuelle Runde noch nicht begonnen hat.
            Ansonsten wirst du nach Ende des aktuellen Spiels hinzugefügt.</p>
         <div class="input-group" style="max-width: 400px;">
-          <input id="join_name" placeholder="Spielername" type="text" class="form-control">
+          <input id="join_name" placeholder="Spielername" type="text" class="form-control" onkeydown="if(event.key==='Enter')joinMidGame()">
           <div class="input-group-btn">
             <button class="btn btn-primary" onclick="joinMidGame()">Beitreten</button>
           </div>
