@@ -1,6 +1,117 @@
-.table-hover tbody tr:hover td, .table-hover tbody tr:hover th {
-  background-color: #96969b;
+/* ============= Theme variables ============= */
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f5f5;
+  --text-primary: #333333;
+  --text-secondary: #555555;
+  --text-muted: #777777;
+  --border-color: #dddddd;
+  --table-stripe-bg: #f9f9f9;
+  --table-hover-bg: #96969b;
+  --input-bg: #ffffff;
+  --input-text: #555555;
+  --input-border: #cccccc;
+  --input-focus-border: #66afe9;
+  --link-color: #337ab7;
+  --modal-bg: #ffffff;
+  --modal-overlay: rgba(0, 0, 0, 0.4);
+  --btn-default-bg: #ffffff;
+  --btn-default-text: #333333;
+  --btn-default-border: #cccccc;
+  --hr-color: #eeeeee;
+  --highlight-row: #d9edf7;
+  --passive-row: #d3d3d3;
+  --green-button-bg: #4CAF50;
+  --gray-button-bg: #ffffff;
+  --message-start: red;
+  --message-end: black;
+  --accordion-bg: #eee;
+  --accordion-hover-bg: #ccc;
+  --accordion-active-bg: #ccc;
+  --panel-text: #333333;
+  --close-color: #aaa;
+  --close-hover: #000;
+  color-scheme: light;
 }
+
+[data-theme="dark"] {
+  --bg-primary: #1e1e2e;
+  --bg-secondary: #181825;
+  --text-primary: #cdd6f4;
+  --text-secondary: #bac2de;
+  --text-muted: #a6adc8;
+  --border-color: #45475a;
+  --table-stripe-bg: #252538;
+  --table-hover-bg: #45475a;
+  --input-bg: #313244;
+  --input-text: #cdd6f4;
+  --input-border: #45475a;
+  --input-focus-border: #89b4fa;
+  --link-color: #89b4fa;
+  --modal-bg: #1e1e2e;
+  --modal-overlay: rgba(0, 0, 0, 0.7);
+  --btn-default-bg: #313244;
+  --btn-default-text: #cdd6f4;
+  --btn-default-border: #45475a;
+  --hr-color: #45475a;
+  --highlight-row: #1e3a5f;
+  --passive-row: #313244;
+  --green-button-bg: #4CAF50;
+  --gray-button-bg: #313244;
+  --message-start: #f38ba8;
+  --message-end: #cdd6f4;
+  --accordion-bg: #313244;
+  --accordion-hover-bg: #45475a;
+  --accordion-active-bg: #45475a;
+  --panel-text: #cdd6f4;
+  --close-color: #a6adc8;
+  --close-hover: #f38ba8;
+  --dice-border: #7f849c;
+  --dice-dot: #cdd6f4;
+  --dice-bg: #313244;
+  color-scheme: dark;
+}
+
+/* ============= Global overrides ============= */
+body {
+  background-color: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+a { color: var(--link-color); }
+a:hover, a:focus { color: var(--link-color); filter: brightness(1.2); }
+
+h1, h2, h3, h4, h5, h6 { color: var(--text-primary); }
+p { color: var(--text-primary); }
+label { color: var(--text-primary); }
+small { color: var(--text-muted); }
+
+hr { border-top-color: var(--hr-color); }
+
+/* Bootstrap navbar override (Flask-Bootstrap may render one) */
+.navbar-default, .navbar {
+  background-color: var(--bg-secondary) !important;
+  border-color: var(--border-color) !important;
+}
+.container-fluid { color: var(--text-primary); }
+th { color: var(--text-primary); }
+td { color: var(--text-primary); }
+li { color: var(--text-primary); }
+
+/* ============= Bootstrap table overrides ============= */
+.table-hover tbody tr:hover td, .table-hover tbody tr:hover th {
+  background-color: var(--table-hover-bg);
+}
+.table { color: var(--text-primary); }
+.table > thead > tr > th,
+.table > tbody > tr > td,
+.table > tbody > tr > th {
+  border-color: var(--border-color);
+}
+.table-striped > tbody > tr:nth-of-type(odd) {
+  background-color: var(--table-stripe-bg);
+}
+
 table {
     counter-reset: tableCount;
     table-layout: auto;
@@ -11,18 +122,114 @@ table {
     counter-increment: tableCount;
 }
 
+/* ============= Bootstrap form overrides ============= */
+.form-control {
+  background-color: var(--input-bg) !important;
+  color: var(--input-text) !important;
+  border-color: var(--input-border) !important;
+}
+.form-control:focus {
+  border-color: var(--input-focus-border) !important;
+}
+select,
+select.form-control,
+select.form-select {
+  background-color: var(--input-bg) !important;
+  color: var(--input-text) !important;
+  border-color: var(--input-border) !important;
+}
+select option {
+  background-color: var(--input-bg);
+  color: var(--input-text);
+}
+select optgroup {
+  background-color: var(--input-bg);
+  color: var(--input-text);
+}
 
+/* ============= Bootstrap button overrides ============= */
+.btn-default,
+.btn-outline-secondary {
+  background-color: var(--btn-default-bg) !important;
+  color: var(--btn-default-text) !important;
+  border-color: var(--btn-default-border) !important;
+}
+.btn-default:hover,
+.btn-outline-secondary:hover {
+  background-color: var(--table-hover-bg) !important;
+  color: var(--btn-default-text) !important;
+}
+
+/* ============= Bootstrap modal overrides ============= */
+.modal {
+  background-color: var(--modal-overlay);
+}
+.modal-content {
+  background-color: var(--modal-bg) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color);
+}
+.modal-header {
+  border-bottom-color: var(--border-color);
+  color: var(--text-primary);
+}
+.modal-body {
+  color: var(--text-primary);
+}
+.close {
+  color: var(--close-color);
+  opacity: 1;
+}
+.close:hover {
+  color: var(--close-hover);
+}
+
+/* ============= Bootstrap panel / well overrides ============= */
+.panel, .well {
+  background-color: var(--bg-secondary);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+/* ============= Accordion / FAQ overrides ============= */
+.accordion {
+  background-color: var(--accordion-bg);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+.accordion:hover {
+  background-color: var(--accordion-hover-bg);
+}
+.accordion.active {
+  background-color: var(--accordion-active-bg);
+}
+.panel {
+  color: var(--panel-text);
+}
+
+/* ============= Game-specific styles ============= */
 .buttongreen {
-  background-color: #4CAF50;
+  background-color: var(--green-button-bg);
   border-radius: 10px;
   opacity: 1;
 } /* Green */
 
 .buttongray {
-  background-color: #ffffff;
+  background-color: var(--gray-button-bg);
   opacity: 1;
   border-radius: 10px;
 } /* Gray */
+
+/* Table row highlight classes (used by JS instead of inline styles) */
+.row-first-user {
+  background-color: var(--highlight-row) !important;
+}
+.row-passive {
+  background-color: var(--passive-row) !important;
+}
+.row-normal {
+  background-color: transparent !important;
+}
 
 br {
    display: block;
@@ -51,8 +258,8 @@ br {
 }
 
 @keyframes messageanimation {
-  from {color: red;}
-  to {color: black;}
+  from {color: var(--message-start);}
+  to {color: var(--message-end);}
 }
 
 
@@ -63,7 +270,7 @@ video {
 
 /* The element to apply the animation to */
 .message {
-  color: black;
+  color: var(--message-end);
   animation-name: messageanimation;
   animation-duration: 15s;
 }
@@ -86,7 +293,7 @@ video {
  top: 0%;
  left: 0%;
 
- background-color: #ffffff;
+ background-color: var(--bg-primary);
  opacity: 0.0;
  width: 100%;
  height: 100%;
@@ -110,7 +317,7 @@ video {
  position: absolute;
  top: 0%;
  left: 0%;
- background-color: #ffffff;
+ background-color: var(--bg-primary);
  opacity: 0.0;
  width: 100%;
  height: 100%;
@@ -171,3 +378,49 @@ left: 100%;
     50%{ left : 110px;}
     100%{ left: 100px;}
 }
+
+/* ============= Hero image container ============= */
+.hero-container {
+  position: relative;
+}
+
+/* ============= Floating icon buttons (bottom-left of hero image) ============= */
+.floating-icons {
+  position: absolute;
+  bottom: 6px;
+  right: 10px;
+  z-index: 1050;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+.floating-icon-btn {
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.85) !important;
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: none !important;
+  transition: color 0.2s;
+  padding: 0;
+  line-height: 1;
+}
+.floating-icon-btn:hover,
+.floating-icon-btn:focus {
+  color: #ffffff !important;
+  text-decoration: none !important;
+  background: transparent;
+}
+
+/* Sun / Moon icon visibility */
+.floating-icon-btn .icon-sun,
+.floating-icon-btn .icon-moon { display: none; }
+html:not([data-theme="dark"]) .floating-icon-btn .icon-moon { display: inline; }
+[data-theme="dark"] .floating-icon-btn .icon-sun { display: inline; }

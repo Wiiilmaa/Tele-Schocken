@@ -22,11 +22,8 @@
   </div>
 </div>
 <div class="row col-md-offset-1">
-  <div class="col-md-10">
+  <div class="col-md-11">
     <h3 id="admin"></h3>
-  </div>
-  <div class="col-md-1">
-      <a class="roundetb" id="faqBtn" href="#"><i class="fas fa-question"></i></a>
   </div>
 </div>
 <br>
@@ -114,66 +111,12 @@
 
 
 
-<div class="row col-md-offset-1">
-<!-- The Modal -->
-  <div id="faqModal" class="modal">
-    <!-- Modal content -->
-    <div class="modal-content">
-      <div class="modal-header">
-        <span id="faqclose" class="close">&times;</span>
-        <h2>Häufige Fragen</h2>
-      </div>
-      <div class="modal-body">
-        <button class="accordion">Wie starte ich ein Spiel?</button>
-        <div class="panel">
-          <p>Wenn die gewünschten Spieler in der Spielerliste aufgetaucht sind, einfach auf den Button Starten klicken.</p>
-          <p>Das Spiel startet dann automatisch für alle Mitspieler!</p>
-          <p>Nur ein Admin kann das Spiel starten</p>
-            <div class="col-md-11 col-md-offset-1 example_img">
-              <picture>
-                <img alt="FAQ Spiel Starten" style="width:80%; height:auto;" src="{{ url_for('static',filename='image/start_game.png') }}">
-              </picture>
-            </div>
-        </div>
-        <button class="accordion">Warum sehe ich keine Mitspieler?</button>
-        <div class="panel">
-          <p>Es werden nur die Mitspieler angezeigt die du eingeladen hast und die deiner Einladung gefolgt sind.</p>
-          <p>Sobald jemand deinen link geöffnet hat und beigetreten ist taucht dieser in der Spielerliste auf.</p>
-          <p>Kopiere den Link zur Einladung über den Button kopieren und verteile diesen per Mail oder Messenger deiner Wahl.</p>
-          <div class="col-md-11 col-md-offset-1 example_img">
-            <picture>
-              <img alt="FAQ Mitspieler Einladen" style="width:80%; height:auto;" src="{{ url_for('static',filename='image/ShareLink.png') }}">
-            </picture>
-          </div>
-        </div>
-        <button class="accordion">Das Spiel hängt irgendwie, was kann ich tun?</button>
-        <div class="panel">
-          <p>Es ist irgendetwas schief gegangen beim letzten Update der Seite.</p>
-          <p>Ich Arbeite an der Lösung</p>
-          <p>Lade die Seite einmal neu (du bleibst im Spiel und es kann direkt weiter gehen).</p>
-          <p>Ich bitte die Unanehmichkeit zu entschuldigen</p>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-
-{% block footer %}
-{{ super() }}
-{% endblock %}
-
 {% endblock %}
 {% block scripts %}
 {{ super() }}
 
-<script type=text/javascript src="{{url_for('static', filename='scripts/faq.js') }}">
-</script>
 <script type=text/javascript src="{{url_for('static', filename='scripts/socket.io.js') }}">
 </script>
-<script type=text/javascript src="{{url_for('static', filename='scripts/jquery-3.5.1.min.js') }}">
-</script>
-
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <script>
   // Handle device switch: read params from URL and set localStorage
@@ -362,7 +305,6 @@
   }
 
   function startup() {
-    faq();
     var gameLink = document.getElementById("link_input");
     gameLink.value = window.location.href;
 
