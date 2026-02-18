@@ -1061,10 +1061,15 @@
     if (!row || row.dataset.removing) return;
     var color = getComputedStyle(document.documentElement).getPropertyValue(cssVar).trim();
     if (!color) return;
-    row.animate([
-      { backgroundColor: color },
-      { backgroundColor: 'transparent' }
-    ], { duration: 2000, easing: 'ease-out' });
+    // Animate each cell individually — <tr> background is hidden beneath
+    // the cell layer in the CSS table model, so it must be per-<td>.
+    var cells = row.querySelectorAll('td:not(.dice-cell)');
+    for (var i = 0; i < cells.length; i++) {
+      cells[i].animate([
+        { backgroundColor: color },
+        { backgroundColor: 'transparent' }
+      ], { duration: 2000, easing: 'ease-out' });
+    }
   }
 
   function cancelTableAnimations() {
