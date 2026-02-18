@@ -77,18 +77,14 @@
           <div id="controls_block2" class="controls-block">
             <div class="dice-cup-wrapper">
               <div class="dice-cup-control">
-                <div class="dice-cup-headers">
-                  <div class="dice-cup-label">Würfelbecher</div>
-                  <div class="dice-out-label">rausgelegt</div>
-                </div>
-                <div class="dice-cup-cells">
-                  <div class="dcell dcell-cup" id="dcell0"></div>
-                  <div class="dcell dcell-cup" id="dcell1"></div>
-                  <div class="dcell dcell-cup" id="dcell2"></div>
-                  <div class="dcell dcell-out" id="dcell3"></div>
-                  <div class="dcell dcell-out" id="dcell4"></div>
-                  <div class="dcell dcell-out" id="dcell5"></div>
-                </div>
+                <div class="dice-cup-label">Würfelbecher</div>
+                <div class="dice-out-label">rausgelegt</div>
+                <div class="dcell dcell-cup" id="dcell0"></div>
+                <div class="dcell dcell-cup" id="dcell1"></div>
+                <div class="dcell dcell-cup" id="dcell2"></div>
+                <div class="dcell dcell-out" id="dcell3"></div>
+                <div class="dcell dcell-out" id="dcell4"></div>
+                <div class="dcell dcell-out" id="dcell5"></div>
               </div>
               <div class="dice-turn-buttons" id="dice_turn_buttons">
                 <div id="btn_turn_2" class="containerturner" style="display:none">
@@ -340,8 +336,8 @@
   // ============= Helpers =============
   var _lastGameState = null;  // cache for checking player status etc.
   var _wasInRevealPhase = false; // track reveal phase to play sound only on transition
+  var _currentRoundPhase = null; // track round row phase to avoid restarting countdowns
   var _lastWaitingUserId = undefined; // undefined = first load (suppress sound on page load)
-  var _currentRoundPhase = null; // track current round-status phase to avoid restarting countdowns
 
   // Dice cup state
   var _diceInCup = [true, true, true];
@@ -1302,28 +1298,35 @@
     }
     _wasInRevealPhase = needsReveal;
 
+    var newPhase = 'idle';
     if (readyToDistribute && game.Scoring) {
+      newPhase = 'distribute';
+    } else if (needsReveal) {
+      newPhase = 'reveal';
+    } else if (!roundFinished) {
+      newPhase = 'running';
+    }
+
+    if (newPhase === 'distribute') {
+      var fullInfo = formatScoringText(game.Scoring);
       if (_currentRoundPhase !== 'distribute') {
-        // Phase: all dice visible, ready to distribute
-        _currentRoundPhase = 'distribute';
-        var fullInfo = formatScoringText(game.Scoring);
         roundRow.innerHTML = '<button class="btn btn-success" id="distribute_btn" '
           + 'onclick="distribute()" disabled>Verteilen</button> '
-          + '<span>' + fullInfo + '</span>';
-        // Enable button after 3s delay
+          + '<span id="round_info_text">' + fullInfo + '</span>';
         setTimeout(function() {
           var btn = document.getElementById('distribute_btn');
           if (btn) btn.disabled = false;
         }, 3000);
+      } else {
+        var infoSpan = document.getElementById('round_info_text');
+        if (infoSpan) infoSpan.innerHTML = fullInfo;
       }
-    } else if (needsReveal) {
-      // Update vote count without restarting countdown
+    } else if (newPhase === 'reveal') {
       var voteHtml = '';
       if (game.Reveal_Votes > 0) {
-        voteHtml = ' <span>(' + game.Reveal_Votes + ' Stimme(n))</span>';
+        voteHtml = ' <span id="reveal_votes">(' + game.Reveal_Votes + ' Stimme(n))</span>';
       }
       if (_currentRoundPhase !== 'reveal') {
-        _currentRoundPhase = 'reveal';
         roundRow.innerHTML = '<button class="btn btn-warning" id="reveal_all_btn" onclick="vote_reveal_all()" disabled>'
           + 'Alles aufdecken</button>' + voteHtml;
         setTimeout(function() {
@@ -1331,15 +1334,21 @@
           if (btn) btn.disabled = false;
         }, 10000);
       } else {
-        // Just update the vote count next to the existing button
-        var revealBtn = document.getElementById('reveal_all_btn');
-        if (revealBtn && revealBtn.nextElementSibling) {
-          revealBtn.nextElementSibling.innerHTML = game.Reveal_Votes > 0 ? '(' + game.Reveal_Votes + ' Stimme(n))' : '';
+        var existingVotes = document.getElementById('reveal_votes');
+        if (game.Reveal_Votes > 0) {
+          if (existingVotes) {
+            existingVotes.innerHTML = '(' + game.Reveal_Votes + ' Stimme(n))';
+          } else {
+            var revealBtn = document.getElementById('reveal_all_btn');
+            if (revealBtn) {
+              revealBtn.insertAdjacentHTML('afterend', ' <span id="reveal_votes">(' + game.Reveal_Votes + ' Stimme(n))</span>');
+            }
+          }
+        } else if (existingVotes) {
+          existingVotes.remove();
         }
       }
-    } else if (!roundFinished) {
-      _currentRoundPhase = 'playing';
-      // Phase: game is running – show last round result from server state
+    } else if (newPhase === 'running') {
       var lastText = formatScoringText(game.Last_Scoring);
       if (lastText) {
         roundRow.innerHTML = '<span>Letzte Runde: ' + lastText + '</span>';
@@ -1347,9 +1356,9 @@
         roundRow.innerHTML = '';
       }
     } else {
-      _currentRoundPhase = null;
       roundRow.innerHTML = '';
     }
+    _currentRoundPhase = newPhase;
 
     // Lobby after game button
     var lobbyBtn = document.getElementById('mark_lobby_btn');

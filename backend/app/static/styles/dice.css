@@ -5,13 +5,6 @@ body {
   margin: 0 auto;
 }
 
-/* Prevent iOS auto-zoom on input focus (Safari zooms if font-size < 16px) */
-@media (max-width: 767px) {
-  input.form-control, select.form-control, textarea.form-control {
-    font-size: 16px !important;
-  }
-}
-
 .dice {
   border: 1px solid #999;
   border-radius: 10%;
@@ -331,9 +324,6 @@ body {
   flex-wrap: wrap;
 }
 .dice-cup-control {
-  display: inline-block;
-}
-.dice-cup-headers {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
 }
@@ -358,10 +348,6 @@ body {
   border-bottom: none;
   color: #ffffff;
   font-size: 13px;
-}
-.dice-cup-cells {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
 }
 .dcell {
   width: 62px;
@@ -491,10 +477,6 @@ body {
   .dice-cup-control {
     flex: 4 1 0;
     min-width: 0;
-    display: block;
-  }
-  .dice-cup-headers, .dice-cup-cells {
-    width: 100%;
   }
   .dice-turn-buttons {
     flex: 1 1 0;
