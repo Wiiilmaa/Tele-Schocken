@@ -1723,18 +1723,14 @@
       newPhase = 'running';
     }
 
-    // Flash high/low rows when transitioning out of distribute (chips actually moved)
-    if (_currentRoundPhase === 'distribute' && newPhase !== 'distribute') {
-      var lastScoring = game.Last_Scoring || game.Scoring;
-      if (lastScoring) {
-        if (lastScoring.High_Id) flashRowColor('row' + lastScoring.High_Id, '--flash-high');
-        if (lastScoring.Low_Id)  flashRowColor('row' + lastScoring.Low_Id, '--flash-low');
-      }
-    }
-
     if (newPhase === 'distribute') {
       var fullInfo = formatScoringText(game.Scoring);
       if (_currentRoundPhase !== 'distribute') {
+        // Flash high (green) and low (red) rows when distribute button appears
+        if (game.Scoring) {
+          if (game.Scoring.High_Id) flashRowColor('row' + game.Scoring.High_Id, '--flash-high');
+          if (game.Scoring.Low_Id)  flashRowColor('row' + game.Scoring.Low_Id, '--flash-low');
+        }
         roundRow.innerHTML = '<button class="btn btn-success" id="distribute_btn" '
           + 'onclick="distribute()" disabled>Verteilen</button> '
           + '<span id="round_info_text">' + fullInfo + '</span>';
