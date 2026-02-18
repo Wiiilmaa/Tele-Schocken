@@ -19,7 +19,6 @@
   --btn-default-text: #333333;
   --btn-default-border: #cccccc;
   --hr-color: #eeeeee;
-  --highlight-row: #d9edf7;
   --passive-row: #d3d3d3;
   --green-button-bg: #4CAF50;
   --gray-button-bg: #ffffff;
@@ -31,6 +30,9 @@
   --panel-text: #333333;
   --close-color: #aaa;
   --close-hover: #000;
+  --highlight-row: #d9edf7;
+  --flash-high: rgba(76, 175, 80, 0.55);
+  --flash-low: rgba(229, 57, 53, 0.55);
   color-scheme: light;
 }
 
@@ -54,7 +56,6 @@
   --btn-default-text: #cdd6f4;
   --btn-default-border: #45475a;
   --hr-color: #45475a;
-  --highlight-row: #1e3a5f;
   --passive-row: #313244;
   --green-button-bg: #4CAF50;
   --gray-button-bg: #313244;
@@ -69,6 +70,9 @@
   --dice-border: #7f849c;
   --dice-dot: #cdd6f4;
   --dice-bg: #313244;
+  --highlight-row: #1e3a5f;
+  --flash-high: rgba(76, 175, 80, 0.45);
+  --flash-low: rgba(229, 57, 53, 0.45);
   color-scheme: dark;
 }
 
@@ -221,7 +225,7 @@ select optgroup {
 } /* Gray */
 
 /* Table row highlight classes (used by JS instead of inline styles) */
-.row-first-user {
+.row-active-turn {
   background-color: var(--highlight-row) !important;
 }
 .row-passive {

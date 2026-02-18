@@ -164,7 +164,7 @@ class Game(BaseGameData, db.Model):
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(200), index=True, unique=True)
+    name = db.Column(db.String(200), index=True)
     chips = db.Column(db.Integer)
     passive = db.Column(db.Boolean(), default=False)
     game_id = db.Column(db.Integer, db.ForeignKey('game.id'))

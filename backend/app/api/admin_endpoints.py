@@ -192,9 +192,8 @@ def create_Game():
     else:
         escapedusername = str(utils.escape(data['name']))
         game = Game()
-        inuse = User.query.filter_by(name=escapedusername).first()
-        if inuse is not None:
-            response = jsonify(Message='Benutzername wird bereits verwendet!')
+        if len(escapedusername.strip()) == 0:
+            response = jsonify(Message='Benutzername darf nicht leer sein!')
             response.status_code = 400
             return response
         user = User()

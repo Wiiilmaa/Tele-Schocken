@@ -198,6 +198,12 @@ body {
   outline-offset: -2px;
 }
 
+/* Reorder animation: rows need stacking context for z-index and transforms */
+#player_table tbody tr {
+  transform-origin: center center;
+  backface-visibility: hidden;
+}
+
 /* Tablet: slightly smaller dice */
 @media (max-width: 767px) and (min-width: 576px) {
   .dice {
@@ -432,6 +438,9 @@ body {
   .dcell {
     width: 100px;
     height: 80px;
+  }
+  .dice-turn-buttons .containerturner {
+    width: 80px;
   }
 }
 

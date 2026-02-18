@@ -284,7 +284,10 @@ function joinMidGame() {
       }
     }
   }
-  xhttp.send(JSON.stringify({ name: username }));
+  var payload = { name: username };
+  var oldId = localStorage.getItem('id');
+  if (oldId) payload.reconnect_id = parseInt(oldId);
+  xhttp.send(JSON.stringify(payload));
 }
 
 // H2: Update admin panel select lists dynamically

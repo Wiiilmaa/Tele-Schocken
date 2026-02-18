@@ -136,6 +136,15 @@
     }
   })();
 
+  // Pre-fill nickname from localStorage
+  (function() {
+    var savedName = localStorage.getItem('name');
+    if (savedName) {
+      var inp = document.getElementById('Name');
+      if (inp && !inp.value) inp.value = savedName;
+    }
+  })();
+
   // https://www.w3schools.com/howto/howto_js_copy_clipboard.asp
   function coppy() {
     var copyText = document.getElementById("link_input");
@@ -259,7 +268,10 @@
         }
       }
     }
-    xhttp.send(JSON.stringify({name: usernname}));
+    var payload = {name: usernname};
+    var oldId = localStorage.getItem('id');
+    if (oldId) payload.reconnect_id = parseInt(oldId);
+    xhttp.send(JSON.stringify(payload));
   }
 
   function startGame() {
@@ -442,6 +454,7 @@
       // Rebuild player table
       var table = document.getElementById('player_tbody');
       table.innerHTML = '';
+      var myIdInGame = false;
       for (num in res.User) {
         var juser = res.User[num];
         var tr = document.createElement('tr');
@@ -456,12 +469,18 @@
         tr.appendChild(td);
         table.appendChild(tr);
 
-        if (juser['Id'] == id) {
-          var name = document.getElementById('Name');
-          name.disabled = true;
-          var btn = document.getElementById('jointbtn');
-          btn.disabled = true;
+        if (id && String(juser['Id']) === String(id)) {
+          myIdInGame = true;
         }
+      }
+      var nameInput = document.getElementById('Name');
+      var joinBtn = document.getElementById('jointbtn');
+      if (myIdInGame) {
+        nameInput.disabled = true;
+        joinBtn.disabled = true;
+      } else {
+        nameInput.disabled = false;
+        joinBtn.disabled = false;
       }
 
       if (sate == 'started' || sate == 'playfinal') {

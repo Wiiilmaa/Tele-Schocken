@@ -45,6 +45,13 @@
 {% block scripts %}
 {{ super() }}
 <script>
+  (function() {
+    var savedName = localStorage.getItem('name');
+    if (savedName) {
+      var inp = document.getElementById('adminname');
+      if (inp) inp.value = savedName;
+    }
+  })();
 
   function createGame(){
     var admin = document.getElementById('adminname');

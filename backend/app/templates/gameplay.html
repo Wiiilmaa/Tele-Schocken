@@ -339,6 +339,13 @@
   var _currentRoundPhase = null; // track round row phase to avoid restarting countdowns
   var _lastWaitingUserId = undefined; // undefined = first load (suppress sound on page load)
 
+  // Table ordering state
+  var _tableOrder = [];          // current display order of user IDs (strings)
+  var _activeRotation = [];      // persistent rotation order of active user IDs
+  var _tableAnimating = false;
+  var _runningAnims = [];        // active Animation objects for cancellation
+  var _isFirstTableLoad = true;
+
   // Dice cup state
   var _diceInCup = [true, true, true];
   var _myDiceValues = [0, 0, 0];
@@ -967,11 +974,14 @@
     var pendingNotice = document.getElementById('pending_notice');
 
     if (!isPlayer) {
+      var wasHidden = (joinForm.style.display === 'none' || joinForm.style.display === '');
       gameControls.style.display = 'none';
       joinForm.style.display = 'block';
       pendingNotice.style.display = 'none';
-      var joinInput = document.getElementById('join_name');
-      if (joinInput) joinInput.focus();
+      if (wasHidden) {
+        var joinInput = document.getElementById('join_name');
+        if (joinInput) joinInput.focus();
+      }
     } else {
       var me = game.User.find(function(u) { return u.Id === myId; });
       if (me && me.Pending_Join) {
@@ -984,6 +994,264 @@
         pendingNotice.style.display = 'none';
       }
     }
+  }
+
+  // ============= Table reorder helpers =============
+
+  function buildSortedOrder(users, firstId) {
+    var activeMap = {};
+    var pending = [];
+    for (var i = 0; i < users.length; i++) {
+      if (users[i].Pending_Join) pending.push(users[i]);
+      else activeMap[String(users[i].Id)] = users[i];
+    }
+
+    // Preserve established rotation: keep known players in their order,
+    // remove departed ones, append newly active players at the end
+    var newRotation = [];
+    for (var i = 0; i < _activeRotation.length; i++) {
+      if (activeMap[_activeRotation[i]]) newRotation.push(_activeRotation[i]);
+    }
+    var inRotation = {};
+    for (var i = 0; i < newRotation.length; i++) inRotation[newRotation[i]] = true;
+    for (var i = 0; i < users.length; i++) {
+      var uid = String(users[i].Id);
+      if (!users[i].Pending_Join && !inRotation[uid]) newRotation.push(uid);
+    }
+
+    // Rotate so firstId is first
+    var firstIdx = -1;
+    for (var i = 0; i < newRotation.length; i++) {
+      if (newRotation[i] == String(firstId)) { firstIdx = i; break; }
+    }
+    if (firstIdx > 0) {
+      newRotation = newRotation.slice(firstIdx).concat(newRotation.slice(0, firstIdx));
+    }
+    _activeRotation = newRotation.slice();
+
+    var result = [];
+    for (var i = 0; i < newRotation.length; i++) {
+      if (activeMap[newRotation[i]]) result.push(activeMap[newRotation[i]]);
+    }
+    return result.concat(pending);
+  }
+
+  function getOrderIds(tbody) {
+    var rows = tbody.querySelectorAll('tr');
+    var ids = [];
+    for (var i = 0; i < rows.length; i++) {
+      if (rows[i].id && rows[i].id.startsWith('row') && !rows[i].dataset.removing) {
+        ids.push(rows[i].id.replace('row', ''));
+      }
+    }
+    return ids;
+  }
+
+  function updateRowCounters(tbody) {
+    var rows = tbody.querySelectorAll('tr');
+    for (var i = 0; i < rows.length; i++) {
+      if (rows[i].cells && rows[i].cells[0]) {
+        rows[i].cells[0].textContent = i + 1;
+      }
+    }
+  }
+
+  function flashRowColor(rowId, cssVar) {
+    var row = document.getElementById(rowId);
+    if (!row || row.dataset.removing) return;
+    var color = getComputedStyle(document.documentElement).getPropertyValue(cssVar).trim();
+    if (!color) return;
+    // Animate each cell individually — <tr> background is hidden beneath
+    // the cell layer in the CSS table model, so it must be per-<td>.
+    var cells = row.querySelectorAll('td:not(.dice-cell)');
+    for (var i = 0; i < cells.length; i++) {
+      cells[i].animate([
+        { backgroundColor: color },
+        { backgroundColor: 'transparent' }
+      ], { duration: 8000, easing: 'ease-out' });
+    }
+  }
+
+  function cancelTableAnimations() {
+    for (var i = 0; i < _runningAnims.length; i++) {
+      _runningAnims[i].anim.cancel();
+      var row = _runningAnims[i].row;
+      row.style.transform = '';
+      row.style.position = '';
+      row.style.zIndex = '';
+      row.style.willChange = '';
+    }
+    _runningAnims = [];
+    _tableAnimating = false;
+  }
+
+  function animateTableReorder(tbody, oldOrder, newOrder, onComplete) {
+    if (_tableAnimating) cancelTableAnimations();
+
+    var moved = false;
+    for (var i = 0; i < Math.max(oldOrder.length, newOrder.length); i++) {
+      if (oldOrder[i] !== newOrder[i]) { moved = true; break; }
+    }
+    if (!moved) { if (onComplete) onComplete(); return; }
+
+    _tableAnimating = true;
+
+    var rowEls = {};
+    var oldTops = {};
+    for (var i = 0; i < oldOrder.length; i++) {
+      var uid = oldOrder[i];
+      var row = document.getElementById('row' + uid);
+      if (row) {
+        rowEls[uid] = row;
+        oldTops[uid] = row.getBoundingClientRect().top;
+      }
+    }
+
+    for (var i = 0; i < newOrder.length; i++) {
+      var r = rowEls[newOrder[i]];
+      if (r) tbody.appendChild(r);
+    }
+
+    var deltas = {};
+    var anyMoved = false;
+    for (var i = 0; i < newOrder.length; i++) {
+      var uid = newOrder[i];
+      if (!rowEls[uid] || oldTops[uid] === undefined) { deltas[uid] = 0; continue; }
+      var newTop = rowEls[uid].getBoundingClientRect().top;
+      deltas[uid] = oldTops[uid] - newTop;
+      if (Math.abs(deltas[uid]) > 1) anyMoved = true;
+    }
+
+    if (!anyMoved) {
+      _tableAnimating = false;
+      updateRowCounters(tbody);
+      _tableOrder = newOrder.slice();
+      if (onComplete) onComplete();
+      return;
+    }
+
+    var newFirstId = newOrder[0];
+    var splitIdx = oldOrder.indexOf(newFirstId);
+    if (splitIdx <= 0) {
+      _tableAnimating = false;
+      updateRowCounters(tbody);
+      _tableOrder = newOrder.slice();
+      if (onComplete) onComplete();
+      return;
+    }
+
+    var upperGroup = oldOrder.slice(0, splitIdx);
+    var lowerGroup = oldOrder.slice(splitIdx);
+    var totalRows = upperGroup.length + lowerGroup.length;
+
+    if (totalRows < 2) {
+      _tableAnimating = false;
+      updateRowCounters(tbody);
+      _tableOrder = newOrder.slice();
+      if (onComplete) onComplete();
+      return;
+    }
+
+    // Tight stagger: rows launch shortly after each other, flying in formation
+    var stagger = Math.max(55, Math.min(120, 500 / totalRows));
+    var flightMs = Math.max(750, Math.min(1300, 550 + totalRows * 80));
+
+    // Build alternating interleaved sequence: bottom of upper, top of lower, …
+    var sequence = [];
+    var ui = upperGroup.length - 1;
+    var li = 0;
+    var pickUpper = true;
+    while (ui >= 0 || li < lowerGroup.length) {
+      if (pickUpper && ui >= 0) {
+        sequence.push({ uid: upperGroup[ui], group: 'upper' }); ui--;
+        pickUpper = false;
+      } else if (!pickUpper && li < lowerGroup.length) {
+        sequence.push({ uid: lowerGroup[li], group: 'lower' }); li++;
+        pickUpper = true;
+      } else if (ui >= 0) {
+        sequence.push({ uid: upperGroup[ui], group: 'upper' }); ui--;
+      } else {
+        sequence.push({ uid: lowerGroup[li], group: 'lower' }); li++;
+      }
+    }
+
+    var delayMap = {};
+    var groupMap = {};
+    for (var i = 0; i < sequence.length; i++) {
+      delayMap[sequence[i].uid] = i * stagger;
+      groupMap[sequence[i].uid] = sequence[i].group;
+    }
+
+    _runningAnims = [];
+    for (var i = 0; i < newOrder.length; i++) {
+      var uid = newOrder[i];
+      var row = rowEls[uid];
+      if (!row || Math.abs(deltas[uid] || 0) < 1) continue;
+
+      var delta = deltas[uid];
+      var delay = delayMap[uid] || 0;
+      var isUpper = groupMap[uid] === 'upper';
+
+      row.style.position = 'relative';
+      row.style.zIndex = isUpper ? '0' : '10';
+      row.style.willChange = 'transform, opacity';
+
+      // Smooth arc: ease-in to midpoint, ease-out to landing.
+      // The per-keyframe easings create velocity continuity at the
+      // midpoint so the motion feels like one fluid sweep.
+      var halfDelta = (delta * 0.5).toFixed(1);
+      var kf;
+      if (isUpper) {
+        kf = [
+          { transform: 'translateY(' + delta + 'px) scale(1)',    opacity: 1,   offset: 0,   easing: 'cubic-bezier(0.4, 0, 0.7, 0.4)' },
+          { transform: 'translateY(' + halfDelta + 'px) scale(0.95)', opacity: 0.8, offset: 0.5, easing: 'cubic-bezier(0.3, 0.6, 0.6, 1)' },
+          { transform: 'translateY(0px) scale(1)',                opacity: 1,   offset: 1.0 }
+        ];
+      } else {
+        kf = [
+          { transform: 'translateY(' + delta + 'px) scale(1)',    opacity: 1,   offset: 0,   easing: 'cubic-bezier(0.4, 0, 0.7, 0.4)' },
+          { transform: 'translateY(' + halfDelta + 'px) scale(1.04)', opacity: 1, offset: 0.5, easing: 'cubic-bezier(0.3, 0.6, 0.6, 1)' },
+          { transform: 'translateY(0px) scale(1)',                opacity: 1,   offset: 1.0 }
+        ];
+      }
+
+      var anim = row.animate(kf, {
+        duration: flightMs,
+        delay: delay,
+        easing: 'linear',
+        fill: 'both'
+      });
+      _runningAnims.push({ anim: anim, row: row });
+    }
+
+    if (_runningAnims.length === 0) {
+      _tableAnimating = false;
+      updateRowCounters(tbody);
+      _tableOrder = newOrder.slice();
+      if (onComplete) onComplete();
+      return;
+    }
+
+    Promise.all(_runningAnims.map(function(a) { return a.anim.finished; })).then(function() {
+      for (var i = 0; i < _runningAnims.length; i++) {
+        _runningAnims[i].anim.cancel();
+        var r = _runningAnims[i].row;
+        r.style.transform = '';
+        r.style.position = '';
+        r.style.zIndex = '';
+        r.style.willChange = '';
+      }
+      _runningAnims = [];
+      _tableAnimating = false;
+      updateRowCounters(tbody);
+      _tableOrder = newOrder.slice();
+      if (onComplete) onComplete();
+    }).catch(function() {
+      _runningAnims = [];
+      _tableAnimating = false;
+      _tableOrder = newOrder.slice();
+      if (onComplete) onComplete();
+    });
   }
 
   // H2: Dynamically rebuild table rows to match game.User
@@ -1010,12 +1278,20 @@
       }
     }
 
-    // Remove rows for users no longer in game
+    // Remove rows for users no longer in game (animated fade-out)
     var gameUserIds = {};
     game.User.forEach(function(u) { gameUserIds[u.Id] = true; });
     Object.keys(existingRows).forEach(function(uid) {
-      if (!gameUserIds[uid]) {
-        tbody.removeChild(existingRows[uid]);
+      if (!gameUserIds[uid] && !existingRows[uid].dataset.removing) {
+        var row = existingRows[uid];
+        row.dataset.removing = 'true';
+        row.animate([
+          { opacity: 1, transform: 'scale(1)' },
+          { opacity: 0, transform: 'scale(0.85)' }
+        ], { duration: 350, easing: 'ease-in', fill: 'forwards' })
+        .finished.then(function() {
+          if (row.parentNode) row.parentNode.removeChild(row);
+        });
       }
     });
 
@@ -1113,21 +1389,21 @@
       }
 
       // Row background color via CSS classes (dark-mode safe)
-      row.classList.remove('row-first-user', 'row-passive', 'row-normal', 'row-stripe', 'row-own-player');
+      row.classList.remove('row-passive', 'row-normal', 'row-stripe', 'row-own-player', 'row-active-turn');
       row.style.backgroundColor = '';
       if (juser.Pending_Join) {
         // Already handled by pending-row class
-      } else if (juser.Id == game.First) {
-        row.classList.add('row-first-user');
       } else if (juser.Passive) {
         row.classList.add('row-passive');
+      } else if (juser.Id == game.Move) {
+        row.classList.add('row-active-turn');
       } else {
         row.classList.add('row-normal');
         if (idx % 2 === 1) {
           row.classList.add('row-stripe');
         }
       }
-      if (juser.Id == myId && juser.Id != game.First) {
+      if (juser.Id == myId) {
         row.classList.add('row-own-player');
       }
     });
@@ -1263,8 +1539,37 @@
     }
     _lastWaitingUserId = waiting_user_id;
 
+    // Sort users so the round starter is first (preserving rotation order)
+    if (game.First) {
+      game.User = buildSortedOrder(game.User, game.First);
+    }
+
     // H2: Update table rows dynamically
+    var tbody = document.getElementById('game_tbody');
+
     updateTableRows(game);
+
+    var desiredOrder = game.User.map(function(u) { return String(u.Id); });
+
+    if (_isFirstTableLoad) {
+      // First load: reorder DOM without animation
+      for (var i = 0; i < desiredOrder.length; i++) {
+        var r = document.getElementById('row' + desiredOrder[i]);
+        if (r) tbody.appendChild(r);
+      }
+      updateRowCounters(tbody);
+      _tableOrder = desiredOrder.slice();
+      _isFirstTableLoad = false;
+    } else {
+      var currentDomOrder = getOrderIds(tbody);
+      var needsReorder = false;
+      for (var ni = 0; ni < desiredOrder.length; ni++) {
+        if (currentDomOrder[ni] !== desiredOrder[ni]) { needsReorder = true; break; }
+      }
+      if (needsReorder) {
+        animateTableReorder(tbody, currentDomOrder, desiredOrder);
+      }
+    }
 
     // C1: Restore own dice cup from server state
     var me_data = null;
@@ -1426,6 +1731,11 @@
     if (newPhase === 'distribute') {
       var fullInfo = formatScoringText(game.Scoring);
       if (_currentRoundPhase !== 'distribute') {
+        // Flash high (green) and low (red) rows when distribute button appears
+        if (game.Scoring) {
+          if (game.Scoring.High_Id) flashRowColor('row' + game.Scoring.High_Id, '--flash-high');
+          if (game.Scoring.Low_Id)  flashRowColor('row' + game.Scoring.Low_Id, '--flash-low');
+        }
         roundRow.innerHTML = '<button class="btn btn-success" id="distribute_btn" '
           + 'onclick="distribute()" disabled>Verteilen</button> '
           + '<span id="round_info_text">' + fullInfo + '</span>';
@@ -1536,6 +1846,12 @@
     var id = localStorage.getItem('id');
     var user = document.getElementById('ownuser');
     user.innerHTML = "Spieler: " + (localStorage.getItem('name') || '');
+    // Pre-fill mid-game join input from localStorage
+    var savedName = localStorage.getItem('name');
+    if (savedName) {
+      var joinInput = document.getElementById('join_name');
+      if (joinInput && !joinInput.value) joinInput.value = savedName;
+    }
     initial_game_data();
   }
 
