@@ -1,6 +1,8 @@
 /* Prevent horizontal scrollbar from Bootstrap .row negative margins */
 body {
   overflow-x: hidden;
+  max-width: 1500px;
+  margin: 0 auto;
 }
 
 .dice {
@@ -118,6 +120,10 @@ body {
 
 /* Mobile: smaller dice and hide less critical columns */
 @media (max-width: 575px) {
+  /* Smaller fonts in top status area */
+  #Message { font-size: 16px; }
+  #StackChips_id, #throw_id, #waiting_id, #game_phase_text { font-size: 14px; }
+  #ownuser { font-size: 18px; }
   .dice {
     width: 36px;
     height: 36px;
@@ -180,9 +186,16 @@ body {
 
 
 
-/* Pending player styling */
+/* Table row styling */
 .pending-row {
   opacity: 0.5;
+}
+#player_table .row-stripe {
+  background-color: var(--table-stripe-bg) !important;
+}
+#player_table .row-own-player {
+  outline: 2px solid var(--link-color);
+  outline-offset: -2px;
 }
 
 /* Tablet: slightly smaller dice */
@@ -215,17 +228,287 @@ body {
   .col-dice { width: 100px; min-width: 100px; max-width: 100px; }
 }
 
-/* Larger checkboxes on desktop screens */
-@media (min-width: 992px) {
-  #dice1_cb,
-  #dice2_cb,
-  #dice3_cb {
-    scale: 2;
-    translate: 0px -30px;
-  }
+/* ============= Controls layout ============= */
+.controls-main-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-start;
+}
+.controls-block1-col {
+  flex: 1 1 300px;
+}
+.controls-block2-col {
+  flex: 0 0 auto;
+}
+.controls-block {
+  padding: 8px 0;
+}
 
-  #setpassivid {
-    scale: 2;
-    translate: 10px 40px;
+/* Block 1: Button row */
+.controls-btn-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 80px;
+}
+
+.controls-left {
+  flex: 1 1 0;
+  max-width: 150px;
+  min-width: 0;
+  display: flex;
+  justify-content: flex-start;
+}
+.controls-left .containerturner {
+  width: 70px;
+}
+
+.controls-center {
+  flex: 0 1 auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+.controls-center .containercup {
+  width: 70px;
+}
+
+.controls-right {
+  flex: 1 1 0;
+  max-width: 150px;
+  min-width: 0;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-endpause {
+  min-width: 90px;
+  padding: 10px 20px;
+  font-size: 16px;
+  white-space: nowrap;
+}
+.btn-endpause:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn-endpause.btn-pause-active {
+  background-color: #f0ad4e;
+  border-color: #eea236;
+  color: #fff;
+}
+.btn-endpause.btn-pause-locked {
+  background-color: #5cb85c;
+  border-color: #4cae4c;
+  color: #fff;
+}
+
+/* Grayed-out overlay for paused state */
+.controls-paused .controls-left,
+.controls-paused .controls-center,
+.controls-paused .controls-block2-col {
+  opacity: 0.3;
+  pointer-events: none;
+}
+.controls-paused .controls-right {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Block 2: Dice cup display */
+.dice-cup-wrapper {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.dice-cup-control {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+}
+.dice-cup-label {
+  grid-column: 1 / 4;
+  background-color: #c8a876;
+  text-align: center;
+  padding: 4px 8px;
+  font-weight: bold;
+  border: 1px solid #b08850;
+  border-bottom: none;
+  color: #3a2a10;
+  font-size: 13px;
+}
+.dice-out-label {
+  grid-column: 4 / 7;
+  background-color: #1a5c2a;
+  text-align: center;
+  padding: 4px 8px;
+  font-weight: bold;
+  border: 1px solid #145020;
+  border-bottom: none;
+  color: #ffffff;
+  font-size: 13px;
+}
+.dcell {
+  width: 62px;
+  height: 62px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid;
+  padding: 4px;
+  cursor: default;
+}
+.dcell-cup {
+  background-color: #c8a876;
+  border-color: #b08850;
+}
+.dcell-out {
+  background-color: #1a5c2a;
+  border-color: #145020;
+}
+.dcell-clickable {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.dcell-clickable:hover {
+  opacity: 0.85;
+}
+.dcell-clickable:active {
+  opacity: 1;
+}
+.dcell:focus, .dcell:active {
+  outline: none;
+}
+.dcell-disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.dcell-cup-covered {
+  background-color: #6b4226;
+  border-color: #553218;
+}
+.dice-cup-label-covered {
+  background-color: #6b4226;
+  border-color: #553218;
+  color: #d4a86a;
+}
+.dice-placeholder {
+  visibility: hidden;
+}
+.dcell-swapped .dice {
+  box-shadow: 0 0 4px 2px #f0ad4e;
+}
+.dice-turn-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-self: center;
+}
+.dice-turn-buttons .btn {
+  white-space: nowrap;
+}
+.dice-turn-buttons .containerturner {
+  background-color: #ddd;
+  border-radius: 10px;
+}
+
+/* Penalty column */
+.col-penalty { text-align: right; font-size: 28px; color: #d9534f; }
+
+/* Larger buttons on desktop screens */
+@media (min-width: 992px) {
+  .controls-left .containerturner {
+    width: 105px;
   }
+  .controls-center .containercup {
+    width: 105px;
+  }
+  .controls-btn-row {
+    min-height: 105px;
+  }
+  .dcell {
+    width: 100px;
+    height: 80px;
+  }
+}
+
+/* Mobile adjustments: keep control row within screen width */
+@media (max-width: 575px) {
+  .controls-btn-row {
+    min-height: 50px;
+    gap: 4px;
+    flex-wrap: nowrap;
+  }
+  .controls-left {
+    max-width: 150px;
+    flex: 1 1 0;
+  }
+  .controls-left .containerturner {
+    width: 100%;
+    max-width: 80px;
+    min-width: 20px;
+  }
+  .controls-center .containercup {
+    width: 100%;
+    max-width: 80px;
+    min-width: 20px;
+  }
+  .controls-center {
+    flex: 0 1 auto;
+    gap: 4px;
+  }
+  .controls-right {
+    max-width: 150px;
+    flex: 1 1 0;
+  }
+  .btn-endpause {
+    min-width: 60px;
+    padding: 6px 8px;
+    font-size: 13px;
+  }
+  .dice-cup-wrapper {
+    flex-wrap: nowrap;
+    width: 100%;
+    gap: 4px;
+  }
+  .dice-cup-control {
+    flex: 4 1 0;
+    min-width: 0;
+  }
+  .dice-turn-buttons {
+    flex: 1 1 0;
+    min-width: 0;
+    align-self: center;
+  }
+  .dice-turn-buttons .containerturner {
+    width: 100%;
+    max-width: 80px;
+  }
+  .dcell {
+    width: auto;
+    height: auto;
+    padding: 2px;
+  }
+  .dcell .dice, .dcell .dice-placeholder {
+    width: 10.5vw;
+    height: 10.5vw;
+    max-width: 50px;
+    max-height: 50px;
+    padding: 1vw;
+    margin: 1px auto;
+  }
+  .dcell .dot {
+    width: 2.2vw;
+    height: 2.2vw;
+    max-width: 10px;
+    max-height: 10px;
+  }
+  .dice-cup-label, .dice-out-label {
+    font-size: 11px;
+    padding: 2px 4px;
+  }
+  .col-penalty { font-size: 24px; }
 }

@@ -78,8 +78,11 @@ def _handle_round_end(game, loser):
                         game.status = Status.PLAYFINAL
                         game.halfcount = 0
                         for user in game.active_users:
-                            user.passive = False
                             user.chips = 0
+                            if user.halfcount == 1:
+                                user.passive = False
+                            else:
+                                user.passive = True
                         message = 'Finale wird gespielt'
                         game.message = 'Finale wird gespielt, grau hinterlegte Spieler müssen warten'
                     else:
@@ -335,7 +338,7 @@ def distribute_chips(gid):
 
     # Short message for the game message line
     if from_source == 'schockaus':
-        game.message = "Schock aus! Alle Chips an {}".format(scoring['To_Name'])
+        game.message = "{}! Alle Chips an {}".format(scoring['From_Name'], scoring['To_Name'])
     else:
         game.message = "{} Chip(s) von {} an {}".format(
             transfer_count, scoring['From_Name'], scoring['To_Name'])
@@ -437,7 +440,18 @@ def transfer_chips(gid):
             userB.chips = game.stack_max
             game.first_user_id = userB.id
             game.move_user_id = userB.id
-            game.message = "Schockaus! Alle Chips an: {} verteilt!".format(userB.name)
+            schockaus_name = 'Schock aus'
+            try:
+                from app.rulesets import get_ruleset
+                rs = get_ruleset(game.ruleset_id)
+                if rs:
+                    for rule in rs.get('rules', []):
+                        if rule.get('chips') == -1:
+                            schockaus_name = rule['name']
+                            break
+            except Exception:
+                pass
+            game.message = "{}! Alle Chips an: {} verteilt!".format(schockaus_name, userB.name)
             db.session.add(game)
             db.session.commit()
         else:

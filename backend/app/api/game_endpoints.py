@@ -178,31 +178,35 @@ def pull_up_dice_cup(gid, uid):
         return response
 
     data = request.get_json() or {}
-    if 'visible' in data:
+    if 'dice1_visible' in data:
+        user.dice1_visible = bool(data.get('dice1_visible', False))
+        user.dice2_visible = bool(data.get('dice2_visible', False))
+        user.dice3_visible = bool(data.get('dice3_visible', False))
+    elif 'visible' in data:
         escapedvisible = str(utils.escape(data['visible']))
         val = escapedvisible.lower() in ['true', '1']
         user.dice1_visible = val
         user.dice2_visible = val
         user.dice3_visible = val
-
-        # Check if all active non-passive users have revealed
-        allvisible = True
-        for u in game.active_users:
-            if not (u.passive or (u.dice1_visible and u.dice2_visible and u.dice3_visible)):
-                allvisible = False
-        if allvisible and game.move_user_id == -1:
-            game.message = "Warten auf Vergabe der Chips!"
-
-        db.session.add(game)
-        db.session.commit()
-        response = jsonify(Message='Hat geklappt!')
-        response.status_code = 201
-        emit('reload_game', game.to_dict(), room=gid, namespace='/game')
-        return response
     else:
         response = jsonify(Message="Request must include visible")
         response.status_code = 400
         return response
+
+    # Check if all active non-passive users have revealed
+    allvisible = True
+    for u in game.active_users:
+        if not (u.passive or (u.dice1_visible and u.dice2_visible and u.dice3_visible)):
+            allvisible = False
+    if allvisible and game.move_user_id == -1:
+        game.message = "Warten auf Vergabe der Chips!"
+
+    db.session.add(game)
+    db.session.commit()
+    response = jsonify(Message='Hat geklappt!')
+    response.status_code = 201
+    emit('reload_game', game.to_dict(), room=gid, namespace='/game')
+    return response
 
 
 # user finishes before third roll
@@ -283,6 +287,57 @@ def set_user_passiv(gid, uid):
     if 'userstate' in data:
         escapeduserstate = str(utils.escape(data['userstate']))
         val = escapeduserstate.lower() in ['true', '1']
+
+        # Finale: pause is never allowed, reject immediately without penalty
+        if val and game.status == Status.PLAYFINAL:
+            response = jsonify(Message='Pause im Finale nicht erlaubt')
+            response.status_code = 400
+            return response
+
+        # Penalty check: pressing pause when not allowed
+        if val and not user.passive:
+            has_stack = game.stack > 0
+            has_chips = (user.chips or 0) > 0
+
+            if has_stack or has_chips:
+                # Invalid pause attempt -> penalty
+                user.penalty_count = (user.penalty_count or 0) + 1
+
+                # Build penalty reason
+                reasons = []
+                if has_stack:
+                    reasons.append('Chips auf dem Stapel')
+                if has_chips:
+                    reasons.append('eigener Chips')
+
+                # Broadcast message to all
+                if has_stack and has_chips:
+                    game.message = '{}: Pause trotz Chips auf Stapel und eigener Chips'.format(user.name)
+                elif has_stack:
+                    game.message = '{}: Pause trotz Chips auf Stapel'.format(user.name)
+                elif has_chips:
+                    game.message = '{}: Pause trotz Chips'.format(user.name)
+
+                db.session.add(user)
+                db.session.add(game)
+                db.session.commit()
+
+                penalty_reason = ' und '.join(reasons)
+                popup_msg = 'Pausierversuch trotz {}. Dafür musst Du Dich {} mal Einwürfeln'.format(
+                    penalty_reason, user.penalty_count)
+
+                emit('reload_game', game.to_dict(), room=gid, namespace='/game')
+                response = jsonify(Message=popup_msg, Penalty=True, Penalty_Count=user.penalty_count)
+                response.status_code = 400
+                return response
+
+            # Check penalty counter: must roll instead of pausing
+            if (user.penalty_count or 0) > 0:
+                response = jsonify(Message='Du musst Dich {} mal Einwürfeln bevor Du pausieren darfst'.format(
+                    user.penalty_count))
+                response.status_code = 400
+                return response
+
         user.passive = val
 
         # If the player goes passive while it's their turn, auto-advance
@@ -346,6 +401,12 @@ def roll_dice(gid, uid):
     if game.player_changes_allowed:
         game.player_changes_allowed = False
 
+    # Decrement penalty counter on first roll when player could have paused
+    if (user.number_dice == 0 and (user.penalty_count or 0) > 0
+            and game.stack == 0 and (user.chips or 0) == 0
+            and game.status != Status.PLAYFINAL):
+        user.penalty_count = user.penalty_count - 1
+
     game.refreshed = datetime.now()
     if user.id == game.move_user_id:
         if game.first_user_id == user.id or user.number_dice < first_user_dice:
@@ -366,7 +427,9 @@ def roll_dice(gid, uid):
                 return response
             user.number_dice = user.number_dice + 1
             # Check if this was the last roll for this user
-            if user.number_dice == 3 or (user.id != game.first_user_id and user.number_dice == first_user_dice):
+            is_last_roll = (user.number_dice == 3 or
+                            (user.id != game.first_user_id and user.number_dice == first_user_dice))
+            if is_last_roll:
                 next_id, is_round_complete = _get_next_active_user(game, user_index)
                 if is_round_complete:
                     game.move_user_id = -1
@@ -407,7 +470,16 @@ def roll_dice(gid, uid):
         db.session.add(user)
         db.session.commit()
 
-        response = jsonify(fallen=fallen, dice1=user.dice1, dice2=user.dice2, dice3=user.dice3, number_dice=user.number_dice)
+        # On the last roll, withhold in-cup dice values from the client
+        if is_last_roll:
+            resp_dice1 = user.dice1 if user.dice1_visible else 0
+            resp_dice2 = user.dice2 if user.dice2_visible else 0
+            resp_dice3 = user.dice3 if user.dice3_visible else 0
+        else:
+            resp_dice1 = user.dice1
+            resp_dice2 = user.dice2
+            resp_dice3 = user.dice3
+        response = jsonify(fallen=fallen, dice1=resp_dice1, dice2=resp_dice2, dice3=resp_dice3, number_dice=user.number_dice)
         response.status_code = 201
         emit('reload_game', game.to_dict(), room=gid, namespace='/game')
         return response
@@ -495,6 +567,50 @@ def turn_dice(gid, uid):
     # D2: Add reload_game emit after diceturn
     emit('reload_game', game.to_dict(), room=gid, namespace='/game')
     return response
+
+
+# undo a diceturn (revert 1->6, optionally restore None->6)
+@bp.route('/game/<gid>/user/<uid>/diceturn_undo', methods=['POST'])
+def undo_turn_dice(gid, uid):
+    game = Game.query.filter_by(UUID=gid).first()
+    if game is None:
+        return jsonify(Message='Spiel nicht gefunden'), 404
+
+    if game.status not in (Status.STARTED, Status.PLAYFINAL):
+        return jsonify(Message='Spiel ist nicht in einer spielbaren Phase'), 400
+
+    user_index = get_Index_Of_User(game, uid)
+    if user_index > -1:
+        user = game.users[user_index]
+    if user_index < 0 or user.game_id != game.id:
+        return jsonify(Message='Spieler ist nicht in diesem Spiel'), 404
+
+    if user.id != game.move_user_id:
+        return jsonify(Message='Du bist nicht dran!'), 400
+
+    data = request.get_json() or {}
+    revert_index = data.get('revert_index')
+    restore_index = data.get('restore_index')
+
+    dice_vals = [user.dice1, user.dice2, user.dice3]
+
+    if revert_index is not None:
+        ri = int(revert_index) - 1
+        if ri < 0 or ri > 2 or dice_vals[ri] != 1:
+            return jsonify(Message='Ungültiger Würfel zum Zurücksetzen'), 400
+        dice_vals[ri] = 6
+
+    if restore_index is not None:
+        rsi = int(restore_index) - 1
+        if rsi < 0 or rsi > 2 or dice_vals[rsi] is not None:
+            return jsonify(Message='Ungültiger Würfel zum Wiederherstellen'), 400
+        dice_vals[rsi] = 6
+
+    user.dice1, user.dice2, user.dice3 = dice_vals
+    db.session.add(user)
+    db.session.commit()
+    emit('reload_game', game.to_dict(), room=gid, namespace='/game')
+    return jsonify(dice1=user.dice1, dice2=user.dice2, dice3=user.dice3), 201
 
 
 # XHR Route: sort dice for visual comparison
