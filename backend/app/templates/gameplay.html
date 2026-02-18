@@ -581,6 +581,17 @@
     }
 
     updateTurnButtons();
+
+    // Disable roll button if no dice are in the cup
+    var anyInCup = _diceInCup[0] || _diceInCup[1] || _diceInCup[2];
+    var btnDice = document.getElementById('btn_dice');
+    if (btnDice) {
+      if (!anyInCup) {
+        btnDice.disabled = true;
+      } else if (btnDice.getAttribute('data-cooldown') !== 'true') {
+        btnDice.disabled = false;
+      }
+    }
   }
 
   function toggleDice(diceIdx) {
@@ -690,8 +701,14 @@
 
   // ============= Game Actions =============
   function dice() {
-    document.getElementById("btn_dice").disabled = true;
-    setTimeout(function () { document.getElementById("btn_dice").disabled = false; }, 2500);
+    var _btnDice = document.getElementById("btn_dice");
+    _btnDice.disabled = true;
+    _btnDice.setAttribute('data-cooldown', 'true');
+    setTimeout(function () {
+      _btnDice.removeAttribute('data-cooldown');
+      var anyInCup = _diceInCup[0] || _diceInCup[1] || _diceInCup[2];
+      _btnDice.disabled = !anyInCup;
+    }, 2500);
 
     clearSwapState();
     document.getElementById('btn_turn_2').style.display = 'none';
