@@ -1147,50 +1147,34 @@
       return;
     }
 
-    var rowFlightMs = 700;
-    var totalMs = Math.max(1200, Math.min(4000, 700 + totalRows * 350));
-    var staggerWindow = Math.max(200, totalMs - rowFlightMs);
+    // Tight stagger: rows launch shortly after each other, flying in formation
+    var stagger = Math.max(55, Math.min(120, 500 / totalRows));
+    var flightMs = Math.max(750, Math.min(1300, 550 + totalRows * 80));
 
-    var uLen = upperGroup.length;
-    var lLen = lowerGroup.length;
-
-    // Each group gets equal intervals spanning the full stagger window
-    var uInterval = uLen > 1 ? staggerWindow / (uLen - 1) : 0;
-    var lInterval = lLen > 1 ? staggerWindow / (lLen - 1) : 0;
-
-    // Small offset so lower group starts between upper group starts (alternating feel)
-    var refInterval = uLen > 1 ? uInterval : (lLen > 1 ? lInterval : staggerWindow * 0.4);
-    var lOffset = Math.max(50, Math.min(refInterval * 0.45, staggerWindow * 0.3));
-
-    // Align end times: adjust lower interval so both groups' last row starts
-    // at roughly the same time, then both fly with similar durations
-    if (lLen > 1) {
-      var desiredLLast = (uLen > 1 ? (uLen - 1) * uInterval : 0);
-      lInterval = Math.max(0, (desiredLLast - lOffset) / (lLen - 1));
+    // Build alternating interleaved sequence: bottom of upper, top of lower, …
+    var sequence = [];
+    var ui = upperGroup.length - 1;
+    var li = 0;
+    var pickUpper = true;
+    while (ui >= 0 || li < lowerGroup.length) {
+      if (pickUpper && ui >= 0) {
+        sequence.push({ uid: upperGroup[ui], group: 'upper' }); ui--;
+        pickUpper = false;
+      } else if (!pickUpper && li < lowerGroup.length) {
+        sequence.push({ uid: lowerGroup[li], group: 'lower' }); li++;
+        pickUpper = true;
+      } else if (ui >= 0) {
+        sequence.push({ uid: upperGroup[ui], group: 'upper' }); ui--;
+      } else {
+        sequence.push({ uid: lowerGroup[li], group: 'lower' }); li++;
+      }
     }
-
-    var uLastDelay = uLen > 1 ? (uLen - 1) * uInterval : 0;
-    var lLastDelay = lOffset + (lLen > 1 ? (lLen - 1) * lInterval : 0);
-    var maxLastDelay = Math.max(uLastDelay, lLastDelay);
-    var targetEndMs = maxLastDelay + rowFlightMs;
-
-    // Adjust flight durations so both groups finish simultaneously,
-    // but cap to avoid absurdly slow single-member groups
-    var maxFlightMs = rowFlightMs * 2;
-    var uFlightMs = Math.max(450, Math.min(maxFlightMs, targetEndMs - uLastDelay));
-    var lFlightMs = Math.max(450, Math.min(maxFlightMs, targetEndMs - lLastDelay));
 
     var delayMap = {};
     var groupMap = {};
-    for (var i = 0; i < uLen; i++) {
-      var uid = upperGroup[uLen - 1 - i];
-      delayMap[uid] = i * uInterval;
-      groupMap[uid] = 'upper';
-    }
-    for (var i = 0; i < lLen; i++) {
-      var uid = lowerGroup[i];
-      delayMap[uid] = lOffset + i * lInterval;
-      groupMap[uid] = 'lower';
+    for (var i = 0; i < sequence.length; i++) {
+      delayMap[sequence[i].uid] = i * stagger;
+      groupMap[sequence[i].uid] = sequence[i].group;
     }
 
     _runningAnims = [];
@@ -1202,33 +1186,34 @@
       var delta = deltas[uid];
       var delay = delayMap[uid] || 0;
       var isUpper = groupMap[uid] === 'upper';
-      var duration = isUpper ? uFlightMs : lFlightMs;
 
       row.style.position = 'relative';
       row.style.zIndex = isUpper ? '0' : '10';
       row.style.willChange = 'transform, opacity';
 
+      // Smooth arc: ease-in to midpoint, ease-out to landing.
+      // The per-keyframe easings create velocity continuity at the
+      // midpoint so the motion feels like one fluid sweep.
+      var halfDelta = (delta * 0.5).toFixed(1);
       var kf;
       if (isUpper) {
         kf = [
-          { transform: 'translateY(' + delta + 'px) scale(1)', opacity: 1, offset: 0 },
-          { transform: 'translateY(' + delta + 'px) scale(0.95)', opacity: 0.75, offset: 0.18 },
-          { transform: 'translateY(0px) scale(0.95)', opacity: 0.75, offset: 0.82 },
-          { transform: 'translateY(0px) scale(1)', opacity: 1, offset: 1.0 }
+          { transform: 'translateY(' + delta + 'px) scale(1)',    opacity: 1,   offset: 0,   easing: 'cubic-bezier(0.4, 0, 0.7, 0.4)' },
+          { transform: 'translateY(' + halfDelta + 'px) scale(0.95)', opacity: 0.8, offset: 0.5, easing: 'cubic-bezier(0.3, 0.6, 0.6, 1)' },
+          { transform: 'translateY(0px) scale(1)',                opacity: 1,   offset: 1.0 }
         ];
       } else {
         kf = [
-          { transform: 'translateY(' + delta + 'px) scale(1)', opacity: 1, offset: 0 },
-          { transform: 'translateY(' + delta + 'px) scale(1.04)', opacity: 1, offset: 0.18 },
-          { transform: 'translateY(0px) scale(1.04)', opacity: 1, offset: 0.82 },
-          { transform: 'translateY(0px) scale(1)', opacity: 1, offset: 1.0 }
+          { transform: 'translateY(' + delta + 'px) scale(1)',    opacity: 1,   offset: 0,   easing: 'cubic-bezier(0.4, 0, 0.7, 0.4)' },
+          { transform: 'translateY(' + halfDelta + 'px) scale(1.04)', opacity: 1, offset: 0.5, easing: 'cubic-bezier(0.3, 0.6, 0.6, 1)' },
+          { transform: 'translateY(0px) scale(1)',                opacity: 1,   offset: 1.0 }
         ];
       }
 
       var anim = row.animate(kf, {
-        duration: duration,
+        duration: flightMs,
         delay: delay,
-        easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+        easing: 'linear',
         fill: 'both'
       });
       _runningAnims.push({ anim: anim, row: row });
