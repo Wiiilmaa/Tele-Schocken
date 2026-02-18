@@ -346,6 +346,7 @@
   var _diceSwapCupIdx = -1;
   var _diceHiddenAfterRoll = false;
   var _diceOutAtRoll = [false, false, false];
+  var _diceAnimating = false;
 
   function getGameId() {
     var el = document.getElementById('UUID');
@@ -499,6 +500,100 @@
     if (el) container.appendChild(el);
   }
 
+  // ============= 3D Dice Roll Animation =============
+  var DICE_FACE_ROTATION = {
+    1: { x: 0,   y: 0   },
+    2: { x: 0,   y: -90 },
+    3: { x: 90,  y: 0   },
+    4: { x: -90, y: 0   },
+    5: { x: 0,   y: 90  },
+    6: { x: 0,   y: 180 }
+  };
+
+  function animateDiceCupRoll(oldValues, newValues, inCup) {
+    var ANIM_DURATION = 2000;
+    var pending = 0;
+
+    for (var i = 0; i < 3; i++) {
+      if (inCup[i] && newValues[i] > 0) pending++;
+    }
+    if (pending === 0) { renderDiceCup(); return; }
+
+    _diceAnimating = true;
+    var maxDelay = 0;
+
+    for (var i = 0; i < 3; i++) {
+      if (!inCup[i] || !newValues[i] || newValues[i] === 0) continue;
+
+      var delay = Math.floor(Math.random() * 100) + 30;
+      if (delay > maxDelay) maxDelay = delay;
+
+      (function(idx, d) {
+        var cupCell = document.getElementById('dcell' + idx);
+        cupCell.innerHTML = '';
+        cupCell.className = 'dcell dcell-cup';
+
+        var scene = document.createElement('div');
+        scene.className = 'dice-3d-scene';
+        var cube = document.createElement('div');
+        cube.className = 'dice-3d-cube';
+        scene.appendChild(cube);
+        cupCell.appendChild(scene);
+
+        var size = scene.offsetWidth;
+        if (!size || size < 10) size = 50;
+        var half = size / 2;
+
+        var faceTransforms = [
+          'translateZ(' + half + 'px)',
+          'rotateY(90deg) translateZ(' + half + 'px)',
+          'rotateX(-90deg) translateZ(' + half + 'px)',
+          'rotateX(90deg) translateZ(' + half + 'px)',
+          'rotateY(-90deg) translateZ(' + half + 'px)',
+          'rotateY(180deg) translateZ(' + half + 'px)'
+        ];
+
+        for (var face = 1; face <= 6; face++) {
+          var faceEl = dicehelper(face);
+          if (!faceEl) continue;
+          faceEl.style.position = 'absolute';
+          faceEl.style.top = '0';
+          faceEl.style.left = '0';
+          faceEl.style.width = '100%';
+          faceEl.style.height = '100%';
+          faceEl.style.margin = '0';
+          faceEl.style.boxSizing = 'border-box';
+          faceEl.style.backfaceVisibility = 'hidden';
+          faceEl.style.webkitBackfaceVisibility = 'hidden';
+          faceEl.style.transform = faceTransforms[face - 1];
+          cube.appendChild(faceEl);
+        }
+
+        var oldFace = (oldValues[idx] > 0 && oldValues[idx] <= 6) ? oldValues[idx] : Math.ceil(Math.random() * 6);
+        var oldRot = DICE_FACE_ROTATION[oldFace];
+        var newRot = DICE_FACE_ROTATION[newValues[idx]];
+
+        cube.style.transform = 'rotateX(' + oldRot.x + 'deg) rotateY(' + oldRot.y + 'deg)';
+
+        setTimeout(function() {
+          void cube.offsetHeight;
+          var spinsX = (Math.floor(Math.random() * 3) + 2) * 360;
+          var spinsY = (Math.floor(Math.random() * 3) + 2) * 360;
+          var dirX = Math.random() > 0.5 ? 1 : -1;
+          var dirY = Math.random() > 0.5 ? 1 : -1;
+
+          cube.style.transition = 'transform ' + ANIM_DURATION + 'ms cubic-bezier(0.08, 0.82, 0.17, 1)';
+          cube.style.transform = 'rotateX(' + (newRot.x + spinsX * dirX) + 'deg) rotateY(' + (newRot.y + spinsY * dirY) + 'deg)';
+        }, d);
+      })(i, delay);
+    }
+
+    setTimeout(function() {
+      _diceAnimating = false;
+      renderDiceCup();
+    }, ANIM_DURATION + maxDelay + 100);
+  }
+
   // C4: Check if any non-passive, non-pending user still has hidden dice
   function isUndecided(game) {
     var undecided = false;
@@ -581,6 +676,17 @@
     }
 
     updateTurnButtons();
+
+    // Disable roll button if no dice are in the cup
+    var anyInCup = _diceInCup[0] || _diceInCup[1] || _diceInCup[2];
+    var btnDice = document.getElementById('btn_dice');
+    if (btnDice) {
+      if (!anyInCup) {
+        btnDice.disabled = true;
+      } else if (btnDice.getAttribute('data-cooldown') !== 'true') {
+        btnDice.disabled = false;
+      }
+    }
   }
 
   function toggleDice(diceIdx) {
@@ -690,8 +796,14 @@
 
   // ============= Game Actions =============
   function dice() {
-    document.getElementById("btn_dice").disabled = true;
-    setTimeout(function () { document.getElementById("btn_dice").disabled = false; }, 2500);
+    var _btnDice = document.getElementById("btn_dice");
+    _btnDice.disabled = true;
+    _btnDice.setAttribute('data-cooldown', 'true');
+    setTimeout(function () {
+      _btnDice.removeAttribute('data-cooldown');
+      var anyInCup = _diceInCup[0] || _diceInCup[1] || _diceInCup[2];
+      _btnDice.disabled = !anyInCup;
+    }, 2500);
 
     clearSwapState();
     document.getElementById('btn_turn_2').style.display = 'none';
@@ -735,6 +847,9 @@
               isLastRoll = (String(res.number_dice) == firstDiceCount);
             }
 
+            var oldDiceValues = [_myDiceValues[0], _myDiceValues[1], _myDiceValues[2]];
+            var rolledInCup = [_diceInCup[0], _diceInCup[1], _diceInCup[2]];
+
             _myDiceValues = [
               res.dice1 || 0,
               res.dice2 || 0,
@@ -743,10 +858,11 @@
 
             if (isLastRoll) {
               _diceHiddenAfterRoll = true;
+              renderDiceCup();
             } else {
               _diceHiddenAfterRoll = false;
+              animateDiceCupRoll(oldDiceValues, _myDiceValues, rolledInCup);
             }
-            renderDiceCup();
           }
         } else {
           alert('' + res.Message);
@@ -1198,7 +1314,7 @@
         _diceHiddenAfterRoll = true;
       }
 
-      renderDiceCup();
+      if (!_diceAnimating) renderDiceCup();
     }
 
     // End/Pause button logic
