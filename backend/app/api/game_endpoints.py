@@ -120,21 +120,33 @@ def set_game_user(gid):
         response.status_code = 400
         return response
 
-    inuse = User.query.filter_by(name=escapedusername).first()
-    if inuse is not None:
-        response = jsonify(Message='Benutzername schon vergeben!')
-        response.status_code = 400
-        return response
+    # Check if name already exists in THIS game
+    existing = User.query.filter_by(name=escapedusername, game_id=game.id).first()
+    if existing is not None:
+        # Reconnect: allow if the client sends the matching old user ID
+        reconnect_id = data.get('reconnect_id')
+        if reconnect_id is not None and existing.id == int(reconnect_id):
+            # Reactivate the existing user
+            existing.leave_after_game = False
+            if game.player_changes_allowed:
+                existing.pending_join = False
+            else:
+                existing.pending_join = True
+            db.session.add(existing)
+            db.session.commit()
+            emit('reload_game', game.to_dict(), room=gid, namespace='/game')
+            return jsonify(game.to_dict())
+        else:
+            response = jsonify(Message='Benutzername in diesem Spiel schon vergeben!')
+            response.status_code = 400
+            return response
 
     user = User()
     user.name = escapedusername
 
     if game.player_changes_allowed:
-        # Game is in lobby or just (re)started and nobody rolled yet: join immediately
         user.pending_join = False
     else:
-        # Game in progress: queue for next game.
-        # execute_deferred_actions will activate them when the game ends.
         user.pending_join = True
 
     game.users.append(user)

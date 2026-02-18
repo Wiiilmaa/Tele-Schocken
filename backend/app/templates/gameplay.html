@@ -1850,6 +1850,12 @@
     var id = localStorage.getItem('id');
     var user = document.getElementById('ownuser');
     user.innerHTML = "Spieler: " + (localStorage.getItem('name') || '');
+    // Pre-fill mid-game join input from localStorage
+    var savedName = localStorage.getItem('name');
+    if (savedName) {
+      var joinInput = document.getElementById('join_name');
+      if (joinInput && !joinInput.value) joinInput.value = savedName;
+    }
     initial_game_data();
   }
 

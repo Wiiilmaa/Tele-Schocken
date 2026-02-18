@@ -136,6 +136,15 @@
     }
   })();
 
+  // Pre-fill nickname from localStorage
+  (function() {
+    var savedName = localStorage.getItem('name');
+    if (savedName) {
+      var inp = document.getElementById('Name');
+      if (inp && !inp.value) inp.value = savedName;
+    }
+  })();
+
   // https://www.w3schools.com/howto/howto_js_copy_clipboard.asp
   function coppy() {
     var copyText = document.getElementById("link_input");
@@ -259,7 +268,10 @@
         }
       }
     }
-    xhttp.send(JSON.stringify({name: usernname}));
+    var payload = {name: usernname};
+    var oldId = localStorage.getItem('id');
+    if (oldId) payload.reconnect_id = parseInt(oldId);
+    xhttp.send(JSON.stringify(payload));
   }
 
   function startGame() {
