@@ -442,6 +442,9 @@ body {
     width: 100px;
     height: 80px;
   }
+  .dice-turn-buttons .containerturner {
+    width: 80px;
+  }
 }
 
 /* Mobile adjustments: keep control row within screen width */

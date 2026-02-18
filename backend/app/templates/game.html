@@ -442,6 +442,7 @@
       // Rebuild player table
       var table = document.getElementById('player_tbody');
       table.innerHTML = '';
+      var myIdInGame = false;
       for (num in res.User) {
         var juser = res.User[num];
         var tr = document.createElement('tr');
@@ -456,12 +457,18 @@
         tr.appendChild(td);
         table.appendChild(tr);
 
-        if (juser['Id'] == id) {
-          var name = document.getElementById('Name');
-          name.disabled = true;
-          var btn = document.getElementById('jointbtn');
-          btn.disabled = true;
+        if (id && String(juser['Id']) === String(id)) {
+          myIdInGame = true;
         }
+      }
+      var nameInput = document.getElementById('Name');
+      var joinBtn = document.getElementById('jointbtn');
+      if (myIdInGame) {
+        nameInput.disabled = true;
+        joinBtn.disabled = true;
+      } else {
+        nameInput.disabled = false;
+        joinBtn.disabled = false;
       }
 
       if (sate == 'started' || sate == 'playfinal') {
