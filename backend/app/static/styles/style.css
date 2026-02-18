@@ -30,7 +30,7 @@
   --panel-text: #333333;
   --close-color: #aaa;
   --close-hover: #000;
-  --own-name-bg: rgba(144, 238, 144, 0.45);
+  --highlight-row: #d9edf7;
   --flash-high: rgba(76, 175, 80, 0.55);
   --flash-low: rgba(229, 57, 53, 0.55);
   color-scheme: light;
@@ -70,7 +70,7 @@
   --dice-border: #7f849c;
   --dice-dot: #cdd6f4;
   --dice-bg: #313244;
-  --own-name-bg: rgba(56, 142, 60, 0.35);
+  --highlight-row: #1e3a5f;
   --flash-high: rgba(76, 175, 80, 0.45);
   --flash-low: rgba(229, 57, 53, 0.45);
   color-scheme: dark;
@@ -225,6 +225,9 @@ select optgroup {
 } /* Gray */
 
 /* Table row highlight classes (used by JS instead of inline styles) */
+.row-active-turn {
+  background-color: var(--highlight-row) !important;
+}
 .row-passive {
   background-color: var(--passive-row) !important;
 }

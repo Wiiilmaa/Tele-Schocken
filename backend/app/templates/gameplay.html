@@ -1343,13 +1343,6 @@
       if (secondLine) nameHtml += '<div>' + secondLine + '</div>';
       nameCell.innerHTML = nameHtml;
 
-      // Own player name highlight
-      if (juser.Id == myId) {
-        nameCell.classList.add('own-name-cell');
-      } else {
-        nameCell.classList.remove('own-name-cell');
-      }
-
       // Chips
       document.getElementById('chips' + juser.Id).innerHTML = juser.Chips;
 
@@ -1391,12 +1384,14 @@
       }
 
       // Row background color via CSS classes (dark-mode safe)
-      row.classList.remove('row-passive', 'row-normal', 'row-stripe', 'row-own-player');
+      row.classList.remove('row-passive', 'row-normal', 'row-stripe', 'row-own-player', 'row-active-turn');
       row.style.backgroundColor = '';
       if (juser.Pending_Join) {
         // Already handled by pending-row class
       } else if (juser.Passive) {
         row.classList.add('row-passive');
+      } else if (juser.Id == game.Move) {
+        row.classList.add('row-active-turn');
       } else {
         row.classList.add('row-normal');
         if (idx % 2 === 1) {
