@@ -172,16 +172,16 @@ body {
   margin-top: 2px;
 }
 .leave-inactive {
-  color: #ccc;
+  color: var(--text-muted);
 }
 .leave-inactive:hover {
-  color: #999;
+  color: var(--text-secondary);
 }
 .leave-active {
-  color: #5cb85c;
+  color: #d9534f;
 }
 .leave-active:hover {
-  color: #449d44;
+  color: #c9302c;
 }
 
 
