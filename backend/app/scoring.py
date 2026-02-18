@@ -173,7 +173,9 @@ def calculate_scoring(game):
 
     return {
         'High': _format_result(high),
+        'High_Id': high['id'],
         'Low': _format_result(low),
+        'Low_Id': low['id'],
         'Chips': transfer_chips,
         'From': from_source,
         'From_Name': from_name,

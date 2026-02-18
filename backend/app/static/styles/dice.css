@@ -197,6 +197,15 @@ body {
   outline: 2px solid var(--link-color);
   outline-offset: -2px;
 }
+#player_table .own-name-cell {
+  background-color: var(--own-name-bg) !important;
+}
+
+/* Reorder animation: rows need stacking context for z-index and transforms */
+#player_table tbody tr {
+  transform-origin: center center;
+  backface-visibility: hidden;
+}
 
 /* Tablet: slightly smaller dice */
 @media (max-width: 767px) and (min-width: 576px) {

@@ -339,6 +339,13 @@
   var _currentRoundPhase = null; // track round row phase to avoid restarting countdowns
   var _lastWaitingUserId = undefined; // undefined = first load (suppress sound on page load)
 
+  // Table ordering state
+  var _tableOrder = [];          // current display order of user IDs (strings)
+  var _activeRotation = [];      // persistent rotation order of active user IDs
+  var _tableAnimating = false;
+  var _runningAnims = [];        // active Animation objects for cancellation
+  var _isFirstTableLoad = true;
+
   // Dice cup state
   var _diceInCup = [true, true, true];
   var _myDiceValues = [0, 0, 0];
@@ -986,6 +993,274 @@
     }
   }
 
+  // ============= Table reorder helpers =============
+
+  function buildSortedOrder(users, firstId) {
+    var activeMap = {};
+    var pending = [];
+    for (var i = 0; i < users.length; i++) {
+      if (users[i].Pending_Join) pending.push(users[i]);
+      else activeMap[String(users[i].Id)] = users[i];
+    }
+
+    // Preserve established rotation: keep known players in their order,
+    // remove departed ones, append newly active players at the end
+    var newRotation = [];
+    for (var i = 0; i < _activeRotation.length; i++) {
+      if (activeMap[_activeRotation[i]]) newRotation.push(_activeRotation[i]);
+    }
+    var inRotation = {};
+    for (var i = 0; i < newRotation.length; i++) inRotation[newRotation[i]] = true;
+    for (var i = 0; i < users.length; i++) {
+      var uid = String(users[i].Id);
+      if (!users[i].Pending_Join && !inRotation[uid]) newRotation.push(uid);
+    }
+
+    // Rotate so firstId is first
+    var firstIdx = -1;
+    for (var i = 0; i < newRotation.length; i++) {
+      if (newRotation[i] == String(firstId)) { firstIdx = i; break; }
+    }
+    if (firstIdx > 0) {
+      newRotation = newRotation.slice(firstIdx).concat(newRotation.slice(0, firstIdx));
+    }
+    _activeRotation = newRotation.slice();
+
+    var result = [];
+    for (var i = 0; i < newRotation.length; i++) {
+      if (activeMap[newRotation[i]]) result.push(activeMap[newRotation[i]]);
+    }
+    return result.concat(pending);
+  }
+
+  function getOrderIds(tbody) {
+    var rows = tbody.querySelectorAll('tr');
+    var ids = [];
+    for (var i = 0; i < rows.length; i++) {
+      if (rows[i].id && rows[i].id.startsWith('row') && !rows[i].dataset.removing) {
+        ids.push(rows[i].id.replace('row', ''));
+      }
+    }
+    return ids;
+  }
+
+  function updateRowCounters(tbody) {
+    var rows = tbody.querySelectorAll('tr');
+    for (var i = 0; i < rows.length; i++) {
+      if (rows[i].cells && rows[i].cells[0]) {
+        rows[i].cells[0].textContent = i + 1;
+      }
+    }
+  }
+
+  function flashRowColor(rowId, cssVar) {
+    var row = document.getElementById(rowId);
+    if (!row || row.dataset.removing) return;
+    var color = getComputedStyle(document.documentElement).getPropertyValue(cssVar).trim();
+    if (!color) return;
+    row.animate([
+      { backgroundColor: color },
+      { backgroundColor: 'transparent' }
+    ], { duration: 2000, easing: 'ease-out' });
+  }
+
+  function cancelTableAnimations() {
+    for (var i = 0; i < _runningAnims.length; i++) {
+      _runningAnims[i].anim.cancel();
+      var row = _runningAnims[i].row;
+      row.style.transform = '';
+      row.style.position = '';
+      row.style.zIndex = '';
+      row.style.willChange = '';
+    }
+    _runningAnims = [];
+    _tableAnimating = false;
+  }
+
+  function animateTableReorder(tbody, oldOrder, newOrder, onComplete) {
+    if (_tableAnimating) cancelTableAnimations();
+
+    var moved = false;
+    for (var i = 0; i < Math.max(oldOrder.length, newOrder.length); i++) {
+      if (oldOrder[i] !== newOrder[i]) { moved = true; break; }
+    }
+    if (!moved) { if (onComplete) onComplete(); return; }
+
+    _tableAnimating = true;
+
+    var rowEls = {};
+    var oldTops = {};
+    for (var i = 0; i < oldOrder.length; i++) {
+      var uid = oldOrder[i];
+      var row = document.getElementById('row' + uid);
+      if (row) {
+        rowEls[uid] = row;
+        oldTops[uid] = row.getBoundingClientRect().top;
+      }
+    }
+
+    for (var i = 0; i < newOrder.length; i++) {
+      var r = rowEls[newOrder[i]];
+      if (r) tbody.appendChild(r);
+    }
+
+    var deltas = {};
+    var anyMoved = false;
+    for (var i = 0; i < newOrder.length; i++) {
+      var uid = newOrder[i];
+      if (!rowEls[uid] || oldTops[uid] === undefined) { deltas[uid] = 0; continue; }
+      var newTop = rowEls[uid].getBoundingClientRect().top;
+      deltas[uid] = oldTops[uid] - newTop;
+      if (Math.abs(deltas[uid]) > 1) anyMoved = true;
+    }
+
+    if (!anyMoved) {
+      _tableAnimating = false;
+      updateRowCounters(tbody);
+      _tableOrder = newOrder.slice();
+      if (onComplete) onComplete();
+      return;
+    }
+
+    var newFirstId = newOrder[0];
+    var splitIdx = oldOrder.indexOf(newFirstId);
+    if (splitIdx <= 0) {
+      _tableAnimating = false;
+      updateRowCounters(tbody);
+      _tableOrder = newOrder.slice();
+      if (onComplete) onComplete();
+      return;
+    }
+
+    var upperGroup = oldOrder.slice(0, splitIdx);
+    var lowerGroup = oldOrder.slice(splitIdx);
+    var totalRows = upperGroup.length + lowerGroup.length;
+
+    if (totalRows < 2) {
+      _tableAnimating = false;
+      updateRowCounters(tbody);
+      _tableOrder = newOrder.slice();
+      if (onComplete) onComplete();
+      return;
+    }
+
+    var rowFlightMs = 700;
+    var totalMs = Math.max(1200, Math.min(4000, 700 + totalRows * 350));
+    var staggerWindow = Math.max(200, totalMs - rowFlightMs);
+
+    var uLen = upperGroup.length;
+    var lLen = lowerGroup.length;
+
+    // Each group gets equal intervals spanning the full stagger window
+    var uInterval = uLen > 1 ? staggerWindow / (uLen - 1) : 0;
+    var lInterval = lLen > 1 ? staggerWindow / (lLen - 1) : 0;
+
+    // Small offset so lower group starts between upper group starts (alternating feel)
+    var refInterval = uLen > 1 ? uInterval : (lLen > 1 ? lInterval : staggerWindow * 0.4);
+    var lOffset = Math.max(50, Math.min(refInterval * 0.45, staggerWindow * 0.3));
+
+    // Align end times: adjust lower interval so both groups' last row starts
+    // at roughly the same time, then both fly with similar durations
+    if (lLen > 1) {
+      var desiredLLast = (uLen > 1 ? (uLen - 1) * uInterval : 0);
+      lInterval = Math.max(0, (desiredLLast - lOffset) / (lLen - 1));
+    }
+
+    var uLastDelay = uLen > 1 ? (uLen - 1) * uInterval : 0;
+    var lLastDelay = lOffset + (lLen > 1 ? (lLen - 1) * lInterval : 0);
+    var maxLastDelay = Math.max(uLastDelay, lLastDelay);
+    var targetEndMs = maxLastDelay + rowFlightMs;
+
+    // Adjust flight durations so both groups finish simultaneously,
+    // but cap to avoid absurdly slow single-member groups
+    var maxFlightMs = rowFlightMs * 2;
+    var uFlightMs = Math.max(450, Math.min(maxFlightMs, targetEndMs - uLastDelay));
+    var lFlightMs = Math.max(450, Math.min(maxFlightMs, targetEndMs - lLastDelay));
+
+    var delayMap = {};
+    var groupMap = {};
+    for (var i = 0; i < uLen; i++) {
+      var uid = upperGroup[uLen - 1 - i];
+      delayMap[uid] = i * uInterval;
+      groupMap[uid] = 'upper';
+    }
+    for (var i = 0; i < lLen; i++) {
+      var uid = lowerGroup[i];
+      delayMap[uid] = lOffset + i * lInterval;
+      groupMap[uid] = 'lower';
+    }
+
+    _runningAnims = [];
+    for (var i = 0; i < newOrder.length; i++) {
+      var uid = newOrder[i];
+      var row = rowEls[uid];
+      if (!row || Math.abs(deltas[uid] || 0) < 1) continue;
+
+      var delta = deltas[uid];
+      var delay = delayMap[uid] || 0;
+      var isUpper = groupMap[uid] === 'upper';
+      var duration = isUpper ? uFlightMs : lFlightMs;
+
+      row.style.position = 'relative';
+      row.style.zIndex = isUpper ? '0' : '10';
+      row.style.willChange = 'transform, opacity';
+
+      var kf;
+      if (isUpper) {
+        kf = [
+          { transform: 'translateY(' + delta + 'px) scale(1)', opacity: 1, offset: 0 },
+          { transform: 'translateY(' + delta + 'px) scale(0.95)', opacity: 0.75, offset: 0.18 },
+          { transform: 'translateY(0px) scale(0.95)', opacity: 0.75, offset: 0.82 },
+          { transform: 'translateY(0px) scale(1)', opacity: 1, offset: 1.0 }
+        ];
+      } else {
+        kf = [
+          { transform: 'translateY(' + delta + 'px) scale(1)', opacity: 1, offset: 0 },
+          { transform: 'translateY(' + delta + 'px) scale(1.04)', opacity: 1, offset: 0.18 },
+          { transform: 'translateY(0px) scale(1.04)', opacity: 1, offset: 0.82 },
+          { transform: 'translateY(0px) scale(1)', opacity: 1, offset: 1.0 }
+        ];
+      }
+
+      var anim = row.animate(kf, {
+        duration: duration,
+        delay: delay,
+        easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+        fill: 'both'
+      });
+      _runningAnims.push({ anim: anim, row: row });
+    }
+
+    if (_runningAnims.length === 0) {
+      _tableAnimating = false;
+      updateRowCounters(tbody);
+      _tableOrder = newOrder.slice();
+      if (onComplete) onComplete();
+      return;
+    }
+
+    Promise.all(_runningAnims.map(function(a) { return a.anim.finished; })).then(function() {
+      for (var i = 0; i < _runningAnims.length; i++) {
+        _runningAnims[i].anim.cancel();
+        var r = _runningAnims[i].row;
+        r.style.transform = '';
+        r.style.position = '';
+        r.style.zIndex = '';
+        r.style.willChange = '';
+      }
+      _runningAnims = [];
+      _tableAnimating = false;
+      updateRowCounters(tbody);
+      _tableOrder = newOrder.slice();
+      if (onComplete) onComplete();
+    }).catch(function() {
+      _runningAnims = [];
+      _tableAnimating = false;
+      _tableOrder = newOrder.slice();
+      if (onComplete) onComplete();
+    });
+  }
+
   // H2: Dynamically rebuild table rows to match game.User
   function updateTableRows(game) {
     var tbody = document.getElementById('game_tbody');
@@ -1010,12 +1285,20 @@
       }
     }
 
-    // Remove rows for users no longer in game
+    // Remove rows for users no longer in game (animated fade-out)
     var gameUserIds = {};
     game.User.forEach(function(u) { gameUserIds[u.Id] = true; });
     Object.keys(existingRows).forEach(function(uid) {
-      if (!gameUserIds[uid]) {
-        tbody.removeChild(existingRows[uid]);
+      if (!gameUserIds[uid] && !existingRows[uid].dataset.removing) {
+        var row = existingRows[uid];
+        row.dataset.removing = 'true';
+        row.animate([
+          { opacity: 1, transform: 'scale(1)' },
+          { opacity: 0, transform: 'scale(0.85)' }
+        ], { duration: 350, easing: 'ease-in', fill: 'forwards' })
+        .finished.then(function() {
+          if (row.parentNode) row.parentNode.removeChild(row);
+        });
       }
     });
 
@@ -1072,6 +1355,13 @@
       if (secondLine) nameHtml += '<div>' + secondLine + '</div>';
       nameCell.innerHTML = nameHtml;
 
+      // Own player name highlight
+      if (juser.Id == myId) {
+        nameCell.classList.add('own-name-cell');
+      } else {
+        nameCell.classList.remove('own-name-cell');
+      }
+
       // Chips
       document.getElementById('chips' + juser.Id).innerHTML = juser.Chips;
 
@@ -1113,12 +1403,10 @@
       }
 
       // Row background color via CSS classes (dark-mode safe)
-      row.classList.remove('row-first-user', 'row-passive', 'row-normal', 'row-stripe', 'row-own-player');
+      row.classList.remove('row-passive', 'row-normal', 'row-stripe', 'row-own-player');
       row.style.backgroundColor = '';
       if (juser.Pending_Join) {
         // Already handled by pending-row class
-      } else if (juser.Id == game.First) {
-        row.classList.add('row-first-user');
       } else if (juser.Passive) {
         row.classList.add('row-passive');
       } else {
@@ -1127,7 +1415,7 @@
           row.classList.add('row-stripe');
         }
       }
-      if (juser.Id == myId && juser.Id != game.First) {
+      if (juser.Id == myId) {
         row.classList.add('row-own-player');
       }
     });
@@ -1263,8 +1551,37 @@
     }
     _lastWaitingUserId = waiting_user_id;
 
+    // Sort users so the round starter is first (preserving rotation order)
+    if (game.First) {
+      game.User = buildSortedOrder(game.User, game.First);
+    }
+
     // H2: Update table rows dynamically
+    var tbody = document.getElementById('game_tbody');
+
     updateTableRows(game);
+
+    var desiredOrder = game.User.map(function(u) { return String(u.Id); });
+
+    if (_isFirstTableLoad) {
+      // First load: reorder DOM without animation
+      for (var i = 0; i < desiredOrder.length; i++) {
+        var r = document.getElementById('row' + desiredOrder[i]);
+        if (r) tbody.appendChild(r);
+      }
+      updateRowCounters(tbody);
+      _tableOrder = desiredOrder.slice();
+      _isFirstTableLoad = false;
+    } else {
+      var currentDomOrder = getOrderIds(tbody);
+      var needsReorder = false;
+      for (var ni = 0; ni < desiredOrder.length; ni++) {
+        if (currentDomOrder[ni] !== desiredOrder[ni]) { needsReorder = true; break; }
+      }
+      if (needsReorder) {
+        animateTableReorder(tbody, currentDomOrder, desiredOrder);
+      }
+    }
 
     // C1: Restore own dice cup from server state
     var me_data = null;
@@ -1426,6 +1743,11 @@
     if (newPhase === 'distribute') {
       var fullInfo = formatScoringText(game.Scoring);
       if (_currentRoundPhase !== 'distribute') {
+        // Flash high (green) and low (red) rows
+        if (game.Scoring) {
+          if (game.Scoring.High_Id) flashRowColor('row' + game.Scoring.High_Id, '--flash-high');
+          if (game.Scoring.Low_Id)  flashRowColor('row' + game.Scoring.Low_Id, '--flash-low');
+        }
         roundRow.innerHTML = '<button class="btn btn-success" id="distribute_btn" '
           + 'onclick="distribute()" disabled>Verteilen</button> '
           + '<span id="round_info_text">' + fullInfo + '</span>';
