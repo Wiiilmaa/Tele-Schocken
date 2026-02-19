@@ -120,10 +120,10 @@ body {
 
 /* Mobile: smaller dice and hide less critical columns */
 @media (max-width: 575px) {
-  /* Smaller fonts in top status area */
-  #Message { font-size: 16px; }
-  #StackChips_id, #throw_id, #waiting_id, #game_phase_text { font-size: 14px; }
-  #ownuser { font-size: 18px; }
+  /* Smaller fonts and tighter spacing in top status area */
+  #Message { font-size: 16px; margin: 4px 0; }
+  #StackChips_id, #throw_id, #waiting_id, #game_phase_text { font-size: 14px; margin: 2px 0; }
+  #ownuser { font-size: 18px; margin: 4px 0 2px; }
   .dice {
     width: 36px;
     height: 36px;
@@ -332,6 +332,7 @@ body {
 .dice-cup-control {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
+  flex-shrink: 0;
 }
 .dice-cup-label {
   grid-column: 1 / 4;
@@ -392,15 +393,6 @@ body {
   opacity: 0.3;
   cursor: not-allowed;
 }
-.dcell-cup-covered {
-  background-color: #6b4226;
-  border-color: #553218;
-}
-.dice-cup-label-covered {
-  background-color: #6b4226;
-  border-color: #553218;
-  color: #d4a86a;
-}
 .dice-placeholder {
   visibility: hidden;
 }
@@ -409,14 +401,12 @@ body {
 }
 .dice-turn-buttons {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
   align-self: center;
-}
-.dice-turn-buttons .btn {
-  white-space: nowrap;
+  flex-shrink: 0;
+  min-width: 70px;
 }
 .dice-turn-buttons .containerturner {
+  width: 70px;
   background-color: #ddd;
   border-radius: 10px;
 }
@@ -438,6 +428,9 @@ body {
   .dcell {
     width: 100px;
     height: 80px;
+  }
+  .dice-turn-buttons {
+    min-width: 80px;
   }
   .dice-turn-buttons .containerturner {
     width: 80px;
@@ -486,15 +479,17 @@ body {
   .dice-cup-control {
     flex: 4 1 0;
     min-width: 0;
+    flex-shrink: 1;
   }
   .dice-turn-buttons {
     flex: 1 1 0;
     min-width: 0;
     align-self: center;
+    flex-shrink: 0;
   }
   .dice-turn-buttons .containerturner {
     width: 100%;
-    max-width: 80px;
+    max-width: 60px;
   }
   .dcell {
     width: auto;
