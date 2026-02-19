@@ -1141,7 +1141,7 @@
       row.style.position = '';
       row.style.willChange = '';
       var tds = row.querySelectorAll('td');
-      for (var c = 0; c < tds.length; c++) { tds[c].style.position = ''; tds[c].style.zIndex = ''; }
+      for (var c = 0; c < tds.length; c++) { tds[c].style.position = ''; tds[c].style.zIndex = ''; tds[c].style.backgroundColor = ''; }
     }
     var tb = document.getElementById('game_tbody');
     if (tb) tb.style.isolation = '';
@@ -1261,10 +1261,15 @@
       row.style.position = 'relative';
       row.style.willChange = 'transform, opacity';
       var zVal = isUpper ? '0' : '10';
+      var rowBg = 'var(--bg-primary)';
+      if (row.classList.contains('row-active-turn')) rowBg = 'var(--highlight-row)';
+      else if (row.classList.contains('row-passive')) rowBg = 'var(--passive-row)';
+      else if (row.classList.contains('row-stripe')) rowBg = 'var(--table-stripe-bg)';
       var cells = row.querySelectorAll('td');
       for (var c = 0; c < cells.length; c++) {
         cells[c].style.position = 'relative';
         cells[c].style.zIndex = zVal;
+        cells[c].style.backgroundColor = rowBg;
       }
 
       // Smooth arc: ease-in to midpoint, ease-out to landing.
@@ -1311,7 +1316,7 @@
         r.style.position = '';
         r.style.willChange = '';
         var tds = r.querySelectorAll('td');
-        for (var c = 0; c < tds.length; c++) { tds[c].style.position = ''; tds[c].style.zIndex = ''; }
+        for (var c = 0; c < tds.length; c++) { tds[c].style.position = ''; tds[c].style.zIndex = ''; tds[c].style.backgroundColor = ''; }
       }
       tbody.style.isolation = '';
       _runningAnims = [];
@@ -1325,7 +1330,7 @@
         if (r) {
           r.style.transform = ''; r.style.position = ''; r.style.willChange = '';
           var tds = r.querySelectorAll('td');
-          for (var c = 0; c < tds.length; c++) { tds[c].style.position = ''; tds[c].style.zIndex = ''; }
+          for (var c = 0; c < tds.length; c++) { tds[c].style.position = ''; tds[c].style.zIndex = ''; tds[c].style.backgroundColor = ''; }
         }
       }
       tbody.style.isolation = '';
