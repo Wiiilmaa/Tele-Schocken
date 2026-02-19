@@ -1139,8 +1139,9 @@
       var row = _runningAnims[i].row;
       row.style.transform = '';
       row.style.position = '';
-      row.style.zIndex = '';
       row.style.willChange = '';
+      var tds = row.querySelectorAll('td');
+      for (var c = 0; c < tds.length; c++) { tds[c].style.position = ''; tds[c].style.zIndex = ''; }
     }
     var tb = document.getElementById('game_tbody');
     if (tb) tb.style.isolation = '';
@@ -1258,8 +1259,13 @@
       var isUpper = groupMap[uid] === 'upper';
 
       row.style.position = 'relative';
-      row.style.zIndex = isUpper ? '0' : '10';
       row.style.willChange = 'transform, opacity';
+      var zVal = isUpper ? '0' : '10';
+      var cells = row.querySelectorAll('td');
+      for (var c = 0; c < cells.length; c++) {
+        cells[c].style.position = 'relative';
+        cells[c].style.zIndex = zVal;
+      }
 
       // Smooth arc: ease-in to midpoint, ease-out to landing.
       // The per-keyframe easings create velocity continuity at the
@@ -1303,8 +1309,9 @@
         var r = _runningAnims[i].row;
         r.style.transform = '';
         r.style.position = '';
-        r.style.zIndex = '';
         r.style.willChange = '';
+        var tds = r.querySelectorAll('td');
+        for (var c = 0; c < tds.length; c++) { tds[c].style.position = ''; tds[c].style.zIndex = ''; }
       }
       tbody.style.isolation = '';
       _runningAnims = [];
@@ -1315,7 +1322,11 @@
     }).catch(function() {
       for (var i = 0; i < _runningAnims.length; i++) {
         var r = _runningAnims[i].row;
-        if (r) { r.style.transform = ''; r.style.position = ''; r.style.zIndex = ''; r.style.willChange = ''; }
+        if (r) {
+          r.style.transform = ''; r.style.position = ''; r.style.willChange = '';
+          var tds = r.querySelectorAll('td');
+          for (var c = 0; c < tds.length; c++) { tds[c].style.position = ''; tds[c].style.zIndex = ''; }
+        }
       }
       tbody.style.isolation = '';
       _runningAnims = [];
