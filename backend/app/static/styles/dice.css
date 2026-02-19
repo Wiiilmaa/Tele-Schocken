@@ -120,10 +120,10 @@ body {
 
 /* Mobile: smaller dice and hide less critical columns */
 @media (max-width: 575px) {
-  /* Smaller fonts in top status area */
-  #Message { font-size: 16px; }
-  #StackChips_id, #throw_id, #waiting_id, #game_phase_text { font-size: 14px; }
-  #ownuser { font-size: 18px; }
+  /* Smaller fonts and tighter spacing in top status area */
+  #Message { font-size: 16px; margin: 4px 0; }
+  #StackChips_id, #throw_id, #waiting_id, #game_phase_text { font-size: 14px; margin: 2px 0; }
+  #ownuser { font-size: 18px; margin: 4px 0 2px; }
   .dice {
     width: 36px;
     height: 36px;
@@ -409,14 +409,11 @@ body {
 }
 .dice-turn-buttons {
   display: flex;
-  flex-direction: column;
   gap: 6px;
-  align-self: center;
-}
-.dice-turn-buttons .btn {
-  white-space: nowrap;
+  margin-top: 6px;
 }
 .dice-turn-buttons .containerturner {
+  width: 70px;
   background-color: #ddd;
   border-radius: 10px;
 }
@@ -487,14 +484,8 @@ body {
     flex: 4 1 0;
     min-width: 0;
   }
-  .dice-turn-buttons {
-    flex: 1 1 0;
-    min-width: 0;
-    align-self: center;
-  }
   .dice-turn-buttons .containerturner {
-    width: 100%;
-    max-width: 80px;
+    width: 60px;
   }
   .dcell {
     width: auto;

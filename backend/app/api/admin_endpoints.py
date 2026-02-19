@@ -10,6 +10,7 @@ from random import choice
 from jinja2 import utils
 
 import json
+import threading
 from app.api.errors import bad_request
 from app.rulesets import get_all_rulesets, get_ruleset
 from app.scoring import calculate_scoring
@@ -182,6 +183,37 @@ def list_rulesets():
 
 
 # Create new Game
+def _cleanup_old_games(app):
+    """Background cleanup of old games (same logic as create-statistics CLI)."""
+    from app.models import Statistic
+    from datetime import datetime
+    from dateutil.relativedelta import relativedelta
+    with app.app_context():
+        try:
+            one_day = datetime.now() + relativedelta(days=-1)
+            old_games = db.session.query(Game).filter(Game.refreshed <= one_day).all()
+            for old_game in old_games:
+                stat = Statistic()
+                stat.usercount = len(old_game.users)
+                stat.started = old_game.started
+                stat.refreshed = old_game.refreshed
+                stat.halfcount = old_game.halfcount
+                stat.schockoutcount = old_game.schockoutcount
+                stat.fallling_dice_count = old_game.fallling_dice_count
+                stat.changs_of_fallling_dice = old_game.changs_of_fallling_dice
+                stat.throw_dice_count = old_game.throw_dice_count
+                stat.stack_max = old_game.stack_max
+                stat.play_final = old_game.play_final
+                stat.finalcount = old_game.finalcount
+                db.session.add(stat)
+                for user in old_game.users:
+                    db.session.delete(user)
+                db.session.delete(old_game)
+                db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+
 @bp.route('/game', methods=['POST'])
 def create_Game():
     """Create a new Game the creator is the Admin"""
@@ -208,6 +240,9 @@ def create_Game():
         db.session.commit()
         response = jsonify(Link='tele-schocken.de/{}'.format(game.UUID), UUID=game.UUID, Admin_Id=user.id)
         response.status_code = 201
+        from flask import current_app
+        app = current_app._get_current_object()
+        threading.Thread(target=_cleanup_old_games, args=(app,), daemon=True).start()
     return response
 
 

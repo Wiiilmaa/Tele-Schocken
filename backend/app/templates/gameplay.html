@@ -55,7 +55,7 @@
                 </div>
               </div>
               <div class="controls-center">
-                <div class="containercup">
+                <div class="containercup" id="btn_pullup_container">
                   <img src="{{ url_for('static', filename = 'image/pulldiceup.svg')}}" alt="pull dice cup up">
                   <button onclick="pullup()" class="btn" title="Aufdecken">Aufdecken</button>
                   <p style="text-align: center">Aufdecken</p>
@@ -86,15 +86,15 @@
                 <div class="dcell dcell-out" id="dcell4"></div>
                 <div class="dcell dcell-out" id="dcell5"></div>
               </div>
-              <div class="dice-turn-buttons" id="dice_turn_buttons">
-                <div id="btn_turn_2" class="containerturner" style="display:none">
-                  <img src="{{ url_for('static', filename = 'image/2_6er.svg')}}" alt="Zwei Sechsen zu Eins">
-                  <button onclick="turnSixes(1)" class="btn" title="Zwei Sechsen zu Eins"></button>
-                </div>
-                <div id="btn_turn_3" class="containerturner" style="display:none">
-                  <img src="{{ url_for('static', filename = 'image/3_6er.svg')}}" alt="Drei Sechsen zu zwei Einsen">
-                  <button onclick="turnSixes(2)" class="btn" title="Drei Sechsen zu zwei Einsen"></button>
-                </div>
+            </div>
+            <div class="dice-turn-buttons" id="dice_turn_buttons">
+              <div id="btn_turn_2" class="containerturner" style="display:none">
+                <img src="{{ url_for('static', filename = 'image/2_6er.svg')}}" alt="Zwei Sechsen zu Eins">
+                <button onclick="turnSixes(1)" class="btn" title="Zwei Sechsen zu Eins"></button>
+              </div>
+              <div id="btn_turn_3" class="containerturner" style="display:none">
+                <img src="{{ url_for('static', filename = 'image/3_6er.svg')}}" alt="Drei Sechsen zu zwei Einsen">
+                <button onclick="turnSixes(2)" class="btn" title="Drei Sechsen zu zwei Einsen"></button>
               </div>
             </div>
           </div>
@@ -601,6 +601,117 @@
     }, ANIM_DURATION + maxDelay + 100);
   }
 
+  var _lastRollAnimTimer = null;
+
+  function cancelLastRollAnim() {
+    if (_lastRollAnimTimer) {
+      clearTimeout(_lastRollAnimTimer);
+      _lastRollAnimTimer = null;
+    }
+    _diceAnimating = false;
+  }
+
+  function animateLastRoll(oldValues, inCup) {
+    var ANIM_DURATION = 1500;
+    var pending = 0;
+    for (var i = 0; i < 3; i++) {
+      if (inCup[i]) pending++;
+    }
+    if (pending === 0) {
+      _diceHiddenAfterRoll = true;
+      renderDiceCup();
+      return;
+    }
+
+    _diceAnimating = true;
+
+    var cupLabel = document.querySelector('.dice-cup-label');
+
+    for (var i = 0; i < 3; i++) {
+      if (!inCup[i]) continue;
+
+      (function(idx) {
+        var cupCell = document.getElementById('dcell' + idx);
+        cupCell.innerHTML = '';
+        cupCell.className = 'dcell dcell-cup';
+
+        var randomTarget = Math.ceil(Math.random() * 6);
+
+        var scene = document.createElement('div');
+        scene.className = 'dice-3d-scene';
+        var cube = document.createElement('div');
+        cube.className = 'dice-3d-cube';
+        scene.appendChild(cube);
+        cupCell.appendChild(scene);
+
+        var size = scene.offsetWidth;
+        if (!size || size < 10) size = 50;
+        var half = size / 2;
+
+        var faceTransforms = [
+          'translateZ(' + half + 'px)',
+          'rotateY(90deg) translateZ(' + half + 'px)',
+          'rotateX(-90deg) translateZ(' + half + 'px)',
+          'rotateX(90deg) translateZ(' + half + 'px)',
+          'rotateY(-90deg) translateZ(' + half + 'px)',
+          'rotateY(180deg) translateZ(' + half + 'px)'
+        ];
+
+        for (var face = 1; face <= 6; face++) {
+          var faceEl = dicehelper(face);
+          if (!faceEl) continue;
+          faceEl.style.position = 'absolute';
+          faceEl.style.top = '0';
+          faceEl.style.left = '0';
+          faceEl.style.width = '100%';
+          faceEl.style.height = '100%';
+          faceEl.style.margin = '0';
+          faceEl.style.boxSizing = 'border-box';
+          faceEl.style.backfaceVisibility = 'hidden';
+          faceEl.style.webkitBackfaceVisibility = 'hidden';
+          faceEl.style.transform = faceTransforms[face - 1];
+          cube.appendChild(faceEl);
+        }
+
+        var oldFace = (oldValues[idx] > 0 && oldValues[idx] <= 6) ? oldValues[idx] : Math.ceil(Math.random() * 6);
+        var oldRot = DICE_FACE_ROTATION[oldFace];
+        var newRot = DICE_FACE_ROTATION[randomTarget];
+
+        cube.style.transform = 'rotateX(' + oldRot.x + 'deg) rotateY(' + oldRot.y + 'deg)';
+
+        setTimeout(function() {
+          void cube.offsetHeight;
+          var spinsX = (Math.floor(Math.random() * 3) + 2) * 360;
+          var spinsY = (Math.floor(Math.random() * 3) + 2) * 360;
+          var dirX = Math.random() > 0.5 ? 1 : -1;
+          var dirY = Math.random() > 0.5 ? 1 : -1;
+
+          cube.style.transition = 'transform ' + ANIM_DURATION + 'ms linear';
+          cube.style.transform = 'rotateX(' + (newRot.x + spinsX * dirX) + 'deg) rotateY(' + (newRot.y + spinsY * dirY) + 'deg)';
+
+          scene.style.transition = 'opacity ' + ANIM_DURATION + 'ms ease-in';
+          scene.style.opacity = '0';
+        }, 30);
+
+        cupCell.style.transition = 'background-color ' + ANIM_DURATION + 'ms ease-in';
+        cupCell.style.backgroundColor = '#6b4226';
+      })(i);
+    }
+
+    if (cupLabel) {
+      cupLabel.style.transition = 'background-color ' + ANIM_DURATION + 'ms ease-in, color ' + ANIM_DURATION + 'ms ease-in';
+      cupLabel.style.backgroundColor = '#6b4226';
+      cupLabel.style.color = '#a08060';
+    }
+
+    _lastRollAnimTimer = setTimeout(function() {
+      _lastRollAnimTimer = null;
+      _diceAnimating = false;
+      _diceHiddenAfterRoll = true;
+      renderDiceCup();
+    }, ANIM_DURATION + 100);
+  }
+
   // C4: Check if any non-passive, non-pending user still has hidden dice
   function isUndecided(game) {
     var undecided = false;
@@ -633,9 +744,16 @@
       cell.innerHTML = '';
       cell.onclick = null;
       cell.className = (i < 3) ? 'dcell dcell-cup' : 'dcell dcell-out';
+      cell.style.transition = '';
+      cell.style.backgroundColor = '';
     }
 
     var cupLabel = document.querySelector('.dice-cup-label');
+    if (cupLabel) {
+      cupLabel.style.transition = '';
+      cupLabel.style.backgroundColor = '';
+      cupLabel.style.color = '';
+    }
     if (_diceHiddenAfterRoll) {
       for (var i = 0; i < 3; i++) {
         document.getElementById('dcell' + i).classList.add('dcell-cup-covered');
@@ -722,8 +840,11 @@
     var canRoll = amFirst ? me.Number_Dice < 3 : me.Number_Dice < firstDiceCount;
     if (!canRoll) return;
 
-    if (sixes >= 2) btn2.style.display = '';
-    if (sixes >= 3) btn3.style.display = '';
+    if (sixes >= 3) {
+      btn3.style.display = '';
+    } else if (sixes >= 2) {
+      btn2.style.display = '';
+    }
   }
 
   function turnSixes(count) {
@@ -865,7 +986,7 @@
 
             if (isLastRoll) {
               _diceHiddenAfterRoll = true;
-              renderDiceCup();
+              animateLastRoll(oldDiceValues, rolledInCup);
             } else {
               _diceHiddenAfterRoll = false;
               animateDiceCupRoll(oldDiceValues, _myDiceValues, rolledInCup);
@@ -922,6 +1043,7 @@
   }
 
   function pullup() {
+    cancelLastRollAnim();
     var id = localStorage.getItem('id');
     var gameid = getGameId();
     var xhttp = new XMLHttpRequest();
@@ -1624,7 +1746,9 @@
 
     // End/Pause button logic
     var btnEP = document.getElementById('btn_endpause');
+    var controlsRight = document.querySelector('.controls-right');
     var gameControls = document.getElementById('game_controls');
+    var onlyTwoPlayers = (activePlayerCount <= 2);
     if (btnEP && me_data) {
       var isMyTurn = (id == waiting_user_id);
       var myDiceCount = me_data.Number_Dice;
@@ -1656,7 +1780,9 @@
         btnEP.setAttribute('data-mode', 'pause');
         btnEP.className = 'btn btn-primary btn-endpause';
 
-        if (game_state == 'playfinal') {
+        if (onlyTwoPlayers) {
+          btnEP.disabled = true;
+        } else if (game_state == 'playfinal') {
           // Finale: pause is never allowed
           btnEP.disabled = true;
         } else if (notEnoughPlayers) {
@@ -1701,6 +1827,17 @@
     } else {
       throwbutton.className = 'buttongray containerturner';
       throwbutton.disabled = false;
+    }
+
+    // Aufdecken button: green when waiting for reveal and player has hidden dice
+    var pullupBtn = document.getElementById('btn_pullup_container');
+    if (pullupBtn) {
+      var myDicesRevealed = me_data && me_data.Dices && me_data.Dices.length >= 3;
+      if (needsReveal && me_data && me_data.Number_Dice > 0 && !myDicesRevealed) {
+        pullupBtn.className = 'buttongreen containercup';
+      } else {
+        pullupBtn.className = 'containercup';
+      }
     }
 
     // Unified round status row
