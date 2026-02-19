@@ -393,15 +393,6 @@ body {
   opacity: 0.3;
   cursor: not-allowed;
 }
-.dcell-cup-covered {
-  background-color: #6b4226;
-  border-color: #553218;
-}
-.dice-cup-label-covered {
-  background-color: #6b4226;
-  border-color: #553218;
-  color: #d4a86a;
-}
 .dice-placeholder {
   visibility: hidden;
 }

@@ -625,17 +625,6 @@
 
     _diceAnimating = true;
 
-    var cupLabel = document.querySelector('.dice-cup-label');
-
-    // Transition ALL cup cells (0-2) to dark brown, even empty ones
-    // Target colors must match dcell-cup-covered CSS class exactly
-    for (var i = 0; i < 3; i++) {
-      var cell = document.getElementById('dcell' + i);
-      cell.style.transition = 'background-color ' + ANIM_DURATION + 'ms ease-in, border-color ' + ANIM_DURATION + 'ms ease-in';
-      cell.style.backgroundColor = '#6b4226';
-      cell.style.borderColor = '#553218';
-    }
-
     for (var i = 0; i < 3; i++) {
       if (!inCup[i]) continue;
 
@@ -704,14 +693,6 @@
       })(i);
     }
 
-    // Target colors must match dice-cup-label-covered CSS class exactly
-    if (cupLabel) {
-      cupLabel.style.transition = 'background-color ' + ANIM_DURATION + 'ms ease-in, color ' + ANIM_DURATION + 'ms ease-in, border-color ' + ANIM_DURATION + 'ms ease-in';
-      cupLabel.style.backgroundColor = '#6b4226';
-      cupLabel.style.color = '#d4a86a';
-      cupLabel.style.borderColor = '#553218';
-    }
-
     _lastRollAnimTimer = setTimeout(function() {
       _lastRollAnimTimer = null;
       _diceAnimating = false;
@@ -747,32 +728,11 @@
   }
 
   function renderDiceCup() {
-    var coveredCup = _diceHiddenAfterRoll;
     for (var i = 0; i < 6; i++) {
       var cell = document.getElementById('dcell' + i);
       cell.innerHTML = '';
       cell.onclick = null;
-      if (i < 3) {
-        cell.className = coveredCup ? 'dcell dcell-cup dcell-cup-covered' : 'dcell dcell-cup';
-      } else {
-        cell.className = 'dcell dcell-out';
-      }
-      cell.style.transition = '';
-      cell.style.backgroundColor = '';
-      cell.style.borderColor = '';
-    }
-
-    var cupLabel = document.querySelector('.dice-cup-label');
-    if (cupLabel) {
-      if (coveredCup) {
-        cupLabel.classList.add('dice-cup-label-covered');
-      } else {
-        cupLabel.classList.remove('dice-cup-label-covered');
-      }
-      cupLabel.style.transition = '';
-      cupLabel.style.backgroundColor = '';
-      cupLabel.style.color = '';
-      cupLabel.style.borderColor = '';
+      cell.className = (i < 3) ? 'dcell dcell-cup' : 'dcell dcell-out';
     }
 
     for (var i = 0; i < 3; i++) {
