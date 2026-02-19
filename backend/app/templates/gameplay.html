@@ -1137,12 +1137,11 @@
     for (var i = 0; i < _runningAnims.length; i++) {
       _runningAnims[i].anim.cancel();
       var el = _runningAnims[i].row;
-      if (_runningAnims[i].isGhost) {
+      if (_runningAnims[i].isDeparting) {
         if (el.parentNode) el.parentNode.removeChild(el);
       } else {
         el.style.transform = '';
         el.style.position = '';
-        el.style.zIndex = '';
         el.style.willChange = '';
       }
     }
@@ -1173,88 +1172,99 @@
     _tableAnimating = true;
     _runningAnims = [];
 
-    // ---- Phase 1: Ghost overlays for departing rows ----
-    var ghosts = [];
+    // ---- Phase 1: Collect departing rows ----
+    // Departing rows stay in the DOM as real <tr> elements during animation.
+    // They fly left while remaining rows animate to their new positions.
+    var departingRows = [];
     for (var ri = 0; ri < removedIds.length; ri++) {
-      var ruid = removedIds[ri];
-      var rRow = document.getElementById('row' + ruid);
-      if (!rRow || !oldSnapshot[ruid]) continue;
-
-      var rect = oldSnapshot[ruid];
-      var wrapper = document.createElement('div');
-      wrapper.style.cssText = 'position:fixed;top:' + rect.top + 'px;left:'
-        + rect.left + 'px;width:' + rect.width + 'px;height:'
-        + rect.height + 'px;z-index:10000;pointer-events:none;overflow:hidden;';
-
-      var tbl = document.createElement('table');
-      tbl.className = 'table table-sm';
-      tbl.style.cssText = 'width:100%;margin:0;border-collapse:collapse;';
-      var cTbody = document.createElement('tbody');
-      var cRow = rRow.cloneNode(true);
-      cRow.removeAttribute('id');
-      var idEls = cRow.querySelectorAll('[id]');
-      for (var k = 0; k < idEls.length; k++) idEls[k].removeAttribute('id');
-      cTbody.appendChild(cRow);
-      tbl.appendChild(cTbody);
-      wrapper.appendChild(tbl);
-      document.body.appendChild(wrapper);
-      ghosts.push(wrapper);
-
-      if (rRow.parentNode) rRow.parentNode.removeChild(rRow);
+      var rRow = document.getElementById('row' + removedIds[ri]);
+      if (rRow) departingRows.push(rRow);
     }
 
-    // ---- Phase 2: Reorder DOM to final desired order ----
+    // ---- Phase 2: Measure positions ----
+    // Working order = current DOM (includes departing rows + new rows at end).
+    var workingOrder = getOrderIds(tbody);
+
+    var currentPositions = {};
+    for (var woi = 0; woi < workingOrder.length; woi++) {
+      var wuid = workingOrder[woi];
+      var wRow = document.getElementById('row' + wuid);
+      if (wRow) currentPositions[wuid] = wRow.getBoundingClientRect().top;
+    }
+
+    // Hide departing rows from layout, temporarily reorder to desired,
+    // measure target positions, then restore — all synchronous, no paint.
+    for (var hi = 0; hi < departingRows.length; hi++)
+      departingRows[hi].style.display = 'none';
+
     for (var di = 0; di < desiredOrder.length; di++) {
       var dr = document.getElementById('row' + desiredOrder[di]);
       if (dr) tbody.appendChild(dr);
     }
-
-    // ---- Phase 3: Record new (LAST) positions ----
-    var newPositions = {};
-    for (var ni = 0; ni < desiredOrder.length; ni++) {
-      var nuid = desiredOrder[ni];
-      var nRow = document.getElementById('row' + nuid);
-      if (nRow) newPositions[nuid] = nRow.getBoundingClientRect();
+    var targetPositions = {};
+    for (var ti = 0; ti < desiredOrder.length; ti++) {
+      var tuid = desiredOrder[ti];
+      var tRow = document.getElementById('row' + tuid);
+      if (tRow) targetPositions[tuid] = tRow.getBoundingClientRect().top;
     }
 
-    // ---- Phase 4: Calculate FLIP deltas ----
+    // Restore: show departing rows, restore working order
+    for (var shi = 0; shi < departingRows.length; shi++)
+      departingRows[shi].style.display = '';
+
+    for (var roi = 0; roi < workingOrder.length; roi++) {
+      var rr = document.getElementById('row' + workingOrder[roi]);
+      if (rr) tbody.appendChild(rr);
+    }
+
+    // ---- Phase 3: Calculate animation offsets ----
     var lastOldBottom = 0;
     for (var sk in oldSnapshot) {
       var sb = oldSnapshot[sk].top + oldSnapshot[sk].height;
       if (sb > lastOldBottom) lastOldBottom = sb;
     }
 
-    var flipData = [];
-    for (var fi = 0; fi < desiredOrder.length; fi++) {
-      var fuid = desiredOrder[fi];
-      var fRow = document.getElementById('row' + fuid);
-      if (!fRow || !newPositions[fuid]) continue;
+    var SETTLE_THRESHOLD = 15;
+    var animData = [];
+    for (var ai = 0; ai < desiredOrder.length; ai++) {
+      var auid = desiredOrder[ai];
+      var aRow = document.getElementById('row' + auid);
+      if (!aRow || currentPositions[auid] === undefined
+          || targetPositions[auid] === undefined) continue;
 
-      var deltaY;
-      if (oldSnapshot[fuid]) {
-        deltaY = oldSnapshot[fuid].top - newPositions[fuid].top;
-      } else if (removedIds.length > 0) {
-        deltaY = lastOldBottom - newPositions[fuid].top;
-      } else {
-        deltaY = 0;
-      }
-      if (Math.abs(deltaY) < 1) continue;
+      var oldTop = oldSnapshot[auid] ? oldSnapshot[auid].top : lastOldBottom;
+      var curTop = currentPositions[auid];
+      var tgtTop = targetPositions[auid];
 
-      flipData.push({
-        uid: fuid,
-        row: fRow,
-        deltaY: deltaY,
-        oldTop: oldSnapshot[fuid] ? oldSnapshot[fuid].top : lastOldBottom
+      var startOff = oldTop - curTop;
+      var endOff   = tgtTop - curTop;
+
+      if (Math.abs(startOff) < 1 && Math.abs(endOff) < 1) continue;
+
+      animData.push({
+        uid: auid, row: aRow,
+        startOff: startOff, endOff: endOff,
+        direction: tgtTop - oldTop,
+        travelDist: Math.abs(endOff - startOff),
+        oldTop: oldTop
       });
     }
 
-    // ---- Phase 5: Stagger order (upper/lower groups) ----
+    // ---- Phase 4: Stagger order (upper/lower groups) ----
     var upper = [];
     var lower = [];
-    for (var gi = 0; gi < flipData.length; gi++) {
-      if (flipData[gi].deltaY < 0) upper.push(flipData[gi]);
-      else lower.push(flipData[gi]);
+    var settlers = [];
+    for (var gi = 0; gi < animData.length; gi++) {
+      var ad = animData[gi];
+      if (ad.travelDist < SETTLE_THRESHOLD) {
+        settlers.push(ad);
+      } else if (ad.direction > 0) {
+        upper.push(ad);
+      } else {
+        lower.push(ad);
+      }
     }
+
     upper.sort(function(a, b) { return b.oldTop - a.oldTop; });
     lower.sort(function(a, b) { return a.oldTop - b.oldTop; });
 
@@ -1276,44 +1286,60 @@
     var stagger = totalRows > 0 ? Math.max(55, Math.min(120, 500 / totalRows)) : 80;
     var flightMs = totalRows > 0 ? Math.max(750, Math.min(1300, 550 + totalRows * 80)) : 800;
 
-    // ---- Phase 6: Animate ghosts flying left ----
-    var ghostDelay = 0;
-    for (var ghi = 0; ghi < ghosts.length; ghi++) {
-      var gAnim = ghosts[ghi].animate([
-        { transform: 'translateX(0)', opacity: 1 },
-        { transform: 'translateX(-120%)', opacity: 0 }
-      ], { duration: 400, delay: ghostDelay, easing: 'cubic-bezier(0.4, 0, 1, 1)', fill: 'forwards' });
-      _runningAnims.push({ anim: gAnim, row: ghosts[ghi], isGhost: true });
-      ghostDelay += 60;
+    // ---- Phase 5: Animate departing rows flying left ----
+    var departDelay = 0;
+    for (var dri = 0; dri < departingRows.length; dri++) {
+      var dRow = departingRows[dri];
+      dRow.style.position = 'relative';
+      dRow.style.willChange = 'transform, opacity';
+      dRow.style.pointerEvents = 'none';
+      var dAnim = dRow.animate([
+        { transform: 'translateX(0)',     opacity: 1, offset: 0 },
+        { transform: 'translateX(-60%)',  opacity: 1, offset: 0.4 },
+        { transform: 'translateX(-120%)', opacity: 0, offset: 1.0 }
+      ], { duration: 500, delay: departDelay, easing: 'cubic-bezier(0.25, 0, 0.9, 0.3)', fill: 'forwards' });
+      _runningAnims.push({ anim: dAnim, row: dRow, isDeparting: true });
+      departDelay += 60;
     }
 
-    // ---- Phase 7: FLIP animate moved rows ----
-    var flipBaseDelay = removedIds.length > 0 ? 200 : 0;
+    // ---- Phase 6a: Settle animations (rows shifted by removals only) ----
+    var baseDelay = removedIds.length > 0 ? 200 : 0;
+    for (var sti = 0; sti < settlers.length; sti++) {
+      var s = settlers[sti];
+      s.row.style.position = 'relative';
+      s.row.style.willChange = 'transform';
+      var sAnim = s.row.animate([
+        { transform: 'translateY(' + s.startOff + 'px)' },
+        { transform: 'translateY(' + s.endOff + 'px)' }
+      ], { duration: flightMs, delay: baseDelay, easing: 'ease-in-out', fill: 'both' });
+      _runningAnims.push({ anim: sAnim, row: s.row });
+    }
 
+    // ---- Phase 6b: Forward animate movers ----
+    // DOM stays in working (old) order → natural table stacking gives
+    // lower-group rows (later in DOM) the foreground. No z-index needed.
     for (var si = 0; si < sequence.length; si++) {
       var fd = sequence[si];
       var row = fd.row;
-      var dY = fd.deltaY;
-      var delay = flipBaseDelay + si * stagger;
-      var isUpper = dY < 0;
+      var delay = baseDelay + si * stagger;
+      var isUpper = fd.direction > 0;
 
       row.style.position = 'relative';
       row.style.willChange = 'transform, opacity';
-      row.style.zIndex = isUpper ? '0' : '10';
 
-      var halfDY = (dY * 0.5).toFixed(1);
+      var midOff = ((fd.startOff + fd.endOff) / 2).toFixed(1);
       var kf;
       if (isUpper) {
         kf = [
-          { transform: 'translateY(' + dY + 'px) scale(1)',       opacity: 1,   offset: 0,   easing: 'cubic-bezier(0.4, 0, 0.7, 0.4)' },
-          { transform: 'translateY(' + halfDY + 'px) scale(0.95)', opacity: 0.8, offset: 0.5, easing: 'cubic-bezier(0.3, 0.6, 0.6, 1)' },
-          { transform: 'translateY(0px) scale(1)',                  opacity: 1,   offset: 1.0 }
+          { transform: 'translateY(' + fd.startOff + 'px) scale(1)',  opacity: 1,   offset: 0,   easing: 'cubic-bezier(0.4, 0, 0.7, 0.4)' },
+          { transform: 'translateY(' + midOff + 'px) scale(0.95)',    opacity: 0.8, offset: 0.5, easing: 'cubic-bezier(0.3, 0.6, 0.6, 1)' },
+          { transform: 'translateY(' + fd.endOff + 'px) scale(1)',    opacity: 1,   offset: 1.0 }
         ];
       } else {
         kf = [
-          { transform: 'translateY(' + dY + 'px) scale(1)',        opacity: 1, offset: 0,   easing: 'cubic-bezier(0.4, 0, 0.7, 0.4)' },
-          { transform: 'translateY(' + halfDY + 'px) scale(1.04)', opacity: 1, offset: 0.5, easing: 'cubic-bezier(0.3, 0.6, 0.6, 1)' },
-          { transform: 'translateY(0px) scale(1)',                  opacity: 1, offset: 1.0 }
+          { transform: 'translateY(' + fd.startOff + 'px) scale(1)',  opacity: 1, offset: 0,   easing: 'cubic-bezier(0.4, 0, 0.7, 0.4)' },
+          { transform: 'translateY(' + midOff + 'px) scale(1.04)',    opacity: 1, offset: 0.5, easing: 'cubic-bezier(0.3, 0.6, 0.6, 1)' },
+          { transform: 'translateY(' + fd.endOff + 'px) scale(1)',    opacity: 1, offset: 1.0 }
         ];
       }
 
@@ -1326,50 +1352,37 @@
       _runningAnims.push({ anim: fAnim, row: row });
     }
 
-    // ---- Phase 8: Completion ----
-    if (_runningAnims.length === 0) {
+    // ---- Phase 7: Completion ----
+    function finalize() {
+      for (var i = 0; i < _runningAnims.length; i++) {
+        var a = _runningAnims[i];
+        a.anim.cancel();
+        if (a.isDeparting) {
+          if (a.row.parentNode) a.row.parentNode.removeChild(a.row);
+        } else {
+          a.row.style.transform = '';
+          a.row.style.position = '';
+          a.row.style.willChange = '';
+        }
+      }
+      for (var i = 0; i < desiredOrder.length; i++) {
+        var r = document.getElementById('row' + desiredOrder[i]);
+        if (r) tbody.appendChild(r);
+      }
+      _runningAnims = [];
       _tableAnimating = false;
       updateRowCounters(tbody);
       _tableOrder = desiredOrder.slice();
       if (onComplete) onComplete();
+    }
+
+    if (_runningAnims.length === 0) {
+      finalize();
       return;
     }
 
-    Promise.all(_runningAnims.map(function(a) { return a.anim.finished; })).then(function() {
-      for (var i = 0; i < ghosts.length; i++) {
-        if (ghosts[i].parentNode) ghosts[i].parentNode.removeChild(ghosts[i]);
-      }
-      for (var i = 0; i < _runningAnims.length; i++) {
-        if (!_runningAnims[i].isGhost) {
-          _runningAnims[i].anim.cancel();
-          _runningAnims[i].row.style.transform = '';
-          _runningAnims[i].row.style.position = '';
-          _runningAnims[i].row.style.zIndex = '';
-          _runningAnims[i].row.style.willChange = '';
-        }
-      }
-      _runningAnims = [];
-      _tableAnimating = false;
-      updateRowCounters(tbody);
-      _tableOrder = desiredOrder.slice();
-      if (onComplete) onComplete();
-    }).catch(function() {
-      for (var i = 0; i < ghosts.length; i++) {
-        if (ghosts[i].parentNode) ghosts[i].parentNode.removeChild(ghosts[i]);
-      }
-      for (var i = 0; i < _runningAnims.length; i++) {
-        if (!_runningAnims[i].isGhost) {
-          _runningAnims[i].row.style.transform = '';
-          _runningAnims[i].row.style.position = '';
-          _runningAnims[i].row.style.zIndex = '';
-          _runningAnims[i].row.style.willChange = '';
-        }
-      }
-      _runningAnims = [];
-      _tableAnimating = false;
-      _tableOrder = desiredOrder.slice();
-      if (onComplete) onComplete();
-    });
+    Promise.all(_runningAnims.map(function(a) { return a.anim.finished; }))
+      .then(finalize).catch(finalize);
   }
 
   // H2: Dynamically rebuild table rows to match game.User
