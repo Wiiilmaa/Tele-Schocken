@@ -1139,8 +1139,11 @@
       var row = _runningAnims[i].row;
       row.style.transform = '';
       row.style.position = '';
+      row.style.zIndex = '';
       row.style.willChange = '';
     }
+    var tb = document.getElementById('game_tbody');
+    if (tb) tb.style.isolation = '';
     _runningAnims = [];
     _tableAnimating = false;
   }
@@ -1212,24 +1215,6 @@
       return;
     }
 
-    // Build set of upper IDs for quick lookup
-    var isUpperId = {};
-    for (var i = 0; i < upperGroup.length; i++) isUpperId[upperGroup[i]] = true;
-
-    // Reorder DOM for correct stacking during animation:
-    // upper group first (painted behind), lower group last (painted in front).
-    // All rows have the same fixed height so positions don't shift.
-    for (var i = 0; i < newOrder.length; i++) {
-      if (isUpperId[newOrder[i]]) {
-        var r = rowEls[newOrder[i]]; if (r) tbody.appendChild(r);
-      }
-    }
-    for (var i = 0; i < newOrder.length; i++) {
-      if (!isUpperId[newOrder[i]]) {
-        var r = rowEls[newOrder[i]]; if (r) tbody.appendChild(r);
-      }
-    }
-
     // Tight stagger: rows launch shortly after each other, flying in formation
     var stagger = Math.max(55, Math.min(120, 500 / totalRows));
     var flightMs = Math.max(750, Math.min(1300, 550 + totalRows * 80));
@@ -1260,6 +1245,8 @@
       groupMap[sequence[i].uid] = sequence[i].group;
     }
 
+    tbody.style.isolation = 'isolate';
+
     _runningAnims = [];
     for (var i = 0; i < newOrder.length; i++) {
       var uid = newOrder[i];
@@ -1271,6 +1258,7 @@
       var isUpper = groupMap[uid] === 'upper';
 
       row.style.position = 'relative';
+      row.style.zIndex = isUpper ? '0' : '10';
       row.style.willChange = 'transform, opacity';
 
       // Smooth arc: ease-in to midpoint, ease-out to landing.
@@ -1315,23 +1303,21 @@
         var r = _runningAnims[i].row;
         r.style.transform = '';
         r.style.position = '';
+        r.style.zIndex = '';
         r.style.willChange = '';
       }
-      // Restore correct display order (was reordered for stacking during animation)
-      for (var i = 0; i < newOrder.length; i++) {
-        var r = rowEls[newOrder[i]];
-        if (r) tbody.appendChild(r);
-      }
+      tbody.style.isolation = '';
       _runningAnims = [];
       _tableAnimating = false;
       updateRowCounters(tbody);
       _tableOrder = newOrder.slice();
       if (onComplete) onComplete();
     }).catch(function() {
-      for (var i = 0; i < newOrder.length; i++) {
-        var r = rowEls[newOrder[i]];
-        if (r) { r.style.transform = ''; r.style.position = ''; r.style.willChange = ''; tbody.appendChild(r); }
+      for (var i = 0; i < _runningAnims.length; i++) {
+        var r = _runningAnims[i].row;
+        if (r) { r.style.transform = ''; r.style.position = ''; r.style.zIndex = ''; r.style.willChange = ''; }
       }
+      tbody.style.isolation = '';
       _runningAnims = [];
       _tableAnimating = false;
       _tableOrder = newOrder.slice();
