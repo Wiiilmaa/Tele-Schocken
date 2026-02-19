@@ -23,3 +23,5 @@ class DefaultConfig(object):
     SESSION_COOKIE_SAMESITE = 'Strict'
 
     MAX_CONTENT_LENGTH = 1024 * 1024 * 16
+
+    BOOTSTRAP_SERVE_LOCAL = True

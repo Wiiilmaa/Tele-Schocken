@@ -1,7 +1,14 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <h1>An unexpected error has occurred</h1>
-    <p>The administrator has been notified. Sorry for the inconvenience!</p>
-    <p><a href="{{ url_for('index') }}">Back</a></p>
+    <h1>Ein unerwarteter Fehler ist aufgetreten</h1>
+    <p>Der Administrator wurde benachrichtigt. Entschuldigung für die Unannehmlichkeiten!</p>
+    <p><a href="{{ url_for('index') }}">zurück zur Startseite</a> <small>(automatisch in 5 Sekunden)</small></p>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+  setTimeout(function() { window.location.href = "{{ url_for('index') }}"; }, 5000);
+</script>
 {% endblock %}

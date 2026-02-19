@@ -183,7 +183,7 @@
 {% endblock %}
 {% block scripts %}
 {{ super() }}
-<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script src="{{ url_for('static', filename='scripts/qrcode.min.js') }}"></script>
 <script>
   // Handle device switch: read params from URL and set localStorage
   (function() {
@@ -1428,16 +1428,17 @@
       if (juser.Pending_Join) secondLine += '<small>(wartet)</small> ';
       // Leave icon: green if active, gray only if user can toggle it (own or admin)
       var clickable = (juser.Id === myId || isAdmin);
+      var leaveIconSvg = '<svg viewBox="0 0 512 512" fill="currentColor" width="14" height="14"><path d="M497 273L329 441c-15 15-41 4.5-41-17v-96H152c-13.3 0-24-10.7-24-24v-96c0-13.3 10.7-24 24-24h136V88c0-21.4 25.9-32.1 41-17l168 168c9.3 9.4 9.3 24.6 0 34zM192 436v-40c0-6.6-5.4-12-12-12H96c-17.7 0-32-14.3-32-32V160c0-17.7 14.3-32 32-32h84c6.6 0 12-5.4 12-12V76c0-6.6-5.4-12-12-12H96c-53 0-96 43-96 96v192c0 53 43 96 96 96h84c6.6 0 12-5.4 12-12z"/></svg>';
       if (juser.Leave_After_Game) {
-        secondLine += '<i class="fas fa-sign-out-alt leave-icon leave-active"'
+        secondLine += '<span class="leave-icon leave-active"'
           + ' title="Verlassen vorgemerkt (klicken zum Aufheben)"'
           + (clickable ? ' onclick="toggle_leave(' + juser.Id + ')"' : '')
-          + '></i>';
+          + '>' + leaveIconSvg + '</span>';
       } else if (clickable) {
-        secondLine += '<i class="fas fa-sign-out-alt leave-icon leave-inactive"'
+        secondLine += '<span class="leave-icon leave-inactive"'
           + ' title="Nach dem Spiel verlassen"'
           + ' onclick="toggle_leave(' + juser.Id + ')"'
-          + '></i>';
+          + '>' + leaveIconSvg + '</span>';
       }
       if (secondLine) nameHtml += '<div>' + secondLine + '</div>';
       nameCell.innerHTML = nameHtml;
@@ -1868,7 +1869,7 @@
         setTimeout(function() {
           var btn = document.getElementById('reveal_all_btn');
           if (btn) btn.disabled = false;
-        }, 10000);
+        }, 15000);
       } else {
         var existingVotes = document.getElementById('reveal_votes');
         if (game.Reveal_Votes > 0) {
@@ -1975,7 +1976,7 @@
       btn.href = '#';
       btn.onclick = function(e) { e.preventDefault(); showRules(); };
       btn.title = 'Regeln';
-      btn.innerHTML = '<i class="fas fa-book"></i>';
+      btn.innerHTML = '<svg viewBox="0 0 448 512" fill="currentColor" width="16" height="16"><path d="M448 360V24c0-13.3-10.7-24-24-24H96C43 0 0 43 0 96v320c0 53 43 96 96 96h328c13.3 0 24-10.7 24-24v-16c0-8.6-4.6-16.2-11.5-20.4-4.8-12-4.8-42.2 0-54.2 6.9-4.2 11.5-11.8 11.5-20.4zM96 404c-28.4 0-48-10.2-48-28s19.6-28 48-28h288v56H96zm0-236h288v24H96v-24z"/></svg>';
       container.insertBefore(btn, container.firstChild);
     }
     var rulesModal = document.getElementById('rulesModal');
