@@ -1101,7 +1101,7 @@
     var rows = tbody.querySelectorAll('tr');
     var ids = [];
     for (var i = 0; i < rows.length; i++) {
-      if (rows[i].id && rows[i].id.startsWith('row') && !rows[i].dataset.removing) {
+      if (rows[i].id && rows[i].id.startsWith('row')) {
         ids.push(rows[i].id.replace('row', ''));
       }
     }
@@ -1119,7 +1119,7 @@
 
   function flashRowColor(rowId, cssVar) {
     var row = document.getElementById(rowId);
-    if (!row || row.dataset.removing) return;
+    if (!row) return;
     var color = getComputedStyle(document.documentElement).getPropertyValue(cssVar).trim();
     if (!color) return;
     // Animate each cell individually — <tr> background is hidden beneath
@@ -1136,195 +1136,238 @@
   function cancelTableAnimations() {
     for (var i = 0; i < _runningAnims.length; i++) {
       _runningAnims[i].anim.cancel();
-      var row = _runningAnims[i].row;
-      row.style.transform = '';
-      row.style.position = '';
-      row.style.zIndex = '';
-      row.style.willChange = '';
+      var el = _runningAnims[i].row;
+      if (_runningAnims[i].isGhost) {
+        if (el.parentNode) el.parentNode.removeChild(el);
+      } else {
+        el.style.transform = '';
+        el.style.position = '';
+        el.style.zIndex = '';
+        el.style.willChange = '';
+      }
     }
     _runningAnims = [];
     _tableAnimating = false;
   }
 
-  function animateTableReorder(tbody, oldOrder, newOrder, onComplete) {
+  function animateTableTransition(tbody, oldSnapshot, desiredOrder, removedIds, onComplete) {
     if (_tableAnimating) cancelTableAnimations();
 
-    var moved = false;
-    for (var i = 0; i < Math.max(oldOrder.length, newOrder.length); i++) {
-      if (oldOrder[i] !== newOrder[i]) { moved = true; break; }
+    // Early exit: nothing to animate
+    if (removedIds.length === 0) {
+      var curDom = getOrderIds(tbody);
+      var match = curDom.length === desiredOrder.length;
+      if (match) {
+        for (var ci = 0; ci < desiredOrder.length; ci++) {
+          if (curDom[ci] !== desiredOrder[ci]) { match = false; break; }
+        }
+      }
+      if (match) {
+        updateRowCounters(tbody);
+        _tableOrder = desiredOrder.slice();
+        if (onComplete) onComplete();
+        return;
+      }
     }
-    if (!moved) { if (onComplete) onComplete(); return; }
 
     _tableAnimating = true;
-
-    // Record current positions — DOM stays in OLD order throughout animation
-    // so the natural table stacking (later rows on top) gives the lower group
-    // (moving up) the foreground and the upper group (moving down) the background.
-    var rowEls = {};
-    var oldTops = {};
-    for (var i = 0; i < oldOrder.length; i++) {
-      var uid = oldOrder[i];
-      var row = document.getElementById('row' + uid);
-      if (row) {
-        rowEls[uid] = row;
-        oldTops[uid] = row.getBoundingClientRect().top;
-      }
-    }
-
-    // Target: newOrder[i] should end up where oldOrder[i] currently sits
-    var deltas = {};
-    var anyMoved = false;
-    for (var i = 0; i < newOrder.length; i++) {
-      var uid = newOrder[i];
-      if (!rowEls[uid] || oldTops[uid] === undefined
-          || i >= oldOrder.length || oldTops[oldOrder[i]] === undefined) {
-        deltas[uid] = 0; continue;
-      }
-      deltas[uid] = oldTops[oldOrder[i]] - oldTops[uid];
-      if (Math.abs(deltas[uid]) > 1) anyMoved = true;
-    }
-
-    function reorderDomNow() {
-      for (var i = 0; i < newOrder.length; i++) {
-        var r = rowEls[newOrder[i]];
-        if (r) tbody.appendChild(r);
-      }
-    }
-
-    if (!anyMoved) {
-      reorderDomNow();
-      _tableAnimating = false;
-      updateRowCounters(tbody);
-      _tableOrder = newOrder.slice();
-      if (onComplete) onComplete();
-      return;
-    }
-
-    var newFirstId = newOrder[0];
-    var splitIdx = oldOrder.indexOf(newFirstId);
-    if (splitIdx <= 0) {
-      reorderDomNow();
-      _tableAnimating = false;
-      updateRowCounters(tbody);
-      _tableOrder = newOrder.slice();
-      if (onComplete) onComplete();
-      return;
-    }
-
-    var upperGroup = oldOrder.slice(0, splitIdx);
-    var lowerGroup = oldOrder.slice(splitIdx);
-    var totalRows = upperGroup.length + lowerGroup.length;
-
-    if (totalRows < 2) {
-      reorderDomNow();
-      _tableAnimating = false;
-      updateRowCounters(tbody);
-      _tableOrder = newOrder.slice();
-      if (onComplete) onComplete();
-      return;
-    }
-
-    // Tight stagger: rows launch shortly after each other, flying in formation
-    var stagger = Math.max(55, Math.min(120, 500 / totalRows));
-    var flightMs = Math.max(750, Math.min(1300, 550 + totalRows * 80));
-
-    // Build alternating interleaved sequence: bottom of upper, top of lower, …
-    var sequence = [];
-    var ui = upperGroup.length - 1;
-    var li = 0;
-    var pickUpper = true;
-    while (ui >= 0 || li < lowerGroup.length) {
-      if (pickUpper && ui >= 0) {
-        sequence.push({ uid: upperGroup[ui], group: 'upper' }); ui--;
-        pickUpper = false;
-      } else if (!pickUpper && li < lowerGroup.length) {
-        sequence.push({ uid: lowerGroup[li], group: 'lower' }); li++;
-        pickUpper = true;
-      } else if (ui >= 0) {
-        sequence.push({ uid: upperGroup[ui], group: 'upper' }); ui--;
-      } else {
-        sequence.push({ uid: lowerGroup[li], group: 'lower' }); li++;
-      }
-    }
-
-    var delayMap = {};
-    var groupMap = {};
-    for (var i = 0; i < sequence.length; i++) {
-      delayMap[sequence[i].uid] = i * stagger;
-      groupMap[sequence[i].uid] = sequence[i].group;
-    }
-
-    // Animate from current position TO target position (translateY 0 → delta).
-    // DOM stays in old order so lower-group rows (later in DOM) naturally
-    // paint on top — no z-index needed.
     _runningAnims = [];
-    for (var i = 0; i < newOrder.length; i++) {
-      var uid = newOrder[i];
-      var row = rowEls[uid];
-      if (!row || Math.abs(deltas[uid] || 0) < 1) continue;
 
-      var delta = deltas[uid];
-      var delay = delayMap[uid] || 0;
-      var isUpper = groupMap[uid] === 'upper';
+    // ---- Phase 1: Ghost overlays for departing rows ----
+    var ghosts = [];
+    for (var ri = 0; ri < removedIds.length; ri++) {
+      var ruid = removedIds[ri];
+      var rRow = document.getElementById('row' + ruid);
+      if (!rRow || !oldSnapshot[ruid]) continue;
+
+      var rect = oldSnapshot[ruid];
+      var wrapper = document.createElement('div');
+      wrapper.style.cssText = 'position:fixed;top:' + rect.top + 'px;left:'
+        + rect.left + 'px;width:' + rect.width + 'px;height:'
+        + rect.height + 'px;z-index:10000;pointer-events:none;overflow:hidden;';
+
+      var tbl = document.createElement('table');
+      tbl.className = 'table table-sm';
+      tbl.style.cssText = 'width:100%;margin:0;border-collapse:collapse;';
+      var cTbody = document.createElement('tbody');
+      var cRow = rRow.cloneNode(true);
+      cRow.removeAttribute('id');
+      var idEls = cRow.querySelectorAll('[id]');
+      for (var k = 0; k < idEls.length; k++) idEls[k].removeAttribute('id');
+      cTbody.appendChild(cRow);
+      tbl.appendChild(cTbody);
+      wrapper.appendChild(tbl);
+      document.body.appendChild(wrapper);
+      ghosts.push(wrapper);
+
+      if (rRow.parentNode) rRow.parentNode.removeChild(rRow);
+    }
+
+    // ---- Phase 2: Reorder DOM to final desired order ----
+    for (var di = 0; di < desiredOrder.length; di++) {
+      var dr = document.getElementById('row' + desiredOrder[di]);
+      if (dr) tbody.appendChild(dr);
+    }
+
+    // ---- Phase 3: Record new (LAST) positions ----
+    var newPositions = {};
+    for (var ni = 0; ni < desiredOrder.length; ni++) {
+      var nuid = desiredOrder[ni];
+      var nRow = document.getElementById('row' + nuid);
+      if (nRow) newPositions[nuid] = nRow.getBoundingClientRect();
+    }
+
+    // ---- Phase 4: Calculate FLIP deltas ----
+    var lastOldBottom = 0;
+    for (var sk in oldSnapshot) {
+      var sb = oldSnapshot[sk].top + oldSnapshot[sk].height;
+      if (sb > lastOldBottom) lastOldBottom = sb;
+    }
+
+    var flipData = [];
+    for (var fi = 0; fi < desiredOrder.length; fi++) {
+      var fuid = desiredOrder[fi];
+      var fRow = document.getElementById('row' + fuid);
+      if (!fRow || !newPositions[fuid]) continue;
+
+      var deltaY;
+      if (oldSnapshot[fuid]) {
+        deltaY = oldSnapshot[fuid].top - newPositions[fuid].top;
+      } else if (removedIds.length > 0) {
+        deltaY = lastOldBottom - newPositions[fuid].top;
+      } else {
+        deltaY = 0;
+      }
+      if (Math.abs(deltaY) < 1) continue;
+
+      flipData.push({
+        uid: fuid,
+        row: fRow,
+        deltaY: deltaY,
+        oldTop: oldSnapshot[fuid] ? oldSnapshot[fuid].top : lastOldBottom
+      });
+    }
+
+    // ---- Phase 5: Stagger order (upper/lower groups) ----
+    var upper = [];
+    var lower = [];
+    for (var gi = 0; gi < flipData.length; gi++) {
+      if (flipData[gi].deltaY < 0) upper.push(flipData[gi]);
+      else lower.push(flipData[gi]);
+    }
+    upper.sort(function(a, b) { return b.oldTop - a.oldTop; });
+    lower.sort(function(a, b) { return a.oldTop - b.oldTop; });
+
+    var sequence = [];
+    var uIdx = 0, lIdx = 0, pickU = true;
+    while (uIdx < upper.length || lIdx < lower.length) {
+      if (pickU && uIdx < upper.length) {
+        sequence.push(upper[uIdx++]); pickU = false;
+      } else if (!pickU && lIdx < lower.length) {
+        sequence.push(lower[lIdx++]); pickU = true;
+      } else if (uIdx < upper.length) {
+        sequence.push(upper[uIdx++]);
+      } else {
+        sequence.push(lower[lIdx++]);
+      }
+    }
+
+    var totalRows = sequence.length;
+    var stagger = totalRows > 0 ? Math.max(55, Math.min(120, 500 / totalRows)) : 80;
+    var flightMs = totalRows > 0 ? Math.max(750, Math.min(1300, 550 + totalRows * 80)) : 800;
+
+    // ---- Phase 6: Animate ghosts flying left ----
+    var ghostDelay = 0;
+    for (var ghi = 0; ghi < ghosts.length; ghi++) {
+      var gAnim = ghosts[ghi].animate([
+        { transform: 'translateX(0)', opacity: 1 },
+        { transform: 'translateX(-120%)', opacity: 0 }
+      ], { duration: 400, delay: ghostDelay, easing: 'cubic-bezier(0.4, 0, 1, 1)', fill: 'forwards' });
+      _runningAnims.push({ anim: gAnim, row: ghosts[ghi], isGhost: true });
+      ghostDelay += 60;
+    }
+
+    // ---- Phase 7: FLIP animate moved rows ----
+    var flipBaseDelay = removedIds.length > 0 ? 200 : 0;
+
+    for (var si = 0; si < sequence.length; si++) {
+      var fd = sequence[si];
+      var row = fd.row;
+      var dY = fd.deltaY;
+      var delay = flipBaseDelay + si * stagger;
+      var isUpper = dY < 0;
 
       row.style.position = 'relative';
       row.style.willChange = 'transform, opacity';
+      row.style.zIndex = isUpper ? '0' : '10';
 
-      var halfDelta = (delta * 0.5).toFixed(1);
+      var halfDY = (dY * 0.5).toFixed(1);
       var kf;
       if (isUpper) {
         kf = [
-          { transform: 'translateY(0px) scale(1)',                    opacity: 1,   offset: 0,   easing: 'cubic-bezier(0.4, 0, 0.7, 0.4)' },
-          { transform: 'translateY(' + halfDelta + 'px) scale(0.95)', opacity: 0.8, offset: 0.5, easing: 'cubic-bezier(0.3, 0.6, 0.6, 1)' },
-          { transform: 'translateY(' + delta + 'px) scale(1)',        opacity: 1,   offset: 1.0 }
+          { transform: 'translateY(' + dY + 'px) scale(1)',       opacity: 1,   offset: 0,   easing: 'cubic-bezier(0.4, 0, 0.7, 0.4)' },
+          { transform: 'translateY(' + halfDY + 'px) scale(0.95)', opacity: 0.8, offset: 0.5, easing: 'cubic-bezier(0.3, 0.6, 0.6, 1)' },
+          { transform: 'translateY(0px) scale(1)',                  opacity: 1,   offset: 1.0 }
         ];
       } else {
         kf = [
-          { transform: 'translateY(0px) scale(1)',                     opacity: 1, offset: 0,   easing: 'cubic-bezier(0.4, 0, 0.7, 0.4)' },
-          { transform: 'translateY(' + halfDelta + 'px) scale(1.04)',  opacity: 1, offset: 0.5, easing: 'cubic-bezier(0.3, 0.6, 0.6, 1)' },
-          { transform: 'translateY(' + delta + 'px) scale(1)',         opacity: 1, offset: 1.0 }
+          { transform: 'translateY(' + dY + 'px) scale(1)',        opacity: 1, offset: 0,   easing: 'cubic-bezier(0.4, 0, 0.7, 0.4)' },
+          { transform: 'translateY(' + halfDY + 'px) scale(1.04)', opacity: 1, offset: 0.5, easing: 'cubic-bezier(0.3, 0.6, 0.6, 1)' },
+          { transform: 'translateY(0px) scale(1)',                  opacity: 1, offset: 1.0 }
         ];
       }
 
-      var anim = row.animate(kf, {
+      var fAnim = row.animate(kf, {
         duration: flightMs,
         delay: delay,
         easing: 'linear',
         fill: 'both'
       });
-      _runningAnims.push({ anim: anim, row: row });
+      _runningAnims.push({ anim: fAnim, row: row });
     }
 
+    // ---- Phase 8: Completion ----
     if (_runningAnims.length === 0) {
-      reorderDomNow();
       _tableAnimating = false;
       updateRowCounters(tbody);
-      _tableOrder = newOrder.slice();
+      _tableOrder = desiredOrder.slice();
       if (onComplete) onComplete();
       return;
     }
 
     Promise.all(_runningAnims.map(function(a) { return a.anim.finished; })).then(function() {
-      // Cancel animations + reorder DOM in one synchronous block → no flicker.
-      // Rows jump from animated end-positions to identical new DOM positions.
-      for (var i = 0; i < _runningAnims.length; i++) {
-        _runningAnims[i].anim.cancel();
-        var r = _runningAnims[i].row;
-        r.style.transform = '';
-        r.style.position = '';
-        r.style.willChange = '';
+      for (var i = 0; i < ghosts.length; i++) {
+        if (ghosts[i].parentNode) ghosts[i].parentNode.removeChild(ghosts[i]);
       }
-      reorderDomNow();
+      for (var i = 0; i < _runningAnims.length; i++) {
+        if (!_runningAnims[i].isGhost) {
+          _runningAnims[i].anim.cancel();
+          _runningAnims[i].row.style.transform = '';
+          _runningAnims[i].row.style.position = '';
+          _runningAnims[i].row.style.zIndex = '';
+          _runningAnims[i].row.style.willChange = '';
+        }
+      }
       _runningAnims = [];
       _tableAnimating = false;
       updateRowCounters(tbody);
-      _tableOrder = newOrder.slice();
+      _tableOrder = desiredOrder.slice();
       if (onComplete) onComplete();
     }).catch(function() {
-      reorderDomNow();
+      for (var i = 0; i < ghosts.length; i++) {
+        if (ghosts[i].parentNode) ghosts[i].parentNode.removeChild(ghosts[i]);
+      }
+      for (var i = 0; i < _runningAnims.length; i++) {
+        if (!_runningAnims[i].isGhost) {
+          _runningAnims[i].row.style.transform = '';
+          _runningAnims[i].row.style.position = '';
+          _runningAnims[i].row.style.zIndex = '';
+          _runningAnims[i].row.style.willChange = '';
+        }
+      }
       _runningAnims = [];
       _tableAnimating = false;
-      _tableOrder = newOrder.slice();
+      _tableOrder = desiredOrder.slice();
       if (onComplete) onComplete();
     });
   }
@@ -1352,23 +1395,6 @@
         existingRows[rowId.replace('row', '')] = rows[i];
       }
     }
-
-    // Remove rows for users no longer in game (animated fade-out)
-    var gameUserIds = {};
-    game.User.forEach(function(u) { gameUserIds[u.Id] = true; });
-    Object.keys(existingRows).forEach(function(uid) {
-      if (!gameUserIds[uid] && !existingRows[uid].dataset.removing) {
-        var row = existingRows[uid];
-        row.dataset.removing = 'true';
-        row.animate([
-          { opacity: 1, transform: 'scale(1)' },
-          { opacity: 0, transform: 'scale(0.85)' }
-        ], { duration: 350, easing: 'ease-in', fill: 'forwards' })
-        .finished.then(function() {
-          if (row.parentNode) row.parentNode.removeChild(row);
-        });
-      }
-    });
 
     // Add/update rows for each user
     game.User.forEach(function(juser, idx) {
@@ -1620,13 +1646,33 @@
 
     // H2: Update table rows dynamically
     var tbody = document.getElementById('game_tbody');
+    var desiredOrder = game.User.map(function(u) { return String(u.Id); });
+
+    // Snapshot old positions before any DOM changes
+    var oldSnapshot = {};
+    var snapshotRows = tbody.querySelectorAll('tr');
+    for (var si = 0; si < snapshotRows.length; si++) {
+      if (snapshotRows[si].id && snapshotRows[si].id.startsWith('row')) {
+        var suid = snapshotRows[si].id.replace('row', '');
+        oldSnapshot[suid] = snapshotRows[si].getBoundingClientRect();
+      }
+    }
+
+    // Detect removed users (in DOM but not in game data)
+    var gameUserIds = {};
+    game.User.forEach(function(u) { gameUserIds[String(u.Id)] = true; });
+    var removedIds = [];
+    Object.keys(oldSnapshot).forEach(function(uid) {
+      if (!gameUserIds[uid]) removedIds.push(uid);
+    });
 
     updateTableRows(game);
 
-    var desiredOrder = game.User.map(function(u) { return String(u.Id); });
-
     if (_isFirstTableLoad) {
-      // First load: reorder DOM without animation
+      removedIds.forEach(function(uid) {
+        var r = document.getElementById('row' + uid);
+        if (r && r.parentNode) r.parentNode.removeChild(r);
+      });
       for (var i = 0; i < desiredOrder.length; i++) {
         var r = document.getElementById('row' + desiredOrder[i]);
         if (r) tbody.appendChild(r);
@@ -1635,14 +1681,7 @@
       _tableOrder = desiredOrder.slice();
       _isFirstTableLoad = false;
     } else {
-      var currentDomOrder = getOrderIds(tbody);
-      var needsReorder = false;
-      for (var ni = 0; ni < desiredOrder.length; ni++) {
-        if (currentDomOrder[ni] !== desiredOrder[ni]) { needsReorder = true; break; }
-      }
-      if (needsReorder) {
-        animateTableReorder(tbody, currentDomOrder, desiredOrder);
-      }
+      animateTableTransition(tbody, oldSnapshot, desiredOrder, removedIds);
     }
 
     // C1: Restore own dice cup from server state
