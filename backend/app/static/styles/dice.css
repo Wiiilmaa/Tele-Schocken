@@ -558,8 +558,8 @@ body {
   height: 50px;
   perspective: 200px;
   margin: 2px auto;
-  -webkit-transform: translateZ(0);
   transform: translateZ(0);
+  -webkit-transform: translateZ(0);
 }
 
 .dice-3d-cube {

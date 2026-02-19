@@ -292,18 +292,9 @@
 
   function playSound(audio) {
     if (!audio) return;
-    var target;
-    if (!audio.paused && audio.currentTime > 0) {
-      try {
-        target = audio.cloneNode();
-        target.onended = function() { target.onended = null; target = null; };
-      } catch(e) { target = audio; }
-    } else {
-      target = audio;
-    }
-    target.muted = false;
-    try { target.currentTime = 0; } catch(e) {}
-    var p = target.play();
+    audio.muted = false;  // claim element (prevents unlock from pausing it)
+    try { audio.currentTime = 0; } catch(e) {}
+    var p = audio.play();
     if (p !== undefined) {
       p.catch(function(e) { console.log('Sound konnte nicht abgespielt werden:', e.message); });
     }
@@ -525,7 +516,7 @@
 
         var size = scene.offsetWidth;
         if (!size || size < 10) size = 50;
-        var half = size / 2 + 0.5;
+        var half = (size / 2 + 0.5).toFixed(1);
 
         var faceTransforms = [
           'translateZ(' + half + 'px)',
@@ -620,7 +611,7 @@
 
         var size = scene.offsetWidth;
         if (!size || size < 10) size = 50;
-        var half = size / 2 + 0.5;
+        var half = (size / 2 + 0.5).toFixed(1);
 
         var faceTransforms = [
           'translateZ(' + half + 'px)',
