@@ -412,6 +412,7 @@ body {
   display: flex;
   align-self: center;
   flex-shrink: 0;
+  min-width: 70px;
 }
 .dice-turn-buttons .containerturner {
   width: 70px;
@@ -436,6 +437,9 @@ body {
   .dcell {
     width: 100px;
     height: 80px;
+  }
+  .dice-turn-buttons {
+    min-width: 80px;
   }
   .dice-turn-buttons .containerturner {
     width: 80px;
