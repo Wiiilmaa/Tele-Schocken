@@ -332,6 +332,7 @@ body {
 .dice-cup-control {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
+  flex-shrink: 0;
 }
 .dice-cup-label {
   grid-column: 1 / 4;
@@ -409,8 +410,8 @@ body {
 }
 .dice-turn-buttons {
   display: flex;
-  gap: 6px;
-  margin-top: 6px;
+  align-self: center;
+  flex-shrink: 0;
 }
 .dice-turn-buttons .containerturner {
   width: 70px;
@@ -483,9 +484,17 @@ body {
   .dice-cup-control {
     flex: 4 1 0;
     min-width: 0;
+    flex-shrink: 1;
+  }
+  .dice-turn-buttons {
+    flex: 1 1 0;
+    min-width: 0;
+    align-self: center;
+    flex-shrink: 0;
   }
   .dice-turn-buttons .containerturner {
-    width: 60px;
+    width: 100%;
+    max-width: 60px;
   }
   .dcell {
     width: auto;

@@ -86,15 +86,15 @@
                 <div class="dcell dcell-out" id="dcell4"></div>
                 <div class="dcell dcell-out" id="dcell5"></div>
               </div>
-            </div>
-            <div class="dice-turn-buttons" id="dice_turn_buttons">
-              <div id="btn_turn_2" class="containerturner" style="display:none">
-                <img src="{{ url_for('static', filename = 'image/2_6er.svg')}}" alt="Zwei Sechsen zu Eins">
-                <button onclick="turnSixes(1)" class="btn" title="Zwei Sechsen zu Eins"></button>
-              </div>
-              <div id="btn_turn_3" class="containerturner" style="display:none">
-                <img src="{{ url_for('static', filename = 'image/3_6er.svg')}}" alt="Drei Sechsen zu zwei Einsen">
-                <button onclick="turnSixes(2)" class="btn" title="Drei Sechsen zu zwei Einsen"></button>
+              <div class="dice-turn-buttons" id="dice_turn_buttons">
+                <div id="btn_turn_2" class="containerturner" style="display:none">
+                  <img src="{{ url_for('static', filename = 'image/2_6er.svg')}}" alt="Zwei Sechsen zu Eins">
+                  <button onclick="turnSixes(1)" class="btn" title="Zwei Sechsen zu Eins"></button>
+                </div>
+                <div id="btn_turn_3" class="containerturner" style="display:none">
+                  <img src="{{ url_for('static', filename = 'image/3_6er.svg')}}" alt="Drei Sechsen zu zwei Einsen">
+                  <button onclick="turnSixes(2)" class="btn" title="Drei Sechsen zu zwei Einsen"></button>
+                </div>
               </div>
             </div>
           </div>
@@ -627,6 +627,14 @@
 
     var cupLabel = document.querySelector('.dice-cup-label');
 
+    // Transition ALL cup cells (0-2) to dark brown, even empty ones
+    for (var i = 0; i < 3; i++) {
+      var cell = document.getElementById('dcell' + i);
+      cell.style.transition = 'background-color ' + ANIM_DURATION + 'ms ease-in, border-color ' + ANIM_DURATION + 'ms ease-in';
+      cell.style.backgroundColor = '#6b4226';
+      cell.style.borderColor = '#4a2a10';
+    }
+
     for (var i = 0; i < 3; i++) {
       if (!inCup[i]) continue;
 
@@ -692,16 +700,14 @@
           scene.style.transition = 'opacity ' + ANIM_DURATION + 'ms ease-in';
           scene.style.opacity = '0';
         }, 30);
-
-        cupCell.style.transition = 'background-color ' + ANIM_DURATION + 'ms ease-in';
-        cupCell.style.backgroundColor = '#6b4226';
       })(i);
     }
 
     if (cupLabel) {
-      cupLabel.style.transition = 'background-color ' + ANIM_DURATION + 'ms ease-in, color ' + ANIM_DURATION + 'ms ease-in';
+      cupLabel.style.transition = 'background-color ' + ANIM_DURATION + 'ms ease-in, color ' + ANIM_DURATION + 'ms ease-in, border-color ' + ANIM_DURATION + 'ms ease-in';
       cupLabel.style.backgroundColor = '#6b4226';
       cupLabel.style.color = '#a08060';
+      cupLabel.style.borderColor = '#4a2a10';
     }
 
     _lastRollAnimTimer = setTimeout(function() {
@@ -746,6 +752,7 @@
       cell.className = (i < 3) ? 'dcell dcell-cup' : 'dcell dcell-out';
       cell.style.transition = '';
       cell.style.backgroundColor = '';
+      cell.style.borderColor = '';
     }
 
     var cupLabel = document.querySelector('.dice-cup-label');
@@ -753,6 +760,7 @@
       cupLabel.style.transition = '';
       cupLabel.style.backgroundColor = '';
       cupLabel.style.color = '';
+      cupLabel.style.borderColor = '';
     }
     if (_diceHiddenAfterRoll) {
       for (var i = 0; i < 3; i++) {
@@ -1737,7 +1745,8 @@
           _diceOutAtRoll = [!_diceInCup[0], !_diceInCup[1], !_diceInCup[2]];
         }
       } else if (me_data.Number_Dice > 0 && (!me_data.Dices || me_data.Dices.length === 0)
-                 && _myDiceValues[0] === 0 && _myDiceValues[1] === 0 && _myDiceValues[2] === 0) {
+                 && _myDiceValues[0] === 0 && _myDiceValues[1] === 0 && _myDiceValues[2] === 0
+                 && waiting_user_id != id) {
         _diceHiddenAfterRoll = true;
       }
 
@@ -1829,6 +1838,11 @@
       throwbutton.disabled = false;
     }
 
+    // Unified round status row
+    var roundRow = document.getElementById('round_status_row');
+    var roundFinished = (waiting_user_id == -1);
+    var needsReveal = roundFinished && isUndecided(game);
+
     // Aufdecken button: green when waiting for reveal and player has hidden dice
     var pullupBtn = document.getElementById('btn_pullup_container');
     if (pullupBtn) {
@@ -1839,11 +1853,6 @@
         pullupBtn.className = 'containercup';
       }
     }
-
-    // Unified round status row
-    var roundRow = document.getElementById('round_status_row');
-    var roundFinished = (waiting_user_id == -1);
-    var needsReveal = roundFinished && isUndecided(game);
     var readyToDistribute = roundFinished && !needsReveal;
 
     // Play reveal sound only on transition into the reveal phase,
