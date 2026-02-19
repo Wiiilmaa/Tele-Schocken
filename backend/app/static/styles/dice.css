@@ -131,7 +131,6 @@ body {
 }
 #player_table {
   width: auto;
-  position: relative;
 }
 #player_table th {
   vertical-align: middle;

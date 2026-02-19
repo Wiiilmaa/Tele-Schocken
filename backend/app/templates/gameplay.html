@@ -1139,12 +1139,9 @@
       var row = _runningAnims[i].row;
       row.style.transform = '';
       row.style.position = '';
+      row.style.zIndex = '';
       row.style.willChange = '';
-      var tds = row.querySelectorAll('td');
-      for (var c = 0; c < tds.length; c++) { tds[c].style.position = ''; tds[c].style.zIndex = ''; tds[c].style.backgroundColor = ''; }
     }
-    var tb = document.getElementById('game_tbody');
-    if (tb) tb.style.isolation = '';
     _runningAnims = [];
     _tableAnimating = false;
   }
@@ -1160,6 +1157,9 @@
 
     _tableAnimating = true;
 
+    // Record current positions — DOM stays in OLD order throughout animation
+    // so the natural table stacking (later rows on top) gives the lower group
+    // (moving up) the foreground and the upper group (moving down) the background.
     var rowEls = {};
     var oldTops = {};
     for (var i = 0; i < oldOrder.length; i++) {
@@ -1171,22 +1171,28 @@
       }
     }
 
-    for (var i = 0; i < newOrder.length; i++) {
-      var r = rowEls[newOrder[i]];
-      if (r) tbody.appendChild(r);
-    }
-
+    // Target: newOrder[i] should end up where oldOrder[i] currently sits
     var deltas = {};
     var anyMoved = false;
     for (var i = 0; i < newOrder.length; i++) {
       var uid = newOrder[i];
-      if (!rowEls[uid] || oldTops[uid] === undefined) { deltas[uid] = 0; continue; }
-      var newTop = rowEls[uid].getBoundingClientRect().top;
-      deltas[uid] = oldTops[uid] - newTop;
+      if (!rowEls[uid] || oldTops[uid] === undefined
+          || i >= oldOrder.length || oldTops[oldOrder[i]] === undefined) {
+        deltas[uid] = 0; continue;
+      }
+      deltas[uid] = oldTops[oldOrder[i]] - oldTops[uid];
       if (Math.abs(deltas[uid]) > 1) anyMoved = true;
     }
 
+    function reorderDomNow() {
+      for (var i = 0; i < newOrder.length; i++) {
+        var r = rowEls[newOrder[i]];
+        if (r) tbody.appendChild(r);
+      }
+    }
+
     if (!anyMoved) {
+      reorderDomNow();
       _tableAnimating = false;
       updateRowCounters(tbody);
       _tableOrder = newOrder.slice();
@@ -1197,6 +1203,7 @@
     var newFirstId = newOrder[0];
     var splitIdx = oldOrder.indexOf(newFirstId);
     if (splitIdx <= 0) {
+      reorderDomNow();
       _tableAnimating = false;
       updateRowCounters(tbody);
       _tableOrder = newOrder.slice();
@@ -1209,6 +1216,7 @@
     var totalRows = upperGroup.length + lowerGroup.length;
 
     if (totalRows < 2) {
+      reorderDomNow();
       _tableAnimating = false;
       updateRowCounters(tbody);
       _tableOrder = newOrder.slice();
@@ -1246,8 +1254,9 @@
       groupMap[sequence[i].uid] = sequence[i].group;
     }
 
-    tbody.style.isolation = 'isolate';
-
+    // Animate from current position TO target position (translateY 0 → delta).
+    // DOM stays in old order so lower-group rows (later in DOM) naturally
+    // paint on top — no z-index needed.
     _runningAnims = [];
     for (var i = 0; i < newOrder.length; i++) {
       var uid = newOrder[i];
@@ -1260,34 +1269,20 @@
 
       row.style.position = 'relative';
       row.style.willChange = 'transform, opacity';
-      var zVal = isUpper ? '0' : '10';
-      var rowBg = 'var(--bg-primary)';
-      if (row.classList.contains('row-active-turn')) rowBg = 'var(--highlight-row)';
-      else if (row.classList.contains('row-passive')) rowBg = 'var(--passive-row)';
-      else if (row.classList.contains('row-stripe')) rowBg = 'var(--table-stripe-bg)';
-      var cells = row.querySelectorAll('td');
-      for (var c = 0; c < cells.length; c++) {
-        cells[c].style.position = 'relative';
-        cells[c].style.zIndex = zVal;
-        cells[c].style.backgroundColor = rowBg;
-      }
 
-      // Smooth arc: ease-in to midpoint, ease-out to landing.
-      // The per-keyframe easings create velocity continuity at the
-      // midpoint so the motion feels like one fluid sweep.
       var halfDelta = (delta * 0.5).toFixed(1);
       var kf;
       if (isUpper) {
         kf = [
-          { transform: 'translateY(' + delta + 'px) scale(1)',    opacity: 1,   offset: 0,   easing: 'cubic-bezier(0.4, 0, 0.7, 0.4)' },
+          { transform: 'translateY(0px) scale(1)',                    opacity: 1,   offset: 0,   easing: 'cubic-bezier(0.4, 0, 0.7, 0.4)' },
           { transform: 'translateY(' + halfDelta + 'px) scale(0.95)', opacity: 0.8, offset: 0.5, easing: 'cubic-bezier(0.3, 0.6, 0.6, 1)' },
-          { transform: 'translateY(0px) scale(1)',                opacity: 1,   offset: 1.0 }
+          { transform: 'translateY(' + delta + 'px) scale(1)',        opacity: 1,   offset: 1.0 }
         ];
       } else {
         kf = [
-          { transform: 'translateY(' + delta + 'px) scale(1)',    opacity: 1,   offset: 0,   easing: 'cubic-bezier(0.4, 0, 0.7, 0.4)' },
-          { transform: 'translateY(' + halfDelta + 'px) scale(1.04)', opacity: 1, offset: 0.5, easing: 'cubic-bezier(0.3, 0.6, 0.6, 1)' },
-          { transform: 'translateY(0px) scale(1)',                opacity: 1,   offset: 1.0 }
+          { transform: 'translateY(0px) scale(1)',                     opacity: 1, offset: 0,   easing: 'cubic-bezier(0.4, 0, 0.7, 0.4)' },
+          { transform: 'translateY(' + halfDelta + 'px) scale(1.04)',  opacity: 1, offset: 0.5, easing: 'cubic-bezier(0.3, 0.6, 0.6, 1)' },
+          { transform: 'translateY(' + delta + 'px) scale(1)',         opacity: 1, offset: 1.0 }
         ];
       }
 
@@ -1301,6 +1296,7 @@
     }
 
     if (_runningAnims.length === 0) {
+      reorderDomNow();
       _tableAnimating = false;
       updateRowCounters(tbody);
       _tableOrder = newOrder.slice();
@@ -1309,31 +1305,23 @@
     }
 
     Promise.all(_runningAnims.map(function(a) { return a.anim.finished; })).then(function() {
+      // Cancel animations + reorder DOM in one synchronous block → no flicker.
+      // Rows jump from animated end-positions to identical new DOM positions.
       for (var i = 0; i < _runningAnims.length; i++) {
         _runningAnims[i].anim.cancel();
         var r = _runningAnims[i].row;
         r.style.transform = '';
         r.style.position = '';
         r.style.willChange = '';
-        var tds = r.querySelectorAll('td');
-        for (var c = 0; c < tds.length; c++) { tds[c].style.position = ''; tds[c].style.zIndex = ''; tds[c].style.backgroundColor = ''; }
       }
-      tbody.style.isolation = '';
+      reorderDomNow();
       _runningAnims = [];
       _tableAnimating = false;
       updateRowCounters(tbody);
       _tableOrder = newOrder.slice();
       if (onComplete) onComplete();
     }).catch(function() {
-      for (var i = 0; i < _runningAnims.length; i++) {
-        var r = _runningAnims[i].row;
-        if (r) {
-          r.style.transform = ''; r.style.position = ''; r.style.willChange = '';
-          var tds = r.querySelectorAll('td');
-          for (var c = 0; c < tds.length; c++) { tds[c].style.position = ''; tds[c].style.zIndex = ''; tds[c].style.backgroundColor = ''; }
-        }
-      }
-      tbody.style.isolation = '';
+      reorderDomNow();
       _runningAnims = [];
       _tableAnimating = false;
       _tableOrder = newOrder.slice();
