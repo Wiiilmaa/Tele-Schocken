@@ -121,8 +121,8 @@
       <th class="col-dice"></th>
       <th class="col-dice"></th>
       <th class="col-dice"></th>
-      <th class="col-half">Hälften</th>
-      <th id="finalcount_header" class="col-final" {% if not game.play_final %}style="display:none"{% endif %}>Runden</th>
+      <th id="halfcount_header" class="col-half">Hälften</th>
+      <th id="finalcount_header" class="col-final">Runden</th>
       <th id="penalty_header" class="col-penalty" style="display:none">Strafe</th>
     </tr>
   </thead>
@@ -1391,8 +1391,9 @@
     var myId = getMyId();
     var isAdmin = game.Admins && game.Admins.indexOf(myId) !== -1;
     var showFinal = game.Ruleset && game.Ruleset.play_final;
+    var halfHeader = document.getElementById('halfcount_header');
+    if (halfHeader) halfHeader.style.display = showFinal ? '' : 'none';
     var finalHeader = document.getElementById('finalcount_header');
-    if (finalHeader) finalHeader.style.display = showFinal ? '' : 'none';
 
     // Check if any player has penalty > 0
     var anyPenalty = game.User.some(function(u) { return (u.Penalty_Count || 0) > 0; });
@@ -1423,8 +1424,8 @@
           + '<td id="dice1' + juser.Id + '" class="dice-cell col-dice"></td>'
           + '<td id="dice2' + juser.Id + '" class="dice-cell col-dice"></td>'
           + '<td id="dice3' + juser.Id + '" class="dice-cell col-dice"></td>'
-          + '<td id="first' + juser.Id + '" class="col-half"></td>'
-          + '<td id="finalcount' + juser.Id + '" class="col-final"' + (showFinal ? '' : ' style="display:none"') + '></td>'
+          + '<td id="first' + juser.Id + '" class="col-half"' + (showFinal ? '' : ' style="display:none"') + '></td>'
+          + '<td id="finalcount' + juser.Id + '" class="col-final"></td>'
           + '<td id="penalty' + juser.Id + '" class="col-penalty"' + (anyPenalty ? '' : ' style="display:none"') + '></td>';
         tbody.appendChild(row);
       }
@@ -1466,14 +1467,17 @@
       // Chips
       document.getElementById('chips' + juser.Id).innerHTML = juser.Chips;
 
-      // Halfcount
-      document.getElementById('first' + juser.Id).innerHTML = juser.Halfcount;
+      // Halfcount (only visible in finale mode)
+      var hcEl = document.getElementById('first' + juser.Id);
+      if (hcEl) {
+        hcEl.innerHTML = juser.Halfcount;
+        hcEl.style.display = showFinal ? '' : 'none';
+      }
 
-      // Finalcount
+      // Finalcount (always visible — "Runden")
       var fcEl = document.getElementById('finalcount' + juser.Id);
       if (fcEl) {
         fcEl.innerHTML = juser.Finalcount;
-        fcEl.style.display = showFinal ? '' : 'none';
       }
 
       // Penalty count

@@ -92,12 +92,11 @@ def _handle_round_end(game, loser):
                         game.message = message
                 else:
                     message = 'Fehler'
-        # No final, only count halfs
+        # No finale: each round is a full game
         else:
-            loser.halfcount = loser.halfcount + 1
-            game.status = Status.ROUNDFINISCH
+            loser.finalcount = loser.finalcount + 1
+            game.status = Status.GAMEFINISCH
             game.stack = game.stack_max
-            game.halfcount = game.halfcount + 1
             message = '{} hat das Spiel verloren'.format(loser.name)
             game.message = message
 
