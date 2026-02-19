@@ -3,182 +3,149 @@
 {% block content %}
 {{ super() }}
 
-<div class="row col-md-offset-1 col-xs-offset-1">
-  <div class="col-md-10 col-xs-11" style="text-align: center">
-    <h2 class="message" id="Message"></h2>
-  </div>
+<div class="page-content">
+
+<div style="text-align: center">
+  <h2 class="message" id="Message"></h2>
 </div>
-<div class="container-fluid">
-  <div class="row">
-    <div id="game_phase_col" class="col-md-offset-1 col-md-2 hidden-xs hidden-sm" style="display:none">
-      <h3 id="game_phase_text"></h3>
-    </div>
-    <div id="chips_col" class="col-xs-6 col-md-offset-1 col-md-2">
-      <h3 id="StackChips_id">Chips: {{game.stack}}</h3>
-    </div>
-    <div class="col-xs-6 col-md-3">
-      <h3 id="throw_id">Würfe:</h3>
-      <p id="throw_number_id" hidden></p>
-    </div>
-    <div class="clearfix visible-xs-block visible-sm-block"></div>
-    <div class="col-xs-12 col-md-3">
-      <h3 id="waiting_id">Warten auf: {{game.moveName(game.move_user_id)}}</h3>
-      <p id="UUID" hidden>{{game.UUID}}</p>
-      <p id="admin_id" hidden>{{game.admin_user_id}}</p>
-      <p id="first_user_id" hidden>{{game.first_user_id}}</p>
-      <p id="first_user_dice_count_id" hidden>3</p>
-    </div>
+<div class="status-bar">
+  <div id="game_phase_col" class="hidden-xs hidden-sm" style="display:none">
+    <h3 id="game_phase_text"></h3>
+  </div>
+  <div id="chips_col">
+    <h3 id="StackChips_id">Chips: {{game.stack}}</h3>
+  </div>
+  <div>
+    <h3 id="throw_id">Würfe:</h3>
+    <p id="throw_number_id" hidden></p>
+  </div>
+  <div>
+    <h3 id="waiting_id">Warten auf: {{game.moveName(game.move_user_id)}}</h3>
+    <p id="UUID" hidden>{{game.UUID}}</p>
+    <p id="admin_id" hidden>{{game.admin_user_id}}</p>
+    <p id="first_user_id" hidden>{{game.first_user_id}}</p>
+    <p id="first_user_dice_count_id" hidden>3</p>
   </div>
 </div>
 
-<div class="row ">
-  <div class="col-md-11 col-md-offset-1">
-    <h2 id="ownuser">Spieler:</h2>
-  </div>
-</div>
+<h2 id="ownuser">Spieler:</h2>
 
 <!-- Game controls: visible for active players only -->
 <div id="game_controls">
-<div class="container-fluid">
-  <div class="row">
-    <div class="col-xs-12 col-md-10 col-md-offset-1">
-      <div class="controls-main-row">
-        <!-- Block 1: Action buttons -->
-        <div class="controls-block1-col">
-          <div id="controls_block1" class="controls-block">
-            <div class="controls-btn-row">
-              <div class="controls-left">
-                <div class="containerturner" id='startgame_id'>
-                  <img src="{{ url_for('static', filename = 'image/throw_the_dice.svg')}}" alt="throw the dice">
-                  <button id='btn_dice' onclick="dice()" class="btn" title="Würfeln">Würfeln</button>
-                  <p style="text-align: center">Würfeln</p>
-                </div>
-              </div>
-              <div class="controls-center">
-                <div class="containercup" id="btn_pullup_container">
-                  <img src="{{ url_for('static', filename = 'image/pulldiceup.svg')}}" alt="pull dice cup up">
-                  <button onclick="pullup()" class="btn" title="Aufdecken">Aufdecken</button>
-                  <p style="text-align: center">Aufdecken</p>
-                </div>
-                <div class="containercup">
-                  <img src="{{ url_for('static', filename = 'image/pulldicedown.svg')}}" alt="pull dice cup down">
-                  <button onclick="pulldown()" class="btn" title="Zudecken">Zudecken</button>
-                  <p style="text-align: center">Zudecken</p>
-                </div>
-              </div>
-              <div class="controls-right">
-                <button class="btn btn-primary btn-endpause" id="btn_endpause" onclick="endpause_click()">Pause</button>
-              </div>
+  <div class="controls-main-row">
+    <!-- Block 1: Action buttons -->
+    <div class="controls-block1-col">
+      <div id="controls_block1" class="controls-block">
+        <div class="controls-btn-row">
+          <div class="controls-left">
+            <div class="containerturner" id='startgame_id'>
+              <img src="{{ url_for('static', filename = 'image/throw_the_dice.svg')}}" alt="throw the dice">
+              <button id='btn_dice' onclick="dice()" class="btn" title="Würfeln">Würfeln</button>
+              <p style="text-align: center">Würfeln</p>
             </div>
           </div>
+          <div class="controls-center">
+            <div class="containercup" id="btn_pullup_container">
+              <img src="{{ url_for('static', filename = 'image/pulldiceup.svg')}}" alt="pull dice cup up">
+              <button onclick="pullup()" class="btn" title="Aufdecken">Aufdecken</button>
+              <p style="text-align: center">Aufdecken</p>
+            </div>
+            <div class="containercup">
+              <img src="{{ url_for('static', filename = 'image/pulldicedown.svg')}}" alt="pull dice cup down">
+              <button onclick="pulldown()" class="btn" title="Zudecken">Zudecken</button>
+              <p style="text-align: center">Zudecken</p>
+            </div>
+          </div>
+          <div class="controls-right">
+            <button class="btn btn-primary btn-endpause" id="btn_endpause" onclick="endpause_click()">Pause</button>
+          </div>
         </div>
-        <!-- Block 2: Dice cup display -->
-        <div class="controls-block2-col">
-          <div id="controls_block2" class="controls-block">
-            <div class="dice-cup-wrapper">
-              <div class="dice-cup-control">
-                <div class="dice-cup-label">Würfelbecher</div>
-                <div class="dice-out-label">rausgelegt</div>
-                <div class="dcell dcell-cup" id="dcell0"></div>
-                <div class="dcell dcell-cup" id="dcell1"></div>
-                <div class="dcell dcell-cup" id="dcell2"></div>
-                <div class="dcell dcell-out" id="dcell3"></div>
-                <div class="dcell dcell-out" id="dcell4"></div>
-                <div class="dcell dcell-out" id="dcell5"></div>
-              </div>
-              <div class="dice-turn-buttons" id="dice_turn_buttons">
-                <div id="btn_turn_2" class="containerturner" style="display:none">
-                  <img src="{{ url_for('static', filename = 'image/2_6er.svg')}}" alt="Zwei Sechsen zu Eins">
-                  <button onclick="turnSixes(1)" class="btn" title="Zwei Sechsen zu Eins"></button>
-                </div>
-                <div id="btn_turn_3" class="containerturner" style="display:none">
-                  <img src="{{ url_for('static', filename = 'image/3_6er.svg')}}" alt="Drei Sechsen zu zwei Einsen">
-                  <button onclick="turnSixes(2)" class="btn" title="Drei Sechsen zu zwei Einsen"></button>
-                </div>
-              </div>
+      </div>
+    </div>
+    <!-- Block 2: Dice cup display -->
+    <div class="controls-block2-col">
+      <div id="controls_block2" class="controls-block">
+        <div class="dice-cup-wrapper">
+          <div class="dice-cup-control">
+            <div class="dice-cup-label">Würfelbecher</div>
+            <div class="dice-out-label">rausgelegt</div>
+            <div class="dcell dcell-cup" id="dcell0"></div>
+            <div class="dcell dcell-cup" id="dcell1"></div>
+            <div class="dcell dcell-cup" id="dcell2"></div>
+            <div class="dcell dcell-out" id="dcell3"></div>
+            <div class="dcell dcell-out" id="dcell4"></div>
+            <div class="dcell dcell-out" id="dcell5"></div>
+          </div>
+          <div class="dice-turn-buttons" id="dice_turn_buttons">
+            <div id="btn_turn_2" class="containerturner" style="display:none">
+              <img src="{{ url_for('static', filename = 'image/2_6er.svg')}}" alt="Zwei Sechsen zu Eins">
+              <button onclick="turnSixes(1)" class="btn" title="Zwei Sechsen zu Eins"></button>
+            </div>
+            <div id="btn_turn_3" class="containerturner" style="display:none">
+              <img src="{{ url_for('static', filename = 'image/3_6er.svg')}}" alt="Drei Sechsen zu zwei Einsen">
+              <button onclick="turnSixes(2)" class="btn" title="Drei Sechsen zu zwei Einsen"></button>
             </div>
           </div>
         </div>
       </div>
     </div>
   </div>
-</div>
 </div>
 
 <!-- Join form: visible for visitors who are not in the game -->
 <div id="join_form" style="display: none;">
-  <div class="container-fluid">
-    <div class="row">
-      <div class="col-xs-12 col-md-6 col-md-offset-1">
-        <h3>Spiel läuft -- Möchtest du mitspielen?</h3>
-        <p>Du wirst sofort hinzugefügt, falls die aktuelle Runde noch nicht begonnen hat.
-           Ansonsten wirst du nach Ende des aktuellen Spiels hinzugefügt.</p>
-        <div class="input-group" style="max-width: 400px;">
-          <input id="join_name" placeholder="Spielername" type="text" class="form-control" onkeydown="if(event.key==='Enter')joinMidGame()">
-          <div class="input-group-btn">
-            <button class="btn btn-primary" onclick="joinMidGame()">Beitreten</button>
-          </div>
-        </div>
-      </div>
+  <h3>Spiel läuft -- Möchtest du mitspielen?</h3>
+  <p>Du wirst sofort hinzugefügt, falls die aktuelle Runde noch nicht begonnen hat.
+     Ansonsten wirst du nach Ende des aktuellen Spiels hinzugefügt.</p>
+  <div class="input-group" style="max-width: 400px;">
+    <input id="join_name" placeholder="Spielername" type="text" class="form-control" onkeydown="if(event.key==='Enter')joinMidGame()">
+    <div class="input-group-btn">
+      <button class="btn btn-primary" onclick="joinMidGame()">Beitreten</button>
     </div>
   </div>
 </div>
 
 <!-- Pending notice: visible for players waiting to join -->
 <div id="pending_notice" style="display: none;">
-  <div class="container-fluid">
-    <div class="row">
-      <div class="col-xs-12 col-md-6 col-md-offset-1">
-        <h3>Du bist vorgemerkt und wirst nach Ende des aktuellen Spiels hinzugefügt.</h3>
-      </div>
-    </div>
-  </div>
+  <h3>Du bist vorgemerkt und wirst nach Ende des aktuellen Spiels hinzugefügt.</h3>
 </div>
 
-<div style="height:30px;" class="row col-md-offset-1 col-xs-offset-1">
-</div>
-<div class="row ">
-</div>
-<div class="row" data-example-id="striped-table">
-  <div class="col-xs-12 col-md-10 col-md-offset-1">
-    <table class="table table-striped table-hover table-sm" id="player_table">
-      <thead>
-        <tr>
-          <th class="col-counter">#</th>
-          <th class="col-name">Name</th>
-          <th class="col-chips">Chips</th>
-          <th class="col-throws">Würfe</th>
-          <th class="col-dice"></th>
-          <th class="col-dice"></th>
-          <th class="col-dice"></th>
-          <th class="col-half">Hälften</th>
-          <th id="finalcount_header" class="col-final" {% if not game.play_final %}style="display:none"{% endif %}>Runden</th>
-          <th id="penalty_header" class="col-penalty" style="display:none">Strafe</th>
-        </tr>
-      </thead>
-      <tbody id="game_tbody">
-      </tbody>
-    </table>
-  </div>
-</div>
+<div style="height:30px;"></div>
+<table class="table table-striped table-hover table-sm" id="player_table">
+  <thead>
+    <tr>
+      <th class="col-counter">#</th>
+      <th class="col-name">Name</th>
+      <th class="col-chips">Chips</th>
+      <th class="col-throws">Würfe</th>
+      <th class="col-dice"></th>
+      <th class="col-dice"></th>
+      <th class="col-dice"></th>
+      <th class="col-half">Hälften</th>
+      <th id="finalcount_header" class="col-final" {% if not game.play_final %}style="display:none"{% endif %}>Runden</th>
+      <th id="penalty_header" class="col-penalty" style="display:none">Strafe</th>
+    </tr>
+  </thead>
+  <tbody id="game_tbody">
+  </tbody>
+</table>
 
 {% include "snippet/adminpanel.html" %}
 
 <!-- Share link + QR code for mid-game joining -->
-<div class="row" style="margin-top: 20px;">
-  <div class="col-xs-12 col-md-10 col-md-offset-1">
-    <h4 id="share_heading">Verteile diesen Link an alle Mitspieler:</h4>
-    <div class="input-group" style="max-width: 500px;">
-      <input id="share_link_input" type="text" class="form-control" readonly>
-      <div class="input-group-btn">
-        <button onclick="document.getElementById('share_link_input').select();document.execCommand('copy');" class="btn btn-outline-secondary" type="button">kopieren</button>
-      </div>
+<div style="margin-top: 20px;">
+  <h4 id="share_heading">Verteile diesen Link an alle Mitspieler:</h4>
+  <div class="input-group" style="max-width: 500px;">
+    <input id="share_link_input" type="text" class="form-control" readonly>
+    <div class="input-group-btn">
+      <button onclick="document.getElementById('share_link_input').select();document.execCommand('copy');" class="btn btn-outline-secondary" type="button">kopieren</button>
     </div>
-    <div id="share_qrcode" style="margin-top: 12px; padding: 20px;"></div>
-    <button id="switch_device_btn" onclick="toggleDeviceSwitch()" class="btn btn-outline-secondary btn-sm" style="margin-top: 8px;">Gerät wechseln</button>
   </div>
+  <div id="share_qrcode" style="margin-top: 12px; padding: 20px;"></div>
+  <button id="switch_device_btn" onclick="toggleDeviceSwitch()" class="btn btn-outline-secondary btn-sm" style="margin-top: 8px;">Gerät wechseln</button>
 </div>
-</div>
+
+</div> <!-- /.page-content -->
 
 {% endblock %}
 {% block scripts %}
@@ -1586,10 +1553,8 @@
       }
       phaseText.innerHTML = phaseLabel;
       phaseCol.style.display = '';
-      chipsCol.className = 'col-xs-6 col-md-2';
     } else {
       phaseCol.style.display = 'none';
-      chipsCol.className = 'col-xs-6 col-md-offset-1 col-md-2';
     }
 
     // First user

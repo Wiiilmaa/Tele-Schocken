@@ -1,15 +1,43 @@
-/* Prevent horizontal scrollbar from Bootstrap .row negative margins */
 body {
-  overflow-x: hidden;
   max-width: 1500px;
   margin: 0 auto;
 }
 
-/* Reduce Bootstrap offset margins on large screens */
-@media (min-width: 992px) {
-  .col-md-offset-1 {
-    margin-left: 3%;
+/* Page content wrapper – replaces Bootstrap grid offsets with simple padding */
+.page-content {
+  padding: 0 3%;
+}
+
+@media (max-width: 575px) {
+  .page-content {
+    padding: 0 6px;
   }
+}
+
+/* Status bar: chips, throws, waiting */
+.status-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  align-items: baseline;
+}
+
+/* Admin panel layout */
+.admin-correction {
+  margin-top: 8px;
+}
+.admin-correction-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+  padding: 8px 0;
+}
+.admin-player-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  align-items: flex-end;
 }
 
 .dice {
