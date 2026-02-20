@@ -552,6 +552,15 @@ body {
   .col-penalty { font-size: 24px; }
 }
 
+/* ============= QR Code Container ============= */
+.qr-wrapper {
+  display: inline-block;
+  background-color: #ffffff;
+  padding: 16px;
+  border-radius: 4px;
+  line-height: 0;
+}
+
 /* ============= 3D Dice Roll Animation ============= */
 .dice-3d-scene {
   width: 50px;
