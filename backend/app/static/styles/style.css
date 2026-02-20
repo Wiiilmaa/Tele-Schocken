@@ -240,27 +240,6 @@ br {
    margin: 10px 0;
 }
 
-.spin {
-}
-@-webkit-keyframes spin {
-  0% { -webkit-filter: blur(10px);}
-  100% { -webkit-filter: blur(0px);}
-    from {
-        transform:rotate(0deg);
-    }
-    to {
-        transform:rotate(2520deg);
-    }
-}
-.spin.animated {
-    -webkit-animation-name: spin;
-    -webkit-font-smoothing: antialiased;
-
-    -webkit-animation-duration: 3400ms;
-    -webkit-animation-iteration-count: 1;
-    -webkit-animation-timing-function: ease;
-}
-
 @keyframes messageanimation {
   from {color: var(--message-start);}
   to {color: var(--message-end);}
@@ -338,33 +317,14 @@ input[type=checkbox]
   -o-transform: scale(2); /* Opera */
   transform: scale(2);
   padding: 10px;
+  margin-right: 12px;
 }
-/* Might want to wrap a span around your checkbox text */
-.checkboxtext
-{
-  /* Checkbox text */
-  font-size: 110%;
-  display: inline;
-}
-
 .header-img {
   background-size: cover;
 }
 
 .example_img {
   background-size: cover;
-}
-
-#marked {
-  color: red;
-  font-weight: bold;
-}
-.w {
-  width: 550px;
-}
-
-.s {
-  width: 100px;
 }
 
 /* Text showing behind buttons in css */

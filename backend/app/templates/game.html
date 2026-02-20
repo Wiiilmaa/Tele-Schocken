@@ -3,121 +3,83 @@
 
 {% block content %}
 {{ super() }}
-<div id="joincontainer">
-  <div class="row col-md-offset-1">
-    <div class="col-md-10">
-      <h2>Zum Beitreten Spielname angeben.</h2>
-    </div>
-  </div>
+<div class="page-content">
 
-  <div class="row col-md-offset-1">
-    <div class="col-md-3 " >
-      <div class="input-group mb-6">
-        <input id="Name" placeholder="Spielername" type="text" size="20" class="form-control" onkeydown="if(event.key==='Enter')joinGame()" autofocus>
-        <div class="input-group-btn">
-          <button id="jointbtn" class="btn btn-primary btn-outline-secondary" type="button" onclick="joinGame()">Beitreten</button>
-        </div>
-      </div>
+<div id="joincontainer">
+  <h2>Zum Beitreten Spielname angeben.</h2>
+  <div class="input-group" style="max-width: 400px;">
+    <input id="Name" placeholder="Spielername" type="text" size="20" class="form-control" onkeydown="if(event.key==='Enter')joinGame()" autofocus>
+    <div class="input-group-btn">
+      <button id="jointbtn" class="btn btn-primary btn-outline-secondary" type="button" onclick="joinGame()">Beitreten</button>
     </div>
   </div>
 </div>
-<div class="row col-md-offset-1">
-  <div class="col-md-11">
-    <h3 id="admin"></h3>
-  </div>
-</div>
+
+<h3 id="admin"></h3>
 <br>
 
-<div class="row">
-  <div class="col-md-3 col-md-offset-1">
-    <div class="row">
-      <div class="col-md-12">
-        <h2>Spielerliste:</h2>
-      </div>
-    </div>
-    <table class="table table-striped table-hover" >
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Name</th>
-        </tr>
-      </thead>
-      <tbody id="player_tbody">
-        {% for user in game.users %}
-        <tr >
-          <th class="counterCell" scope="row"></th>
-            <td>
-              {{ user.name }}
-            </td>
-        </tr>
-        {% endfor %}
-        </tbody>
-    </table>
+<h2>Spielerliste:</h2>
+<table class="table table-striped table-hover" style="max-width: 400px;">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Name</th>
+    </tr>
+  </thead>
+  <tbody id="player_tbody">
+    {% for user in game.users %}
+    <tr>
+      <th class="counterCell" scope="row"></th>
+      <td>{{ user.name }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h3 id="share_heading">Verteile diesen Link an alle Mitspieler:</h3>
+<div class="input-group" style="max-width: 500px;">
+  <input id="link_input" type="text" size="80" class="form-control" value="/game_waiting/{{game.UUID}}">
+  <div class="input-group-btn">
+    <button onclick="coppy()" class="btn btn-outline-secondary" type="button">kopieren</button>
+  </div>
+</div>
+<div id="qrcode" style="margin-top: 12px; padding: 20px;"></div>
+<button id="switch_device_btn" onclick="toggleDeviceSwitch()" class="btn btn-outline-secondary btn-sm" style="margin-top: 8px;">Gerät wechseln</button>
+
+<div class="admin_interface">
+  <h3>Spiel starten (<b>Du kannst Spieler auch nachträglich hinzufügen</b>)</h3>
+</div>
+<div class="admin_interface">
+  <label for="ruleset_select">Ruleset wählen:</label>
+  <select name="ruleset_select" id="ruleset_select" class="form-select">
+    <option value="">-- Wird geladen --</option>
+  </select>
+  <div style="margin-top: 8px;">
+    <label><input type="checkbox" id="falling_dice_cb"> Würfel können vom Tisch fallen (Schnapsrunde)</label>
+  </div>
+</div>
+<div class="admin_interface">
+  <button class="btn btn-primary" id='startgame_id' onclick="startGame()" disabled>Starten</button>
+  <div id="inline_button_text">
+    <h3>👈</h3>
   </div>
 </div>
 
-
-<div class="row col-md-offset-1 col-md-10">
-    <h3 id="share_heading">Verteile diesen Link an alle Mitspieler:</h3>
-</div>
-<div class="row">
-  <div class="col-md-offset-1 col-md-4" >
-    <div class="input-group mb-6">
-      <input id="link_input" type="text" size="80" class="form-control" value="/game_waiting/{{game.UUID}}">
-      <div class="input-group-btn">
-        <button onclick="coppy()" class="btn btn-outline-secondary" type="button">kopieren</button>
-      </div>
-    </div>
-    <div id="qrcode" style="margin-top: 12px; padding: 20px;"></div>
-    <button id="switch_device_btn" onclick="toggleDeviceSwitch()" class="btn btn-outline-secondary btn-sm" style="margin-top: 8px;">Gerät wechseln</button>
-  </div>
-</div>
-<div class="row col-md-offset-1 admin_interface">
-  <div class="col-md-9">
-    <h3>Spiel starten (<b>Du kannst Spieler auch nachträglich hinzufügen</b>)</h3>
-  </div>
-</div>
-<div class="row col-md-offset-1 admin_interface">
-  <div class="col-md-9">
-    <label for="ruleset_select">Ruleset wählen:</label>
-    <select name="ruleset_select" id="ruleset_select" class="form-select">
-      <option value="">-- Wird geladen --</option>
-    </select>
-    <div style="margin-top: 8px;">
-      <label><input type="checkbox" id="falling_dice_cb"> Würfel können vom Tisch fallen (Schnapsrunde)</label>
-    </div>
-  </div>
-</div>
-<div class="row col-md-offset-1 admin_interface">
-  <div class="col-md-1" >
-    <button class="btn btn-primary" id='startgame_id' onclick="startGame()" disabled>Starten</button>
-    <div id="inline_button_text" >
-      <h3>👈</h3>
-    </div>
-  </div>
-</div>
-
-
-<div class="row col-md-offset-1 col-md-10" >
-    <p id="admin_id" hidden>{{ game.admin_user_id }}</p>
-    <p id="admins_data" hidden>{{ game.users | selectattr('is_admin') | map(attribute='id') | list }}</p>
-</div>
-<div class="row col-md-offset-1 col-md-10" >
-    <p id="UUID" hidden>{{game.UUID}}</p>
-</div>
+<p id="admin_id" hidden>{{ game.admin_user_id }}</p>
+<p id="admins_data" hidden>{{ game.users | selectattr('is_admin') | map(attribute='id') | list }}</p>
+<p id="UUID" hidden>{{game.UUID}}</p>
 {% if game.ruleset_id %}
 <p id="current_ruleset_id" hidden>{{game.ruleset_id}}</p>
 {% endif %}
 
-
-
+</div> <!-- /.page-content -->
 {% endblock %}
 {% block scripts %}
 {{ super() }}
 
 <script type=text/javascript src="{{url_for('static', filename='scripts/socket.io.js') }}">
 </script>
-<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script src="{{ url_for('static', filename='scripts/qrcode.min.js') }}"></script>
 <script>
   // Handle device switch: read params from URL and set localStorage
   (function() {

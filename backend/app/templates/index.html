@@ -2,42 +2,18 @@
 
 {% block content %}
 {{ super() }}
-<div class="main-container">
-    <div class="row">
-      <div class="col-md-11 col-md-offset-1 col-xs-offset-1">
-        <h1>Online Schocken</h1>
-      </div>
-    </div>
+<div class="page-content">
+  <h1>Online Schocken</h1>
+  <p>Egal ob du <b>Schocken</b>, <b>Jule</b>, <b>Mörkeln</b>, <b>Knobeln</b>, <b>Maxen</b> oder <b>Meiern</b> willst, hier bist du richtig!</p>
 
-    <div class="row">
-        <div class="col-md-5 col-md-offset-1 col-xs-offset-1">
-          <div class="row">
-            <div class="col-md-12">
-              <p>Egal ob du <b>Schocken</b>, <b>Jule</b>, <b>Mörkeln</b>, <b>Knobeln</b>, <b>Maxen</b> oder <b>Meiern</b> willst, hier bist du richtig!</p>
-            </div>
-          </div>
-          <div class="row">
-            <div class="col-md-12">
-              <h2>Spiel erzeugen</h2>
-            </div>
-          </div>
-          <div class="row">
-            <div class="col-xs-11 col-md-8">
-              <div class="input-group mb-6">
-                <input id="adminname" placeholder="Spielername" type="text" size="20" class="form-control" onkeydown="if(event.key==='Enter')createGame()" autofocus>
-                <div class="input-group-btn">
-                  <button class="btn btn-primary btn-outline-secondary" type="button" onclick="createGame()">Erzeugen</button>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="row">
-            <div class="col-md-12">
-              <p>(Link zum Verteilen an die Mitspieler wird generiert)</p>
-            </div>
-          </div>
-        </div>
+  <h2>Spiel erzeugen</h2>
+  <div class="input-group" style="max-width: 400px;">
+    <input id="adminname" placeholder="Spielername" type="text" size="20" class="form-control" onkeydown="if(event.key==='Enter')createGame()" autofocus>
+    <div class="input-group-btn">
+      <button class="btn btn-primary btn-outline-secondary" type="button" onclick="createGame()">Erzeugen</button>
     </div>
+  </div>
+  <p>(Link zum Verteilen an die Mitspieler wird generiert)</p>
 </div>
 
 {% endblock %}
