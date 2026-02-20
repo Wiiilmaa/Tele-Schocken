@@ -562,7 +562,6 @@ body {
   margin: 2px auto;
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
-  background-color: #ffffff;
 }
 
 .dice-3d-cube {
