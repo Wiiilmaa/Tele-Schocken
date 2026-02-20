@@ -374,42 +374,6 @@ def set_user_passiv(gid, uid):
         return response
 
 
-@bp.route('/game/<gid>/user/<uid>/mydice', methods=['GET'])
-def get_my_dice(gid, uid):
-    """Return the user's own dice values for state recovery after page reload.
-
-    When it is still the user's turn, all dice values are returned (including
-    in-cup dice).  When the turn has already passed, only visible (laid-out)
-    dice are included; in-cup dice are returned as 0.
-    """
-    game = Game.query.filter_by(UUID=gid).first()
-    if game is None:
-        return jsonify(Message='Spiel nicht gefunden'), 404
-
-    user_index = get_Index_Of_User(game, uid)
-    if user_index < 0:
-        return jsonify(Message='Spieler nicht gefunden'), 404
-
-    user = game.users[user_index]
-
-    if (user.number_dice or 0) == 0:
-        return jsonify(dice1=0, dice2=0, dice3=0, number_dice=0,
-                       dice1_visible=False, dice2_visible=False,
-                       dice3_visible=False)
-
-    still_my_turn = (game.move_user_id == user.id)
-
-    return jsonify(
-        dice1=(user.dice1 or 0) if (still_my_turn or user.dice1_visible) else 0,
-        dice2=(user.dice2 or 0) if (still_my_turn or user.dice2_visible) else 0,
-        dice3=(user.dice3 or 0) if (still_my_turn or user.dice3_visible) else 0,
-        number_dice=user.number_dice or 0,
-        dice1_visible=user.dice1_visible or False,
-        dice2_visible=user.dice2_visible or False,
-        dice3_visible=user.dice3_visible or False,
-    )
-
-
 # roll dice
 @bp.route('/game/<gid>/user/<uid>/dice', methods=['POST'])
 def roll_dice(gid, uid):
