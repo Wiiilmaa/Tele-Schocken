@@ -130,19 +130,43 @@
   </tbody>
 </table>
 
-{% include "snippet/adminpanel.html" %}
+<!-- Round status row: always visible -->
+<div id="round_status_row" style="min-height: 40px; padding: 6px 0;"></div>
 
-<!-- Share link + QR code for mid-game joining -->
-<div style="margin-top: 20px;">
-  <h4 id="share_heading">Verteile diesen Link an alle Mitspieler:</h4>
-  <div class="input-group" style="max-width: 500px;">
-    <input id="share_link_input" type="text" class="form-control" readonly>
-    <div class="input-group-btn">
-      <button onclick="document.getElementById('share_link_input').select();document.execCommand('copy');" class="btn btn-outline-secondary" type="button">kopieren</button>
+<!-- Disclosure toggle for admin & links section -->
+<button class="disclosure-toggle" id="bottom_panel_toggle" onclick="toggleBottomPanel()" type="button">
+  <span class="disclosure-arrow" id="disclosure_arrow"></span>
+</button>
+
+<!-- Collapsible bottom panel (hidden by default) -->
+<div id="bottom_panel" class="disclosure-panel" style="display: none;">
+  {% include "snippet/adminpanel.html" %}
+
+  <!-- Share link + QR code for mid-game joining -->
+  <div style="margin-top: 20px;">
+    <h4 id="share_heading">Verteile diesen Link an alle Mitspieler:</h4>
+    <div class="input-group" style="max-width: 500px;">
+      <input id="share_link_input" type="text" class="form-control" readonly>
+      <div class="input-group-btn">
+        <button onclick="document.getElementById('share_link_input').select();document.execCommand('copy');" class="btn btn-outline-secondary" type="button">kopieren</button>
+      </div>
+    </div>
+    <div id="share_qrcode" class="qr-wrapper" style="margin-top: 12px;"></div>
+    <button id="switch_device_btn" onclick="toggleDeviceSwitch()" class="btn btn-outline-secondary btn-sm" style="margin-top: 8px;">Gerät wechseln</button>
+  </div>
+</div>
+
+<!-- Rules display modal -->
+<div id="rulesModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <span id="rulesclose" class="close" onclick="document.getElementById('rulesModal').style.display='none'">&times;</span>
+      <h2 id="rules_title">Regeln</h2>
+    </div>
+    <div class="modal-body">
+      <div id="rules_content"></div>
     </div>
   </div>
-  <div id="share_qrcode" class="qr-wrapper" style="margin-top: 12px;"></div>
-  <button id="switch_device_btn" onclick="toggleDeviceSwitch()" class="btn btn-outline-secondary btn-sm" style="margin-top: 8px;">Gerät wechseln</button>
 </div>
 
 </div> <!-- /.page-content -->
@@ -183,6 +207,15 @@
       correctLevel: QRCode.CorrectLevel.M
     });
   })();
+
+  // Toggle bottom panel (admin & links)
+  function toggleBottomPanel() {
+    var panel = document.getElementById('bottom_panel');
+    var arrow = document.getElementById('disclosure_arrow');
+    var isOpen = panel.style.display !== 'none';
+    panel.style.display = isOpen ? 'none' : '';
+    arrow.classList.toggle('open', !isOpen);
+  }
 
   // Toggle between invite link and device-switch link
   var _showingDeviceSwitch = false;
