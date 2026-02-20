@@ -111,6 +111,7 @@
 </div>
 
 <div style="height:30px;"></div>
+<div id="screenshot_area" style="display: inline-block;">
 <table class="table table-striped table-hover table-sm" id="player_table">
   <thead>
     <tr>
@@ -132,6 +133,7 @@
 
 <!-- Round status row: always visible -->
 <div id="round_status_row" style="min-height: 40px; padding: 6px 0;"></div>
+</div>
 
 <!-- Disclosure toggle for admin & links section -->
 <button class="disclosure-toggle" id="bottom_panel_toggle" onclick="toggleBottomPanel()" type="button">
@@ -175,6 +177,7 @@
 {% block scripts %}
 {{ super() }}
 <script src="{{ url_for('static', filename='scripts/qrcode.min.js') }}"></script>
+<script src="{{ url_for('static', filename='scripts/html2canvas.min.js') }}"></script>
 <script>
   // Handle device switch: read params from URL and set localStorage
   (function() {
@@ -331,6 +334,59 @@
     if (p !== undefined) {
       p.catch(function(e) { console.log('Sound konnte nicht abgespielt werden:', e.message); });
     }
+  }
+
+  // ============= Screenshot =============
+  var _screenshotBlob = null;
+  var _screenshotDataUrl = null;
+
+  function captureScreenshot() {
+    var area = document.getElementById('screenshot_area');
+    if (!area) return;
+    html2canvas(area, {
+      backgroundColor: getComputedStyle(document.body).backgroundColor,
+      scale: 2,
+      useCORS: true
+    }).then(function(canvas) {
+      _screenshotDataUrl = canvas.toDataURL('image/png');
+      canvas.toBlob(function(blob) {
+        _screenshotBlob = blob;
+        var camBtn = document.getElementById('screenshot_floating_btn');
+        if (camBtn) camBtn.style.display = '';
+      }, 'image/png');
+    }).catch(function(err) {
+      console.log('Screenshot fehlgeschlagen:', err);
+    });
+  }
+
+  function copyScreenshotToClipboard() {
+    if (!_screenshotBlob) return;
+    var camBtn = document.getElementById('screenshot_floating_btn');
+    if (navigator.clipboard && navigator.clipboard.write) {
+      navigator.clipboard.write([
+        new ClipboardItem({ 'image/png': _screenshotBlob })
+      ]).then(function() {
+        if (camBtn) {
+          camBtn.classList.add('screenshot-copied');
+          setTimeout(function() { camBtn.classList.remove('screenshot-copied'); }, 1500);
+        }
+      }).catch(function(err) {
+        console.log('Clipboard-Fehler:', err);
+        fallbackDownloadScreenshot();
+      });
+    } else {
+      fallbackDownloadScreenshot();
+    }
+  }
+
+  function fallbackDownloadScreenshot() {
+    if (!_screenshotDataUrl) return;
+    var a = document.createElement('a');
+    a.href = _screenshotDataUrl;
+    a.download = 'rundenergebnis.png';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   }
 
   // ============= Helpers =============
@@ -1923,6 +1979,8 @@
           var btn = document.getElementById('distribute_btn');
           if (btn) btn.disabled = false;
         }, 3000);
+        // Capture screenshot once the final result is rendered
+        setTimeout(captureScreenshot, 500);
       } else {
         var infoSpan = document.getElementById('round_info_text');
         if (infoSpan) infoSpan.innerHTML = fullInfo;
@@ -2083,6 +2141,16 @@
   document.addEventListener('DOMContentLoaded', function() {
     var container = document.getElementById('floating-icons');
     if (container) {
+      var camBtn = document.createElement('a');
+      camBtn.id = 'screenshot_floating_btn';
+      camBtn.className = 'floating-icon-btn';
+      camBtn.href = '#';
+      camBtn.style.display = 'none';
+      camBtn.onclick = function(e) { e.preventDefault(); copyScreenshotToClipboard(); };
+      camBtn.title = 'Rundenergebnis Screenshot';
+      camBtn.innerHTML = '<svg viewBox="0 0 512 512" fill="currentColor" width="16" height="16"><path d="M149.1 64.8L138.7 96H64C28.7 96 0 124.7 0 160v256c0 35.3 28.7 64 64 64h384c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H373.3l-10.4-31.2C356.4 45.2 338.1 32 317.4 32H194.6c-20.7 0-39 13.2-45.5 32.8zM256 384c-53 0-96-43-96-96s43-96 96-96 96 43 96 96-43 96-96 96z"/></svg>';
+      container.insertBefore(camBtn, container.firstChild);
+
       var btn = document.createElement('a');
       btn.id = 'rules_floating_btn';
       btn.className = 'floating-icon-btn';

@@ -394,6 +394,13 @@ left: 100%;
   background: transparent;
 }
 
+/* Screenshot copied feedback */
+.floating-icon-btn.screenshot-copied {
+  color: #4CAF50 !important;
+  filter: drop-shadow(0 0 4px #4CAF50);
+  transition: color 0.15s, filter 0.15s;
+}
+
 /* Sun / Moon icon visibility */
 .floating-icon-btn .icon-sun,
 .floating-icon-btn .icon-moon { display: none; }
