@@ -111,6 +111,7 @@
 </div>
 
 <div style="height:30px;"></div>
+<div id="screenshot_area">
 <table class="table table-striped table-hover table-sm" id="player_table">
   <thead>
     <tr>
@@ -132,6 +133,7 @@
 
 <!-- Round status row: always visible -->
 <div id="round_status_row" style="min-height: 40px; padding: 6px 0;"></div>
+</div>
 
 <!-- Disclosure toggle for admin & links section -->
 <button class="disclosure-toggle" id="bottom_panel_toggle" onclick="toggleBottomPanel()" type="button">
@@ -156,6 +158,22 @@
   </div>
 </div>
 
+<!-- Screenshot preview modal -->
+<div id="screenshotModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <span class="close" onclick="document.getElementById('screenshotModal').style.display='none'">&times;</span>
+      <h2>Rundenergebnis</h2>
+    </div>
+    <div class="modal-body" style="text-align:center;">
+      <img id="screenshot_preview" style="max-width:100%; border:1px solid var(--border-color); border-radius:4px;" alt="Screenshot">
+      <div style="margin-top:12px;">
+        <button class="btn btn-primary" onclick="copyScreenshotToClipboard()">In Zwischenablage kopieren</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Rules display modal -->
 <div id="rulesModal" class="modal">
   <div class="modal-content">
@@ -175,6 +193,7 @@
 {% block scripts %}
 {{ super() }}
 <script src="{{ url_for('static', filename='scripts/qrcode.min.js') }}"></script>
+<script src="{{ url_for('static', filename='scripts/html2canvas.min.js') }}"></script>
 <script>
   // Handle device switch: read params from URL and set localStorage
   (function() {
@@ -330,6 +349,77 @@
     var p = audio.play();
     if (p !== undefined) {
       p.catch(function(e) { console.log('Sound konnte nicht abgespielt werden:', e.message); });
+    }
+  }
+
+  // ============= Screenshot =============
+  var _screenshotBlob = null;
+  var _screenshotDataUrl = null;
+
+  function captureScreenshot() {
+    var area = document.getElementById('screenshot_area');
+    if (!area) return;
+    html2canvas(area, {
+      backgroundColor: getComputedStyle(document.body).backgroundColor,
+      scale: 2,
+      useCORS: true
+    }).then(function(canvas) {
+      _screenshotDataUrl = canvas.toDataURL('image/png');
+      canvas.toBlob(function(blob) {
+        _screenshotBlob = blob;
+        var camBtn = document.getElementById('screenshot_floating_btn');
+        if (camBtn) camBtn.style.display = '';
+      }, 'image/png');
+    }).catch(function(err) {
+      console.log('Screenshot fehlgeschlagen:', err);
+    });
+  }
+
+  function showScreenshot() {
+    if (!_screenshotDataUrl) return;
+    var img = document.getElementById('screenshot_preview');
+    img.src = _screenshotDataUrl;
+    document.getElementById('screenshotModal').style.display = 'block';
+  }
+
+  function copyScreenshotToClipboard() {
+    if (!_screenshotBlob) {
+      alert('Kein Screenshot vorhanden');
+      return;
+    }
+    if (navigator.clipboard && navigator.clipboard.write) {
+      navigator.clipboard.write([
+        new ClipboardItem({ 'image/png': _screenshotBlob })
+      ]).then(function() {
+        var btn = document.querySelector('#screenshotModal .btn-primary');
+        if (btn) {
+          var orig = btn.textContent;
+          btn.textContent = 'Kopiert!';
+          btn.classList.remove('btn-primary');
+          btn.classList.add('btn-success');
+          setTimeout(function() {
+            btn.textContent = orig;
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-primary');
+          }, 2000);
+        }
+      }).catch(function(err) {
+        console.log('Clipboard-Fehler:', err);
+        fallbackCopyScreenshot();
+      });
+    } else {
+      fallbackCopyScreenshot();
+    }
+  }
+
+  function fallbackCopyScreenshot() {
+    if (!_screenshotDataUrl) return;
+    var win = window.open('');
+    if (win) {
+      win.document.write('<img src="' + _screenshotDataUrl + '">');
+      win.document.title = 'Screenshot — Rechtsklick zum Speichern';
+    } else {
+      alert('Clipboard API nicht verfügbar. Bitte Screenshot manuell erstellen.');
     }
   }
 
@@ -1923,6 +2013,8 @@
           var btn = document.getElementById('distribute_btn');
           if (btn) btn.disabled = false;
         }, 3000);
+        // Capture screenshot once the final result is rendered
+        setTimeout(captureScreenshot, 500);
       } else {
         var infoSpan = document.getElementById('round_info_text');
         if (infoSpan) infoSpan.innerHTML = fullInfo;
@@ -1961,6 +2053,11 @@
       } else {
         roundRow.innerHTML = '';
       }
+      // Hide camera icon when a new round starts
+      var camBtn = document.getElementById('screenshot_floating_btn');
+      if (camBtn) camBtn.style.display = 'none';
+      _screenshotBlob = null;
+      _screenshotDataUrl = null;
     } else {
       roundRow.innerHTML = '';
     }
@@ -2083,6 +2180,16 @@
   document.addEventListener('DOMContentLoaded', function() {
     var container = document.getElementById('floating-icons');
     if (container) {
+      var camBtn = document.createElement('a');
+      camBtn.id = 'screenshot_floating_btn';
+      camBtn.className = 'floating-icon-btn';
+      camBtn.href = '#';
+      camBtn.style.display = 'none';
+      camBtn.onclick = function(e) { e.preventDefault(); showScreenshot(); };
+      camBtn.title = 'Rundenergebnis Screenshot';
+      camBtn.innerHTML = '<svg viewBox="0 0 512 512" fill="currentColor" width="16" height="16"><path d="M149.1 64.8L138.7 96H64C28.7 96 0 124.7 0 160v256c0 35.3 28.7 64 64 64h384c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H373.3l-10.4-31.2C356.4 45.2 338.1 32 317.4 32H194.6c-20.7 0-39 13.2-45.5 32.8zM256 384c-53 0-96-43-96-96s43-96 96-96 96 43 96 96-43 96-96 96z"/></svg>';
+      container.insertBefore(camBtn, container.firstChild);
+
       var btn = document.createElement('a');
       btn.id = 'rules_floating_btn';
       btn.className = 'floating-icon-btn';
@@ -2096,6 +2203,12 @@
     if (rulesModal) {
       window.addEventListener('click', function(e) {
         if (e.target === rulesModal) rulesModal.style.display = 'none';
+      });
+    }
+    var screenshotModal = document.getElementById('screenshotModal');
+    if (screenshotModal) {
+      window.addEventListener('click', function(e) {
+        if (e.target === screenshotModal) screenshotModal.style.display = 'none';
       });
     }
   });
