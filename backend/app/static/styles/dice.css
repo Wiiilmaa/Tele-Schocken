@@ -557,9 +557,12 @@ body {
   width: 50px;
   height: 50px;
   perspective: 200px;
+  -webkit-perspective: 200px;
+  perspective-origin: 50% 50%;
   margin: 2px auto;
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
+  background-color: #ffffff;
 }
 
 .dice-3d-cube {
@@ -573,15 +576,16 @@ body {
 
 .dice-3d-cube .dice {
   position: absolute;
-  top: -0.5px;
-  left: -0.5px;
-  width: calc(100% + 1px);
-  height: calc(100% + 1px);
+  top: -1px;
+  left: -1px;
+  width: calc(100% + 2px);
+  height: calc(100% + 2px);
   margin: 0;
   box-sizing: border-box;
   border-radius: 0;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
+  outline: 1px solid transparent;
 }
 
 /* Tablet 3D dice */
@@ -590,6 +594,7 @@ body {
     width: 42px;
     height: 42px;
     perspective: 180px;
+    -webkit-perspective: 180px;
   }
 }
 
@@ -601,6 +606,7 @@ body {
     max-width: 50px;
     max-height: 50px;
     perspective: 150px;
+    -webkit-perspective: 150px;
     margin: 1px auto;
   }
 }
