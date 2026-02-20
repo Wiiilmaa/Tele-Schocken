@@ -354,6 +354,7 @@
   var _diceHiddenAfterRoll = false;
   var _diceOutAtRoll = [false, false, false];
   var _diceAnimating = false;
+  var _needsDiceRestore = true;
 
   function getGameId() {
     var el = document.getElementById('UUID');
@@ -2005,6 +2006,46 @@
     content.innerHTML = html;
   }
 
+  function restoreMyDice(game) {
+    if (!_needsDiceRestore) return;
+    _needsDiceRestore = false;
+
+    var myId = getMyId();
+    var me = null;
+    for (var i = 0; i < game.User.length; i++) {
+      if (game.User[i].Id === myId) { me = game.User[i]; break; }
+    }
+    if (!me || me.Number_Dice === 0) return;
+    if (_myDiceValues[0] > 0 && _myDiceValues[1] > 0 && _myDiceValues[2] > 0) return;
+
+    var gameid = getGameId();
+    var xhttp = new XMLHttpRequest();
+    xhttp.open("GET", "/api/game/" + gameid + "/user/" + myId + "/mydice");
+    xhttp.onreadystatechange = function() {
+      if (xhttp.readyState == XMLHttpRequest.DONE && xhttp.status == 200) {
+        var res = JSON.parse(xhttp.responseText);
+
+        _diceInCup = [!res.dice1_visible, !res.dice2_visible, !res.dice3_visible];
+        _diceOutAtRoll = [res.dice1_visible, res.dice2_visible, res.dice3_visible];
+
+        if (game.Move === myId) {
+          _myDiceValues = [res.dice1 || 0, res.dice2 || 0, res.dice3 || 0];
+          _diceHiddenAfterRoll = false;
+        } else {
+          _myDiceValues = [
+            res.dice1_visible ? (res.dice1 || 0) : 0,
+            res.dice2_visible ? (res.dice2 || 0) : 0,
+            res.dice3_visible ? (res.dice3 || 0) : 0
+          ];
+          _diceHiddenAfterRoll = !res.dice1_visible || !res.dice2_visible || !res.dice3_visible;
+        }
+
+        if (!_diceAnimating) renderDiceCup();
+      }
+    };
+    xhttp.send();
+  }
+
   function initial_game_data() {
     var gameid = getGameId();
     var xhttp = new XMLHttpRequest();
@@ -2015,6 +2056,7 @@
         if (xhttp.status == 200) {
           var res = JSON.parse(xhttp.responseText);
           refresh_game(res);
+          restoreMyDice(res);
         }
       }
     }

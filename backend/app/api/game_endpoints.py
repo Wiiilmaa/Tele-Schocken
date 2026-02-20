@@ -156,6 +156,28 @@ def set_game_user(gid):
     return jsonify(game.to_dict())
 
 
+# Return the requesting player's own dice values (including hidden in-cup dice).
+# Used by the client on page reload to restore the dice cup display.
+@bp.route('/game/<gid>/user/<uid>/mydice', methods=['GET'])
+def get_my_dice(gid, uid):
+    game = Game.query.filter_by(UUID=gid).first()
+    if game is None:
+        return jsonify(Message='Spiel nicht gefunden'), 404
+    user_index = get_Index_Of_User(game, uid)
+    if user_index < 0:
+        return jsonify(Message='Spieler nicht gefunden'), 404
+    user = game.users[user_index]
+    return jsonify(
+        dice1=user.dice1 or 0,
+        dice2=user.dice2 or 0,
+        dice3=user.dice3 or 0,
+        number_dice=user.number_dice,
+        dice1_visible=user.dice1_visible or False,
+        dice2_visible=user.dice2_visible or False,
+        dice3_visible=user.dice3_visible or False
+    ), 200
+
+
 # pull up the dice cup
 # A3 fix: added leading /
 @bp.route('/game/<gid>/user/<uid>/visible', methods=['POST'])
