@@ -340,6 +340,7 @@ def distribute_chips(gid):
 
     # Persist scoring so all clients can display it after distribution
     game.last_scoring = json.dumps(scoring)
+    game.reveal_votes = ''
 
     # Perform the chip transfer
     target_user = User.query.get(scoring['To'])

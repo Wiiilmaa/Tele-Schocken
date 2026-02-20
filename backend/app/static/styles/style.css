@@ -240,6 +240,7 @@ select optgroup {
 }
 .row-passive {
   background-color: var(--passive-row) !important;
+  color: var(--text-muted);
 }
 .row-normal {
   background-color: transparent !important;

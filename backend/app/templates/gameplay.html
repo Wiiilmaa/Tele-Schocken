@@ -38,19 +38,19 @@
       <div id="controls_block1" class="controls-block">
         <div class="controls-btn-row">
           <div class="controls-left">
-            <div class="containerturner" id='startgame_id'>
+            <div class="buttongray containerturner" id='startgame_id'>
               <img src="{{ url_for('static', filename = 'image/throw_the_dice.svg')}}" alt="throw the dice">
               <button id='btn_dice' onclick="dice()" class="btn" title="Würfeln">Würfeln</button>
               <p style="text-align: center">Würfeln</p>
             </div>
           </div>
           <div class="controls-center">
-            <div class="containercup" id="btn_pullup_container">
+            <div class="buttongray containercup" id="btn_pullup_container">
               <img src="{{ url_for('static', filename = 'image/pulldiceup.svg')}}" alt="pull dice cup up">
               <button onclick="pullup()" class="btn" title="Aufdecken">Aufdecken</button>
               <p style="text-align: center">Aufdecken</p>
             </div>
-            <div class="containercup">
+            <div class="buttongray containercup">
               <img src="{{ url_for('static', filename = 'image/pulldicedown.svg')}}" alt="pull dice cup down">
               <button onclick="pulldown()" class="btn" title="Zudecken">Zudecken</button>
               <p style="text-align: center">Zudecken</p>
@@ -336,6 +336,7 @@
   // ============= Helpers =============
   var _lastGameState = null;  // cache for checking player status etc.
   var _wasInRevealPhase = false; // track reveal phase to play sound only on transition
+  var _pullupWasGreen = false;   // track pullup button state for sound trigger
   var _currentRoundPhase = null; // track round row phase to avoid restarting countdowns
   var _lastWaitingUserId = undefined; // undefined = first load (suppress sound on page load)
 
@@ -1879,24 +1880,23 @@
 
     // Aufdecken button: green when waiting for reveal and player has hidden dice
     var pullupBtn = document.getElementById('btn_pullup_container');
+    var pullupIsGreen = false;
     if (pullupBtn) {
       var myDicesRevealed = me_data && me_data.Dices && me_data.Dices.length >= 3;
       if (needsReveal && me_data && me_data.Number_Dice > 0 && !myDicesRevealed) {
         pullupBtn.className = 'buttongreen containercup';
+        pullupIsGreen = true;
       } else {
-        pullupBtn.className = 'containercup';
+        pullupBtn.className = 'buttongray containercup';
       }
     }
     var readyToDistribute = roundFinished && !needsReveal;
 
-    // Play reveal sound only on transition into the reveal phase,
-    // and only for active players who still have hidden dice
-    if (needsReveal && !_wasInRevealPhase) {
-      if (me_data && !me_data.Passive && !me_data.Pending_Join
-          && me_data.Dices.length < 3 && me_data.Number_Dice > 0) {
-        playSound(soundLift);
-      }
+    // Play reveal sound whenever the Aufdecken button becomes green
+    if (pullupIsGreen && !_pullupWasGreen) {
+      playSound(soundLift);
     }
+    _pullupWasGreen = pullupIsGreen;
     _wasInRevealPhase = needsReveal;
 
     var newPhase = 'idle';
