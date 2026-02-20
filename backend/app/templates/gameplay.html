@@ -354,6 +354,41 @@
   var _diceHiddenAfterRoll = false;
   var _diceOutAtRoll = [false, false, false];
   var _diceAnimating = false;
+  var _myDiceFetchPending = false;
+
+  function maybe_fetch_my_dice(game) {
+    if (_myDiceFetchPending) return;
+    var id = parseInt(document.getElementById('UID').innerHTML);
+    if (game.Move != id) return;
+
+    var me_data = null;
+    for (var num in game.User) {
+      if (game.User[num].Id == id) { me_data = game.User[num]; break; }
+    }
+    if (!me_data || (me_data.Number_Dice || 0) <= 0) return;
+    if (_myDiceValues[0] !== 0 && _myDiceValues[1] !== 0 && _myDiceValues[2] !== 0) return;
+
+    _myDiceFetchPending = true;
+    var gameid = getGameId();
+    var xhttp = new XMLHttpRequest();
+    xhttp.open("GET", "/api/game/" + gameid + "/user/" + id + "/mydice");
+    xhttp.onreadystatechange = function () {
+      if (xhttp.readyState != XMLHttpRequest.DONE) return;
+      _myDiceFetchPending = false;
+      if (xhttp.status != 200) return;
+      var res = JSON.parse(xhttp.responseText);
+      if ((res.number_dice || 0) <= 0) return;
+      if (res.dice1 > 0 && _myDiceValues[0] === 0) _myDiceValues[0] = res.dice1;
+      if (res.dice2 > 0 && _myDiceValues[1] === 0) _myDiceValues[1] = res.dice2;
+      if (res.dice3 > 0 && _myDiceValues[2] === 0) _myDiceValues[2] = res.dice3;
+      _diceInCup[0] = !res.dice1_visible;
+      _diceInCup[1] = !res.dice2_visible;
+      _diceInCup[2] = !res.dice3_visible;
+      _diceHiddenAfterRoll = false;
+      if (!_diceAnimating) renderDiceCup();
+    };
+    xhttp.send();
+  }
 
   function getGameId() {
     var el = document.getElementById('UUID');
@@ -2015,6 +2050,7 @@
         if (xhttp.status == 200) {
           var res = JSON.parse(xhttp.responseText);
           refresh_game(res);
+          maybe_fetch_my_dice(res);
         }
       }
     }
@@ -2076,6 +2112,7 @@
   socket.on('reload_game', function (game) {
     if (game) {
       refresh_game(game);
+      maybe_fetch_my_dice(game);
     }
   });
 </script>
