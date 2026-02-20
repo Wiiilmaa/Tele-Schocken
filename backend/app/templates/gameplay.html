@@ -100,7 +100,7 @@
   <div class="input-group" style="max-width: 400px;">
     <input id="join_name" placeholder="Spielername" type="text" class="form-control" onkeydown="if(event.key==='Enter')joinMidGame()">
     <div class="input-group-btn">
-      <button class="btn btn-primary" onclick="joinMidGame()">Beitreten</button>
+      <button id="join_btn" class="btn btn-primary" onclick="joinMidGame()">Beitreten</button>
     </div>
   </div>
 </div>
@@ -1995,6 +1995,8 @@
     var content = document.getElementById('rules_content');
     if (!title || !content) return;
     title.innerHTML = 'Regeln: ' + ruleset.name;
+    var rulesBtn = document.getElementById('rules_floating_btn');
+    if (rulesBtn) rulesBtn.title = 'Regeln: ' + ruleset.name;
     var html = '<p><strong>Chips:</strong> ' + ruleset.stack_max + ' | <strong>Finale:</strong> ' + (ruleset.play_final ? 'Ja' : 'Nein') + '</p>';
     html += '<table class="table table-condensed rules-table"><thead><tr><th class="rules-col-kombi">Kombination</th><th>Name</th><th>Chips</th></tr></thead><tbody>';
     for (var i = 0; i < ruleset.rules.length; i++) {
@@ -2082,6 +2084,7 @@
     var container = document.getElementById('floating-icons');
     if (container) {
       var btn = document.createElement('a');
+      btn.id = 'rules_floating_btn';
       btn.className = 'floating-icon-btn';
       btn.href = '#';
       btn.onclick = function(e) { e.preventDefault(); showRules(); };

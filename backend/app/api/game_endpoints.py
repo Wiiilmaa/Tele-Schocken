@@ -10,6 +10,7 @@ from datetime import datetime
 from jinja2 import utils
 
 from app.api.errors import bad_request
+from sqlalchemy.exc import IntegrityError
 
 
 from flask import session
@@ -151,7 +152,13 @@ def set_game_user(gid):
 
     game.users.append(user)
     db.session.add(game)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        response = jsonify(Message='Benutzername in diesem Spiel schon vergeben!')
+        response.status_code = 400
+        return response
     emit('reload_game', game.to_dict(), room=gid, namespace='/game')
     return jsonify(game.to_dict())
 
