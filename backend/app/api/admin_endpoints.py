@@ -45,8 +45,8 @@ def _handle_round_end(game, loser):
 
     if loser.chips == game.stack_max:
         # Someone loses a half - increase chance of fallen dice (only if enabled)
-        if game.changs_of_fallling_dice > 0:
-            game.changs_of_fallling_dice = game.changs_of_fallling_dice + 0.0002
+        if game.chance_of_falling_dice > 0:
+            game.chance_of_falling_dice = game.chance_of_falling_dice + 0.0002
 
         if game.play_final:
             if game.status == Status.PLAYFINAL:
@@ -198,8 +198,8 @@ def _cleanup_old_games(app):
                 stat.refreshed = old_game.refreshed
                 stat.halfcount = old_game.halfcount
                 stat.schockoutcount = old_game.schockoutcount
-                stat.fallling_dice_count = old_game.fallling_dice_count
-                stat.changs_of_fallling_dice = old_game.changs_of_fallling_dice
+                stat.falling_dice_count = old_game.falling_dice_count
+                stat.chance_of_falling_dice = old_game.chance_of_falling_dice
                 stat.throw_dice_count = old_game.throw_dice_count
                 stat.stack_max = old_game.stack_max
                 stat.play_final = old_game.play_final
@@ -307,7 +307,7 @@ def start_game(gid):
     falling_dice = data.get('falling_dice', False)
     if isinstance(falling_dice, str):
         falling_dice = falling_dice.lower() in ['true', '1', 't', 'y', 'yes']
-    game.changs_of_fallling_dice = 0.003 if falling_dice else 0.0
+    game.chance_of_falling_dice = 0.003 if falling_dice else 0.0
 
     game.reveal_votes = ''
     game.player_changes_allowed = True
@@ -327,7 +327,7 @@ def distribute_chips(gid):
 
     # Validate phase
     if game.status not in (Status.STARTED, Status.PLAYFINAL):
-        return jsonify(Message='Spiel ist nicht in einer spielbaren Phase'), 400
+        return jsonify(Message='Spiel ist noch nicht gestartet!'), 400
     if game.move_user_id != -1:
         return jsonify(Message='Noch nicht alle Spieler sind fertig'), 400
     if not game._all_dice_visible():

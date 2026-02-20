@@ -26,9 +26,9 @@ class BaseGameData():
     started = db.Column(db.DateTime())
     refreshed = db.Column(db.DateTime())
     schockoutcount = db.Column(db.Integer)
-    fallling_dice_count = db.Column(db.Integer)
+    falling_dice_count = db.Column(db.Integer)
     throw_dice_count = db.Column(db.Integer)
-    changs_of_fallling_dice = db.Column(db.Float)
+    chance_of_falling_dice = db.Column(db.Float)
     stack_max = db.Column(db.Integer)
     play_final = db.Column(db.Boolean(), default=True)
 
@@ -38,10 +38,10 @@ class BaseGameData():
         """
         self.halfcount = 0
         self.finalcount = 0
-        self.fallling_dice_count = 0
+        self.falling_dice_count = 0
         self.schockoutcount = 0
         self.throw_dice_count = 0
-        self.changs_of_fallling_dice = 0.0
+        self.chance_of_falling_dice = 0.0
         self.stack_max = 13
         self.play_final = True
 
@@ -104,7 +104,7 @@ class Game(BaseGameData, db.Model):
             'Game_Half_Count': self.halfcount,
             'Game_Final_Count': self.finalcount,
             'Lobby_After_Game': self.lobby_after_game or False,
-            'Falling_Dice': (self.changs_of_fallling_dice or 0) > 0,
+            'Falling_Dice': (self.chance_of_falling_dice or 0) > 0,
             'Ruleset_Id': self.ruleset_id,
             'User': arrayuser,
             'Reveal_Votes': len([v for v in (self.reveal_votes or '').split(',') if v]),

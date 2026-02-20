@@ -24,7 +24,7 @@ def upgrade():
     sa.Column('firsthalf', sa.Boolean(), nullable=True),
     sa.Column('status', sa.Enum('DEFERREDTRACKS', 'BILL', 'NOTBILL', name='status'), nullable=True),
     sa.Column('stack', sa.Integer(), nullable=True),
-    sa.Column('changs_of_fallling_dice', sa.Float(), nullable=True),
+    sa.Column('chance_of_falling_dice', sa.Float(), nullable=True),
     sa.Column('move_user_id', sa.Integer(), nullable=True),
     sa.Column('first_user_id', sa.Integer(), nullable=True),
     sa.Column('admin_user_id', sa.Integer(), nullable=True),

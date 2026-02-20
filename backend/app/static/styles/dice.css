@@ -552,6 +552,44 @@ body {
   .col-penalty { font-size: 24px; }
 }
 
+/* ============= Disclosure Toggle ============= */
+.disclosure-toggle {
+  display: flex;
+  align-items: center;
+  background: none;
+  border: none;
+  padding: 6px 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.disclosure-arrow {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 5px 0 5px 8px;
+  border-color: transparent transparent transparent #999;
+  transition: transform 0.3s ease;
+}
+
+.disclosure-arrow.open {
+  transform: rotate(90deg);
+}
+
+.disclosure-panel {
+  overflow: hidden;
+}
+
+/* ============= QR Code Container ============= */
+.qr-wrapper {
+  display: inline-block;
+  background-color: #ffffff;
+  padding: 16px;
+  border-radius: 4px;
+  line-height: 0;
+}
+
 /* ============= 3D Dice Roll Animation ============= */
 .dice-3d-scene {
   width: 50px;

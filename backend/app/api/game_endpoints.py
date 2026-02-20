@@ -171,7 +171,7 @@ def pull_up_dice_cup(gid, uid):
 
     # B1: Game status check
     if game.status not in (Status.STARTED, Status.PLAYFINAL):
-        response = jsonify(Message='Spiel ist nicht in einer spielbaren Phase')
+        response = jsonify(Message='Spiel ist noch nicht gestartet!')
         response.status_code = 400
         return response
 
@@ -232,7 +232,7 @@ def finish_throwing(gid, uid):
 
     # B1: Game status check
     if game.status not in (Status.STARTED, Status.PLAYFINAL):
-        response = jsonify(Message='Spiel ist nicht in einer spielbaren Phase')
+        response = jsonify(Message='Spiel ist noch nicht gestartet!')
         response.status_code = 400
         return response
 
@@ -284,7 +284,7 @@ def set_user_passiv(gid, uid):
 
     # B1: Game status check
     if game.status not in (Status.STARTED, Status.PLAYFINAL):
-        response = jsonify(Message='Spiel ist nicht in einer spielbaren Phase')
+        response = jsonify(Message='Spiel ist noch nicht gestartet!')
         response.status_code = 400
         return response
 
@@ -328,7 +328,7 @@ def set_user_passiv(gid, uid):
                 elif has_stack:
                     game.message = '{}: Pause trotz Chips auf Stapel'.format(user.name)
                 elif has_chips:
-                    game.message = '{}: Pause trotz Chips'.format(user.name)
+                    game.message = '{}: Pause trotz eigener Chips'.format(user.name)
 
                 db.session.add(user)
                 db.session.add(game)
@@ -386,7 +386,7 @@ def roll_dice(gid, uid):
 
     # B1: Game status check (removed implicit GAMEFINISCH->STARTED transition)
     if game.status not in (Status.STARTED, Status.PLAYFINAL):
-        response = jsonify(Message='Spiel ist nicht in einer spielbaren Phase')
+        response = jsonify(Message='Spiel ist noch nicht gestartet!')
         response.status_code = 400
         return response
 
@@ -427,10 +427,10 @@ def roll_dice(gid, uid):
                 response.status_code = 400
                 return response
             # Check if a dice fall from the table and return if so
-            fallen = decision(game.changs_of_fallling_dice)
+            fallen = decision(game.chance_of_falling_dice)
             if fallen:
                 game.message = "Hoppla, {} ist ein Würfel vom Tisch gefallen!".format(user.name)
-                game.fallling_dice_count = game.fallling_dice_count + 1
+                game.falling_dice_count = game.falling_dice_count + 1
                 db.session.add(game)
                 db.session.commit()
                 response = jsonify(fallen=fallen, dice1=user.dice1, dice2=user.dice2, dice3=user.dice3, number_dice=user.number_dice)
@@ -515,7 +515,7 @@ def turn_dice(gid, uid):
 
     # B1: Game status check
     if game.status not in (Status.STARTED, Status.PLAYFINAL):
-        response = jsonify(Message='Spiel ist nicht in einer spielbaren Phase')
+        response = jsonify(Message='Spiel ist noch nicht gestartet!')
         response.status_code = 400
         return response
 
@@ -589,7 +589,7 @@ def undo_turn_dice(gid, uid):
         return jsonify(Message='Spiel nicht gefunden'), 404
 
     if game.status not in (Status.STARTED, Status.PLAYFINAL):
-        return jsonify(Message='Spiel ist nicht in einer spielbaren Phase'), 400
+        return jsonify(Message='Spiel ist noch nicht gestartet!'), 400
 
     user_index = get_Index_Of_User(game, uid)
     if user_index > -1:
@@ -680,7 +680,7 @@ def vote_reveal_all(gid):
         return jsonify(Message='Spiel nicht gefunden'), 404
 
     if game.status not in (Status.STARTED, Status.PLAYFINAL):
-        return jsonify(Message='Spiel ist nicht in einer spielbaren Phase'), 400
+        return jsonify(Message='Spiel ist noch nicht gestartet!'), 400
 
     if game.move_user_id != -1:
         return jsonify(Message='Runde ist noch nicht beendet'), 400
