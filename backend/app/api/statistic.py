@@ -21,8 +21,8 @@ def statistic():
                 stat.refreshed = old_game.refreshed
                 stat.halfcount = old_game.halfcount
                 stat.schockoutcount = old_game.schockoutcount
-                stat.fallling_dice_count = old_game.fallling_dice_count
-                stat.changs_of_fallling_dice = old_game.changs_of_fallling_dice
+                stat.falling_dice_count = old_game.falling_dice_count
+                stat.chance_of_falling_dice = old_game.chance_of_falling_dice
                 stat.throw_dice_count = old_game.throw_dice_count
                 stat.stack_max = old_game.stack_max
                 stat.play_final = old_game.play_final
