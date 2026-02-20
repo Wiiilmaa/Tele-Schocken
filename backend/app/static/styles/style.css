@@ -188,6 +188,16 @@ select optgroup {
   color: var(--close-hover);
 }
 
+/* ============= Rules table ============= */
+.rules-table {
+  max-width: 600px;
+}
+.rules-col-kombi {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
+}
+
 /* ============= Bootstrap panel / well overrides ============= */
 .panel, .well {
   background-color: var(--bg-secondary);

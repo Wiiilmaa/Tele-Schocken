@@ -1995,10 +1995,10 @@
     if (!title || !content) return;
     title.innerHTML = 'Regeln: ' + ruleset.name;
     var html = '<p><strong>Chips:</strong> ' + ruleset.stack_max + ' | <strong>Finale:</strong> ' + (ruleset.play_final ? 'Ja' : 'Nein') + '</p>';
-    html += '<table class="table table-condensed"><thead><tr><th>Kombination</th><th>Name</th><th>Chips</th></tr></thead><tbody>';
+    html += '<table class="table table-condensed rules-table"><thead><tr><th class="rules-col-kombi">Kombination</th><th>Name</th><th>Chips</th></tr></thead><tbody>';
     for (var i = 0; i < ruleset.rules.length; i++) {
       var r = ruleset.rules[i];
-      html += '<tr><td>' + r.dice + '</td><td>' + r.name + '</td><td>' + (r.chips == -1 ? 'Alle (' + r.name + ')' : r.chips) + '</td></tr>';
+      html += '<tr><td class="rules-col-kombi">' + r.dice + '</td><td>' + r.name + '</td><td>' + (r.chips == -1 ? 'Alle (' + r.name + ')' : r.chips) + '</td></tr>';
     }
     html += '</tbody></table>';
     html += '<p><small>Alle weiteren Kombinationen: Schrott (1 Chip)</small></p>';
