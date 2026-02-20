@@ -145,6 +145,7 @@
   <!-- Share link + QR code for mid-game joining -->
   <div style="margin-top: 20px;">
     <h4 id="share_heading">Verteile diesen Link an alle Mitspieler:</h4>
+    <button id="switch_device_btn" onclick="toggleDeviceSwitch()" class="btn btn-outline-secondary btn-sm" style="margin-top: 8px;">Gerät wechseln</button>
     <div class="input-group" style="max-width: 500px;">
       <input id="share_link_input" type="text" class="form-control" readonly>
       <div class="input-group-btn">
@@ -152,7 +153,6 @@
       </div>
     </div>
     <div id="share_qrcode" class="qr-wrapper" style="margin-top: 12px;"></div>
-    <button id="switch_device_btn" onclick="toggleDeviceSwitch()" class="btn btn-outline-secondary btn-sm" style="margin-top: 8px;">Gerät wechseln</button>
   </div>
 </div>
 
