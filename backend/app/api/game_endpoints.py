@@ -10,6 +10,7 @@ from datetime import datetime
 from jinja2 import utils
 
 from app.api.errors import bad_request
+from sqlalchemy.exc import IntegrityError
 
 
 from flask import session
@@ -151,9 +152,37 @@ def set_game_user(gid):
 
     game.users.append(user)
     db.session.add(game)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        response = jsonify(Message='Benutzername in diesem Spiel schon vergeben!')
+        response.status_code = 400
+        return response
     emit('reload_game', game.to_dict(), room=gid, namespace='/game')
     return jsonify(game.to_dict())
+
+
+# Return the requesting player's own dice values (including hidden in-cup dice).
+# Used by the client on page reload to restore the dice cup display.
+@bp.route('/game/<gid>/user/<uid>/mydice', methods=['GET'])
+def get_my_dice(gid, uid):
+    game = Game.query.filter_by(UUID=gid).first()
+    if game is None:
+        return jsonify(Message='Spiel nicht gefunden'), 404
+    user_index = get_Index_Of_User(game, uid)
+    if user_index < 0:
+        return jsonify(Message='Spieler nicht gefunden'), 404
+    user = game.users[user_index]
+    return jsonify(
+        dice1=user.dice1 or 0,
+        dice2=user.dice2 or 0,
+        dice3=user.dice3 or 0,
+        number_dice=user.number_dice,
+        dice1_visible=user.dice1_visible or False,
+        dice2_visible=user.dice2_visible or False,
+        dice3_visible=user.dice3_visible or False
+    ), 200
 
 
 # pull up the dice cup

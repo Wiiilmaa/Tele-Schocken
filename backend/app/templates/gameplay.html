@@ -38,19 +38,19 @@
       <div id="controls_block1" class="controls-block">
         <div class="controls-btn-row">
           <div class="controls-left">
-            <div class="containerturner" id='startgame_id'>
+            <div class="buttongray containerturner" id='startgame_id'>
               <img src="{{ url_for('static', filename = 'image/throw_the_dice.svg')}}" alt="throw the dice">
               <button id='btn_dice' onclick="dice()" class="btn" title="Würfeln">Würfeln</button>
               <p style="text-align: center">Würfeln</p>
             </div>
           </div>
           <div class="controls-center">
-            <div class="containercup" id="btn_pullup_container">
+            <div class="buttongray containercup" id="btn_pullup_container">
               <img src="{{ url_for('static', filename = 'image/pulldiceup.svg')}}" alt="pull dice cup up">
               <button onclick="pullup()" class="btn" title="Aufdecken">Aufdecken</button>
               <p style="text-align: center">Aufdecken</p>
             </div>
-            <div class="containercup">
+            <div class="buttongray containercup">
               <img src="{{ url_for('static', filename = 'image/pulldicedown.svg')}}" alt="pull dice cup down">
               <button onclick="pulldown()" class="btn" title="Zudecken">Zudecken</button>
               <p style="text-align: center">Zudecken</p>
@@ -100,7 +100,7 @@
   <div class="input-group" style="max-width: 400px;">
     <input id="join_name" placeholder="Spielername" type="text" class="form-control" onkeydown="if(event.key==='Enter')joinMidGame()">
     <div class="input-group-btn">
-      <button class="btn btn-primary" onclick="joinMidGame()">Beitreten</button>
+      <button id="join_btn" class="btn btn-primary" onclick="joinMidGame()">Beitreten</button>
     </div>
   </div>
 </div>
@@ -145,7 +145,6 @@
   <!-- Share link + QR code for mid-game joining -->
   <div style="margin-top: 20px;">
     <h4 id="share_heading">Verteile diesen Link an alle Mitspieler:</h4>
-    <button id="switch_device_btn" onclick="toggleDeviceSwitch()" class="btn btn-outline-secondary btn-sm" style="margin-top: 8px;">Gerät wechseln</button>
     <div class="input-group" style="max-width: 500px;">
       <input id="share_link_input" type="text" class="form-control" readonly>
       <div class="input-group-btn">
@@ -153,6 +152,7 @@
       </div>
     </div>
     <div id="share_qrcode" class="qr-wrapper" style="margin-top: 12px;"></div>
+    <div><button id="switch_device_btn" onclick="toggleDeviceSwitch()" class="btn btn-outline-secondary btn-sm" style="margin-top: 8px;">Gerät wechseln</button></div>
   </div>
 </div>
 
@@ -336,6 +336,7 @@
   // ============= Helpers =============
   var _lastGameState = null;  // cache for checking player status etc.
   var _wasInRevealPhase = false; // track reveal phase to play sound only on transition
+  var _pullupWasGreen = false;   // track pullup button state for sound trigger
   var _currentRoundPhase = null; // track round row phase to avoid restarting countdowns
   var _lastWaitingUserId = undefined; // undefined = first load (suppress sound on page load)
 
@@ -354,6 +355,7 @@
   var _diceHiddenAfterRoll = false;
   var _diceOutAtRoll = [false, false, false];
   var _diceAnimating = false;
+  var _needsDiceRestore = true;
 
   function getGameId() {
     var el = document.getElementById('UUID');
@@ -1878,24 +1880,23 @@
 
     // Aufdecken button: green when waiting for reveal and player has hidden dice
     var pullupBtn = document.getElementById('btn_pullup_container');
+    var pullupIsGreen = false;
     if (pullupBtn) {
       var myDicesRevealed = me_data && me_data.Dices && me_data.Dices.length >= 3;
       if (needsReveal && me_data && me_data.Number_Dice > 0 && !myDicesRevealed) {
         pullupBtn.className = 'buttongreen containercup';
+        pullupIsGreen = true;
       } else {
-        pullupBtn.className = 'containercup';
+        pullupBtn.className = 'buttongray containercup';
       }
     }
     var readyToDistribute = roundFinished && !needsReveal;
 
-    // Play reveal sound only on transition into the reveal phase,
-    // and only for active players who still have hidden dice
-    if (needsReveal && !_wasInRevealPhase) {
-      if (me_data && !me_data.Passive && !me_data.Pending_Join
-          && me_data.Dices.length < 3 && me_data.Number_Dice > 0) {
-        playSound(soundLift);
-      }
+    // Play reveal sound whenever the Aufdecken button becomes green
+    if (pullupIsGreen && !_pullupWasGreen) {
+      playSound(soundLift);
     }
+    _pullupWasGreen = pullupIsGreen;
     _wasInRevealPhase = needsReveal;
 
     var newPhase = 'idle';
@@ -1994,15 +1995,57 @@
     var content = document.getElementById('rules_content');
     if (!title || !content) return;
     title.innerHTML = 'Regeln: ' + ruleset.name;
+    var rulesBtn = document.getElementById('rules_floating_btn');
+    if (rulesBtn) rulesBtn.title = 'Regeln: ' + ruleset.name;
     var html = '<p><strong>Chips:</strong> ' + ruleset.stack_max + ' | <strong>Finale:</strong> ' + (ruleset.play_final ? 'Ja' : 'Nein') + '</p>';
-    html += '<table class="table table-condensed"><thead><tr><th>Kombination</th><th>Name</th><th>Chips</th></tr></thead><tbody>';
+    html += '<table class="table table-condensed rules-table"><thead><tr><th class="rules-col-kombi">Kombination</th><th>Name</th><th>Chips</th></tr></thead><tbody>';
     for (var i = 0; i < ruleset.rules.length; i++) {
       var r = ruleset.rules[i];
-      html += '<tr><td>' + r.dice + '</td><td>' + r.name + '</td><td>' + (r.chips == -1 ? 'Alle (' + r.name + ')' : r.chips) + '</td></tr>';
+      html += '<tr><td class="rules-col-kombi">' + r.dice + '</td><td>' + r.name + '</td><td>' + (r.chips == -1 ? 'Alle (' + r.name + ')' : r.chips) + '</td></tr>';
     }
     html += '</tbody></table>';
     html += '<p><small>Alle weiteren Kombinationen: Schrott (1 Chip)</small></p>';
     content.innerHTML = html;
+  }
+
+  function restoreMyDice(game) {
+    if (!_needsDiceRestore) return;
+    _needsDiceRestore = false;
+
+    var myId = getMyId();
+    var me = null;
+    for (var i = 0; i < game.User.length; i++) {
+      if (game.User[i].Id === myId) { me = game.User[i]; break; }
+    }
+    if (!me || me.Number_Dice === 0) return;
+    if (_myDiceValues[0] > 0 && _myDiceValues[1] > 0 && _myDiceValues[2] > 0) return;
+
+    var gameid = getGameId();
+    var xhttp = new XMLHttpRequest();
+    xhttp.open("GET", "/api/game/" + gameid + "/user/" + myId + "/mydice");
+    xhttp.onreadystatechange = function() {
+      if (xhttp.readyState == XMLHttpRequest.DONE && xhttp.status == 200) {
+        var res = JSON.parse(xhttp.responseText);
+
+        _diceInCup = [!res.dice1_visible, !res.dice2_visible, !res.dice3_visible];
+        _diceOutAtRoll = [res.dice1_visible, res.dice2_visible, res.dice3_visible];
+
+        if (game.Move === myId) {
+          _myDiceValues = [res.dice1 || 0, res.dice2 || 0, res.dice3 || 0];
+          _diceHiddenAfterRoll = false;
+        } else {
+          _myDiceValues = [
+            res.dice1_visible ? (res.dice1 || 0) : 0,
+            res.dice2_visible ? (res.dice2 || 0) : 0,
+            res.dice3_visible ? (res.dice3 || 0) : 0
+          ];
+          _diceHiddenAfterRoll = !res.dice1_visible || !res.dice2_visible || !res.dice3_visible;
+        }
+
+        if (!_diceAnimating) renderDiceCup();
+      }
+    };
+    xhttp.send();
   }
 
   function initial_game_data() {
@@ -2015,6 +2058,7 @@
         if (xhttp.status == 200) {
           var res = JSON.parse(xhttp.responseText);
           refresh_game(res);
+          restoreMyDice(res);
         }
       }
     }
@@ -2040,6 +2084,7 @@
     var container = document.getElementById('floating-icons');
     if (container) {
       var btn = document.createElement('a');
+      btn.id = 'rules_floating_btn';
       btn.className = 'floating-icon-btn';
       btn.href = '#';
       btn.onclick = function(e) { e.preventDefault(); showRules(); };

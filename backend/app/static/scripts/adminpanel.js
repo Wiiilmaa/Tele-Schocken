@@ -255,11 +255,14 @@ function showRules() {
 function joinMidGame() {
   var gameid = getGameId();
   var nameInput = document.getElementById('join_name');
+  var joinBtn = document.getElementById('join_btn');
   var username = nameInput.value.trim();
   if (!username) {
     alert('Bitte einen Namen eingeben');
     return;
   }
+  if (joinBtn) joinBtn.disabled = true;
+  nameInput.disabled = true;
   var xhttp = new XMLHttpRequest();
   xhttp.open("POST", "/api/game/" + gameid + "/user");
   xhttp.setRequestHeader("Content-Type", "application/json");
@@ -267,7 +270,8 @@ function joinMidGame() {
     if (xhttp.readyState == XMLHttpRequest.DONE) {
       var res = JSON.parse(xhttp.responseText);
       if (xhttp.status != 200) {
-        alert('Fehler: ' + res.Message);
+        alert('Fehler: ' + res.Message + '\nSeite wird neu geladen.');
+        location.reload();
       } else {
         localStorage.setItem('name', username);
         for (var num in res.User) {
