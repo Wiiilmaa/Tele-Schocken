@@ -31,6 +31,9 @@
     html.setAttribute('data-theme', next);
     localStorage.setItem('theme', next);
   }
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(function() {});
+  }
 </script>
 
 

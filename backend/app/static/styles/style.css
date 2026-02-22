@@ -172,13 +172,19 @@ select optgroup {
   background-color: var(--modal-bg) !important;
   color: var(--text-primary) !important;
   border-color: var(--border-color);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
 }
 .modal-header {
   border-bottom-color: var(--border-color);
   color: var(--text-primary);
+  flex-shrink: 0;
 }
 .modal-body {
   color: var(--text-primary);
+  overflow-y: auto;
+  flex: 1 1 auto;
 }
 .close {
   color: var(--close-color);

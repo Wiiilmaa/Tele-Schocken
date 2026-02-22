@@ -13,6 +13,8 @@ from app.models import (Person, GameLog, GameLogPlayer, NickMapping)
 
 import csv
 import io
+import json
+import re
 from datetime import datetime
 import pytz
 
@@ -433,12 +435,13 @@ def export_csv():
                 loser = name
             else:
                 winners.append(name)
-        row = [game.game_date.strftime('%d.%m.%Y'), loser] + sorted(winners)
+        row = [game.game_date.strftime('%Y%m%d'), loser] + sorted(winners)
         writer.writerow(row)
 
+    today_str = datetime.now(BERLIN_TZ).strftime('%Y%m%d')
     resp = Response(output.getvalue(), mimetype='text/csv')
     resp.headers['Content-Disposition'] = \
-        'attachment; filename=schocken_protokoll.csv'
+        'attachment; filename=schocken_protokoll_{}.csv'.format(today_str)
     return resp
 
 
@@ -452,15 +455,25 @@ def import_csv():
     data = request.get_json() or {}
     csv_text = data.get('csv', '')
     dry_run = data.get('dry_run', False)
+    create_persons_list = data.get('create_persons', [])
 
     if not csv_text:
         return jsonify(Message='Keine Daten'), 400
+
+    # Auto-create requested persons before import
+    if create_persons_list and not dry_run:
+        for pname in create_persons_list:
+            pname = pname.strip()
+            if pname and not Person.query.filter_by(name=pname).first():
+                db.session.add(Person(name=pname))
+        db.session.flush()
 
     reader = csv.reader(io.StringIO(csv_text), delimiter=';',
                         quotechar='"', quoting=csv.QUOTE_ALL)
     person_by_name = {p.name: p for p in Person.query.all()}
     importable = 0
     errors = []
+    unknown_names = set()
 
     for line_num, row in enumerate(reader, 1):
         if len(row) < 2:
@@ -475,7 +488,7 @@ def import_csv():
                         if w.strip().strip('"')]
 
         try:
-            game_date = datetime.strptime(date_str, '%d.%m.%Y').date()
+            game_date = datetime.strptime(date_str, '%Y%m%d').date()
         except ValueError:
             errors.append({'line': line_num,
                            'text': ';'.join(row),
@@ -487,6 +500,11 @@ def import_csv():
                            'text': ';'.join(row),
                            'error': 'Keine Gewinner angegeben'})
             continue
+
+        all_names = [loser_name] + winner_names
+        for n in all_names:
+            if n not in person_by_name:
+                unknown_names.add(n)
 
         if dry_run:
             importable += 1
@@ -531,7 +549,8 @@ def import_csv():
 
     msg = '{} Spiele importiert'.format(importable) if not dry_run \
         else '{} Spiele importierbar'.format(importable)
-    return jsonify(Message=msg, imported=importable, errors=errors), 200
+    return jsonify(Message=msg, imported=importable, errors=errors,
+                   unknown_persons=sorted(unknown_names)), 200
 
 
 # --------------- Markdown Import ---------------
@@ -548,8 +567,6 @@ def _parse_md_import(text):
     (date, loser, count, [winners]) tuples and errors is a list of
     (line_number, line_text, error_description) tuples.
     """
-    import re
-
     lines = text.split('\n')
     current_date = None
     results = []
@@ -617,6 +634,7 @@ def import_md():
     data = request.get_json() or {}
     text = data.get('text', '')
     dry_run = data.get('dry_run', False)
+    create_persons_list = data.get('create_persons', [])
 
     if not text:
         return jsonify(Message='Keine Daten'), 400
@@ -625,16 +643,32 @@ def import_md():
     error_list = [{'line': e[0], 'text': e[1], 'error': e[2]}
                   for e in parse_errors]
 
-    # Count total games that would be created (sum of counts)
     importable = sum(count for _, _, count, _ in results)
+
+    # Collect unknown person names
+    person_by_name = {p.name: p for p in Person.query.all()}
+    unknown_names = set()
+    for _, loser, _, winners in results:
+        for n in [loser] + winners:
+            if n not in person_by_name:
+                unknown_names.add(n)
 
     if dry_run or (not results and parse_errors):
         msg = '{} Spiele importierbar'.format(importable) if results \
             else 'Keine Spiele erkannt'
         return jsonify(Message=msg, imported=importable,
-                       errors=error_list), 200
+                       errors=error_list,
+                       unknown_persons=sorted(unknown_names)), 200
 
-    person_by_name = {p.name: p for p in Person.query.all()}
+    # Auto-create requested persons before import
+    if create_persons_list:
+        for pname in create_persons_list:
+            pname = pname.strip()
+            if pname and not Person.query.filter_by(name=pname).first():
+                db.session.add(Person(name=pname))
+        db.session.flush()
+        person_by_name = {p.name: p for p in Person.query.all()}
+
     imported = 0
 
     for game_date, loser, count, winners in results:
@@ -678,7 +712,172 @@ def import_md():
     return jsonify(
         Message='{} Spiele importiert'.format(imported),
         imported=imported,
-        errors=error_list
+        errors=error_list,
+        unknown_persons=sorted(unknown_names)
+    ), 200
+
+
+# --------------- Backup ---------------
+
+@bp.route('/protokoll/backup', methods=['GET'])
+def backup_data():
+    if not _check_protokoll_auth():
+        return _auth_error()
+
+    persons = Person.query.order_by(Person.id).all()
+    nick_mappings = NickMapping.query.order_by(NickMapping.id).all()
+    game_logs = GameLog.query.order_by(GameLog.game_date, GameLog.id).all()
+
+    min_date = None
+    max_date = None
+    games_data = []
+    for gl in game_logs:
+        d = gl.game_date.isoformat() if gl.game_date else None
+        if d:
+            if min_date is None or d < min_date:
+                min_date = d
+            if max_date is None or d > max_date:
+                max_date = d
+        players = []
+        for p in gl.players:
+            players.append({
+                'nick': p.nick,
+                'is_loser': p.is_loser,
+                'person_id': p.person_id
+            })
+        games_data.append({
+            'game_uuid': gl.game_uuid,
+            'game_date': d,
+            'created_at': gl.created_at.isoformat() if gl.created_at else None,
+            'mapping_complete': gl.mapping_complete,
+            'players': players
+        })
+
+    backup = {
+        'version': 1,
+        'created_at': datetime.now(BERLIN_TZ).isoformat(),
+        'date_from': min_date,
+        'date_to': max_date,
+        'persons': [{'id': p.id, 'name': p.name} for p in persons],
+        'nick_mappings': [{'nick': nm.nick, 'person_id': nm.person_id}
+                          for nm in nick_mappings],
+        'game_logs': games_data
+    }
+
+    today_str = datetime.now(BERLIN_TZ).strftime('%Y%m%d')
+    resp = Response(json.dumps(backup, ensure_ascii=False, indent=2),
+                    mimetype='application/json')
+    resp.headers['Content-Disposition'] = \
+        'attachment; filename=schocken_backup_{}.json'.format(today_str)
+    return resp
+
+
+# --------------- Restore ---------------
+
+@bp.route('/protokoll/restore', methods=['POST'])
+def restore_data():
+    if not _check_protokoll_auth():
+        return _auth_error()
+
+    data = request.get_json() or {}
+    backup = data.get('backup')
+    dry_run = data.get('dry_run', False)
+
+    if not backup or not isinstance(backup, dict):
+        return jsonify(Message='Ungültiges Backup-Format'), 400
+
+    if backup.get('version') != 1:
+        return jsonify(Message='Unbekannte Backup-Version'), 400
+
+    date_from = backup.get('date_from')
+    date_to = backup.get('date_to')
+    persons_data = backup.get('persons', [])
+    nick_mappings_data = backup.get('nick_mappings', [])
+    game_logs_data = backup.get('game_logs', [])
+
+    info = {
+        'date_from': date_from,
+        'date_to': date_to,
+        'persons_count': len(persons_data),
+        'nick_mappings_count': len(nick_mappings_data),
+        'game_logs_count': len(game_logs_data),
+        'games_to_delete': 0
+    }
+
+    if date_from and date_to:
+        df = datetime.strptime(date_from, '%Y-%m-%d').date()
+        dt = datetime.strptime(date_to, '%Y-%m-%d').date()
+        existing = GameLog.query.filter(
+            GameLog.game_date >= df, GameLog.game_date <= dt).count()
+        info['games_to_delete'] = existing
+
+    if dry_run:
+        return jsonify(Message='Restore-Vorschau', info=info), 200
+
+    # Delete existing data in the date range
+    if date_from and date_to:
+        df = datetime.strptime(date_from, '%Y-%m-%d').date()
+        dt = datetime.strptime(date_to, '%Y-%m-%d').date()
+        logs_to_del = GameLog.query.filter(
+            GameLog.game_date >= df, GameLog.game_date <= dt).all()
+        for log in logs_to_del:
+            db.session.delete(log)
+        db.session.flush()
+
+    # Restore persons (create missing ones, build id mapping)
+    old_to_new_person = {}
+    for pd in persons_data:
+        existing = Person.query.filter_by(name=pd['name']).first()
+        if existing:
+            old_to_new_person[pd['id']] = existing.id
+        else:
+            new_p = Person(name=pd['name'])
+            db.session.add(new_p)
+            db.session.flush()
+            old_to_new_person[pd['id']] = new_p.id
+
+    # Restore nick mappings
+    for nmd in nick_mappings_data:
+        new_pid = old_to_new_person.get(nmd['person_id'])
+        if not new_pid:
+            continue
+        existing = NickMapping.query.filter_by(nick=nmd['nick']).first()
+        if existing:
+            existing.person_id = new_pid
+        else:
+            nm = NickMapping(nick=nmd['nick'], person_id=new_pid)
+            db.session.add(nm)
+
+    # Restore game logs
+    restored = 0
+    for gld in game_logs_data:
+        gl = GameLog()
+        gl.game_uuid = gld.get('game_uuid', 'restore')
+        gl.game_date = datetime.strptime(
+            gld['game_date'], '%Y-%m-%d').date() if gld.get(
+                'game_date') else None
+        gl.created_at = datetime.fromisoformat(
+            gld['created_at']) if gld.get('created_at') else datetime.now(
+                BERLIN_TZ)
+        gl.mapping_complete = gld.get('mapping_complete', False)
+
+        for pld in gld.get('players', []):
+            glp = GameLogPlayer()
+            glp.nick = pld['nick']
+            glp.is_loser = pld['is_loser']
+            old_pid = pld.get('person_id')
+            glp.person_id = old_to_new_person.get(old_pid) if old_pid else None
+            gl.players.append(glp)
+
+        gl.mapping_complete = all(
+            p.person_id is not None for p in gl.players)
+        db.session.add(gl)
+        restored += 1
+
+    db.session.commit()
+    return jsonify(
+        Message='{} Spiele wiederhergestellt'.format(restored),
+        restored=restored
     ), 200
 
 
@@ -686,7 +885,8 @@ def import_md():
 
 @bp.route('/protokoll/beer_summary_live', methods=['GET'])
 def beer_summary_live():
-    """Beer summary for the current game evening, using nicks."""
+    """Beer summary for the current game evening, using nicks.
+    Also returns person-based historical stats if the user is mapped."""
     game_uuid = request.args.get('game_uuid')
     user_nick = request.args.get('user_nick')
 
@@ -734,7 +934,113 @@ def beer_summary_live():
             'diff': r - g
         })
 
-    return jsonify(opponents=opponents, date=game_date.isoformat()), 200
+    result = {'opponents': opponents, 'date': game_date.isoformat()}
+
+    # Check if user has a person mapping for this game evening
+    nm = NickMapping.query.filter_by(nick=user_nick).first()
+    person_id = nm.person_id if nm else None
+
+    # Also check GameLogPlayer mapping on this date
+    if not person_id:
+        player_entry = GameLogPlayer.query.join(GameLog).filter(
+            GameLog.game_date == game_date,
+            GameLogPlayer.nick == user_nick,
+            GameLogPlayer.person_id.isnot(None)
+        ).first()
+        if player_entry:
+            person_id = player_entry.person_id
+
+    if person_id:
+        person = Person.query.get(person_id)
+        if person:
+            result['person_name'] = person.name
+            result['person_id'] = person_id
+
+            # Get all complete game logs where person participated
+            all_logs = GameLog.query.filter_by(
+                mapping_complete=True
+            ).filter(
+                GameLog.players.any(GameLogPlayer.person_id == person_id)
+            ).order_by(GameLog.game_date).all()
+
+            if all_logs:
+                # Build per-year stats
+                years = set()
+                for gl in all_logs:
+                    if gl.game_date:
+                        years.add(gl.game_date.year)
+
+                years = sorted(years)
+                result['year_range'] = {
+                    'first': years[0],
+                    'last': years[-1]
+                }
+
+                def compute_beer(game_list, pid):
+                    beer = {}
+                    all_pids = set()
+                    for gl in game_list:
+                        loser_pid = None
+                        winner_pids = []
+                        for p in gl.players:
+                            if p.person_id:
+                                all_pids.add(p.person_id)
+                            if p.is_loser:
+                                loser_pid = p.person_id
+                            else:
+                                winner_pids.append(p.person_id)
+                        if loser_pid == pid:
+                            for wp in winner_pids:
+                                if wp:
+                                    beer.setdefault(wp, {'gives': 0, 'gets': 0})['gives'] += 1
+                        elif pid in winner_pids:
+                            if loser_pid:
+                                beer.setdefault(loser_pid, {'gives': 0, 'gets': 0})['gets'] += 1
+                    return beer, all_pids
+
+                person_map = {}
+                all_pid_set = set()
+
+                # Overall
+                overall_beer, pids = compute_beer(all_logs, person_id)
+                all_pid_set.update(pids)
+
+                # Per year
+                year_beers = {}
+                for yr in years:
+                    yr_logs = [gl for gl in all_logs
+                               if gl.game_date and gl.game_date.year == yr]
+                    yr_beer, pids = compute_beer(yr_logs, person_id)
+                    all_pid_set.update(pids)
+                    year_beers[yr] = yr_beer
+
+                for pid_val in all_pid_set:
+                    p = Person.query.get(pid_val)
+                    if p:
+                        person_map[pid_val] = p.name
+
+                def format_opponents(beer_dict):
+                    opps = []
+                    for opp_id, counts in beer_dict.items():
+                        if opp_id not in person_map or opp_id == person_id:
+                            continue
+                        opps.append({
+                            'opponent': person_map[opp_id],
+                            'gives': counts['gives'],
+                            'gets': counts['gets'],
+                            'diff': counts['gets'] - counts['gives']
+                        })
+                    opps.sort(key=lambda x: x['opponent'])
+                    return opps
+
+                result['overall'] = format_opponents(overall_beer)
+                result['per_year'] = {}
+                for yr in years:
+                    yr_opps = format_opponents(year_beers[yr])
+                    if yr_opps:
+                        result['per_year'][yr] = yr_opps
+
+    return jsonify(result), 200
 
 
 # --------------- Game Logging Helper ---------------

@@ -427,12 +427,40 @@
         }
         var res = {};
         try { res = JSON.parse(xhr.responseText); } catch(e) {}
-        if (!res.opponents || res.opponents.length === 0) {
-          content.innerHTML = '<p>Noch keine Spieldaten für heute.</p>';
-          return;
+
+        var html = '';
+
+        // Current game evening (nick-based)
+        if (res.opponents && res.opponents.length > 0) {
+          var summary = [{heading: 'Aktuelles Spiel', person: myName, opponents: res.opponents}];
+          html += buildBeerHtmlLive(summary);
+        } else {
+          html += '<h3 style="margin-bottom:4px;border-bottom:2px solid var(--border-color);padding-bottom:4px;">Aktuelles Spiel</h3>';
+          html += '<p style="color:var(--text-muted);">Noch keine Spieldaten für heute.</p>';
         }
-        var summary = [{person: myName, opponents: res.opponents}];
-        content.innerHTML = buildBeerHtmlLive(summary);
+
+        // Person-based historical stats (if mapping exists)
+        if (res.person_name && res.overall && res.overall.length > 0) {
+          var yr = res.year_range || {};
+          var overallHeading = (yr.first && yr.last) ? (yr.first + ' - ' + yr.last) : 'Gesamt';
+
+          html += '<hr style="margin:24px 0 16px 0;">';
+          html += buildBeerHtmlLive([{heading: overallHeading, person: res.person_name, opponents: res.overall}]);
+
+          // Per-year stats
+          if (res.per_year) {
+            var yearKeys = Object.keys(res.per_year).sort().reverse();
+            for (var yi = 0; yi < yearKeys.length; yi++) {
+              var yrKey = yearKeys[yi];
+              html += buildBeerHtmlLive([{heading: yrKey, person: res.person_name, opponents: res.per_year[yrKey]}]);
+            }
+          }
+        }
+
+        if (!html) {
+          html = '<p>Noch keine Spieldaten.</p>';
+        }
+        content.innerHTML = html;
       }
     };
     xhr.send();
@@ -442,11 +470,16 @@
     var html = '';
     for (var i = 0; i < summary.length; i++) {
       var s = summary[i];
-      html += '<h3 style="margin-bottom:4px;border-bottom:2px solid var(--border-color);padding-bottom:4px;">' + _esc(s.person) + '</h3>';
+      var heading = s.heading || s.person;
+      html += '<h3 style="margin-bottom:4px;border-bottom:2px solid var(--border-color);padding-bottom:4px;">' + _esc(heading) + '</h3>';
       html += '<table class="table table-striped" style="max-width:600px;">';
       html += '<thead><tr><th></th><th>bekommt</th><th>gibt aus</th><th>Differenz</th></tr></thead><tbody>';
+      var totalGives = 0, totalGets = 0, totalDiff = 0;
       for (var j = 0; j < s.opponents.length; j++) {
         var o = s.opponents[j];
+        totalGives += o.gives;
+        totalGets += o.gets;
+        totalDiff += o.diff;
         var diffClass = o.diff > 0 ? 'color:#4CAF50;' : (o.diff < 0 ? 'color:#e53935;' : '');
         var diffPrefix = o.diff > 0 ? '+' : '';
         html += '<tr><td><strong>' + _esc(o.opponent) + '</strong></td>' +
@@ -454,6 +487,12 @@
           '<td>' + o.gets + '</td>' +
           '<td style="font-weight:bold;' + diffClass + '">' + diffPrefix + o.diff + '</td></tr>';
       }
+      var totalDiffClass = totalDiff > 0 ? 'color:#4CAF50;' : (totalDiff < 0 ? 'color:#e53935;' : '');
+      var totalDiffPrefix = totalDiff > 0 ? '+' : '';
+      html += '<tr style="font-weight:bold;border-top:2px solid var(--border-color);"><td>Gesamt</td>' +
+        '<td>' + totalGives + '</td>' +
+        '<td>' + totalGets + '</td>' +
+        '<td style="' + totalDiffClass + '">' + totalDiffPrefix + totalDiff + '</td></tr>';
       html += '</tbody></table>';
     }
     return html;
