@@ -176,7 +176,7 @@
   <div class="modal-content">
     <div class="modal-header">
       <span class="close" onclick="document.getElementById('beerModal').style.display='none'">&times;</span>
-      <h2>Bier-Summe (heute)</h2>
+      <h2>Bier-Statistik (heute)</h2>
     </div>
     <div class="modal-body">
       <div id="beer_content"><p style="color:var(--text-muted);">Lade...</p></div>
@@ -2233,7 +2233,7 @@
       beerBtn.className = 'floating-icon-btn';
       beerBtn.href = '#';
       beerBtn.onclick = function(e) { e.preventDefault(); showBeerSummary(); };
-      beerBtn.title = 'Bier-Summe';
+      beerBtn.title = 'Bier-Statistik';
       beerBtn.innerHTML = '<svg viewBox="0 0 512 512" fill="currentColor" width="16" height="16"><path d="M416 64h-48V16c0-8.8-7.2-16-16-16H64C55.2 0 48 7.2 48 16v352c0 44.2 35.8 80 80 80h176c44.2 0 80-35.8 80-80v-48h32c35.3 0 64-28.7 64-64V128c0-35.3-28.7-64-64-64zm-32 192c0 17.6-14.4 32-32 32h-32V128h32c17.6 0 32 14.4 32 32v96zM208 288c0 8.8-7.2 16-16 16s-16-7.2-16-16V128c0-8.8 7.2-16 16-16s16 7.2 16 16v160zm-80 0c0 8.8-7.2 16-16 16s-16-7.2-16-16V128c0-8.8 7.2-16 16-16s16 7.2 16 16v160zm160 0c0 8.8-7.2 16-16 16s-16-7.2-16-16V128c0-8.8 7.2-16 16-16s16 7.2 16 16v160z"/></svg>';
       container.insertBefore(beerBtn, container.firstChild);
 
