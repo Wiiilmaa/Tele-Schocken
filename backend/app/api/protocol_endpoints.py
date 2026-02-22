@@ -451,6 +451,7 @@ def import_csv():
 
     data = request.get_json() or {}
     csv_text = data.get('csv', '')
+    dry_run = data.get('dry_run', False)
 
     if not csv_text:
         return jsonify(Message='Keine Daten'), 400
@@ -458,10 +459,14 @@ def import_csv():
     reader = csv.reader(io.StringIO(csv_text), delimiter=';',
                         quotechar='"', quoting=csv.QUOTE_ALL)
     person_by_name = {p.name: p for p in Person.query.all()}
-    imported = 0
+    importable = 0
+    errors = []
 
-    for row in reader:
+    for line_num, row in enumerate(reader, 1):
         if len(row) < 2:
+            errors.append({'line': line_num,
+                           'text': ';'.join(row),
+                           'error': 'Zu wenige Spalten'})
             continue
 
         date_str = row[0].strip().strip('"')
@@ -472,6 +477,19 @@ def import_csv():
         try:
             game_date = datetime.strptime(date_str, '%d.%m.%Y').date()
         except ValueError:
+            errors.append({'line': line_num,
+                           'text': ';'.join(row),
+                           'error': 'Ungültiges Datum: ' + date_str})
+            continue
+
+        if not winner_names:
+            errors.append({'line': line_num,
+                           'text': ';'.join(row),
+                           'error': 'Keine Gewinner angegeben'})
+            continue
+
+        if dry_run:
+            importable += 1
             continue
 
         game_log = GameLog()
@@ -497,19 +515,23 @@ def import_csv():
         game_log.mapping_complete = all(
             p.person_id is not None for p in game_log.players)
 
-        # Create nick mappings for matched names
         for p in game_log.players:
             if p.person_id:
-                existing_nm = NickMapping.query.filter_by(nick=p.nick).first()
+                existing_nm = NickMapping.query.filter_by(
+                    nick=p.nick).first()
                 if not existing_nm:
                     nm = NickMapping(nick=p.nick, person_id=p.person_id)
                     db.session.add(nm)
 
         db.session.add(game_log)
-        imported += 1
+        importable += 1
 
-    db.session.commit()
-    return jsonify(Message='{} Spiele importiert'.format(imported)), 200
+    if not dry_run:
+        db.session.commit()
+
+    msg = '{} Spiele importiert'.format(importable) if not dry_run \
+        else '{} Spiele importierbar'.format(importable)
+    return jsonify(Message=msg, imported=importable, errors=errors), 200
 
 
 # --------------- Markdown Import ---------------
@@ -594,19 +616,23 @@ def import_md():
 
     data = request.get_json() or {}
     text = data.get('text', '')
+    dry_run = data.get('dry_run', False)
 
     if not text:
         return jsonify(Message='Keine Daten'), 400
 
-    results, errors = _parse_md_import(text)
+    results, parse_errors = _parse_md_import(text)
+    error_list = [{'line': e[0], 'text': e[1], 'error': e[2]}
+                  for e in parse_errors]
 
-    if not results and errors:
-        return jsonify(
-            Message='Keine Spiele erkannt',
-            imported=0,
-            errors=[{'line': e[0], 'text': e[1], 'error': e[2]}
-                    for e in errors]
-        ), 200
+    # Count total games that would be created (sum of counts)
+    importable = sum(count for _, _, count, _ in results)
+
+    if dry_run or (not results and parse_errors):
+        msg = '{} Spiele importierbar'.format(importable) if results \
+            else 'Keine Spiele erkannt'
+        return jsonify(Message=msg, imported=importable,
+                       errors=error_list), 200
 
     person_by_name = {p.name: p for p in Person.query.all()}
     imported = 0
@@ -652,9 +678,63 @@ def import_md():
     return jsonify(
         Message='{} Spiele importiert'.format(imported),
         imported=imported,
-        errors=[{'line': e[0], 'text': e[1], 'error': e[2]}
-                for e in errors]
+        errors=error_list
     ), 200
+
+
+# --------------- Live Beer Summary (in-game) ---------------
+
+@bp.route('/protokoll/beer_summary_live', methods=['GET'])
+def beer_summary_live():
+    """Beer summary for the current game evening, using nicks."""
+    game_uuid = request.args.get('game_uuid')
+    user_nick = request.args.get('user_nick')
+
+    if not game_uuid or not user_nick:
+        return jsonify(Message='Parameter fehlen'), 400
+
+    from app.models import Game
+    game = Game.query.filter_by(UUID=game_uuid).first()
+    if game is None:
+        return jsonify(Message='Spiel nicht gefunden'), 404
+
+    game_date = game.started.date() if game.started else None
+    if game_date is None:
+        return jsonify(opponents=[]), 200
+
+    logs = GameLog.query.filter_by(game_date=game_date).all()
+
+    gives = {}
+    gets = {}
+
+    for log in logs:
+        loser_nick = None
+        winner_nicks = []
+        for p in log.players:
+            if p.is_loser:
+                loser_nick = p.nick
+            else:
+                winner_nicks.append(p.nick)
+
+        if loser_nick == user_nick:
+            for wn in winner_nicks:
+                gives[wn] = gives.get(wn, 0) + 1
+        elif user_nick in winner_nicks:
+            gets[loser_nick] = gets.get(loser_nick, 0) + 1
+
+    all_opponents = set(list(gives.keys()) + list(gets.keys()))
+    opponents = []
+    for opp in sorted(all_opponents):
+        g = gives.get(opp, 0)
+        r = gets.get(opp, 0)
+        opponents.append({
+            'opponent': opp,
+            'gives': g,
+            'gets': r,
+            'diff': r - g
+        })
+
+    return jsonify(opponents=opponents, date=game_date.isoformat()), 200
 
 
 # --------------- Game Logging Helper ---------------

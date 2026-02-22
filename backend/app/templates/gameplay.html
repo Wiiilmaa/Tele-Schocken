@@ -171,6 +171,19 @@
   </div>
 </div>
 
+<!-- Beer summary modal -->
+<div id="beerModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <span class="close" onclick="document.getElementById('beerModal').style.display='none'">&times;</span>
+      <h2>Bier-Summe (heute)</h2>
+    </div>
+    <div class="modal-body">
+      <div id="beer_content"><p style="color:var(--text-muted);">Lade...</p></div>
+    </div>
+  </div>
+</div>
+
 </div> <!-- /.page-content -->
 
 {% endblock %}
@@ -387,6 +400,70 @@
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+  }
+
+  // ============= Beer Summary =============
+  function showBeerSummary() {
+    var modal = document.getElementById('beerModal');
+    var content = document.getElementById('beer_content');
+    modal.style.display = 'block';
+    content.innerHTML = '<p style="color:var(--text-muted);">Lade...</p>';
+
+    var gameUuid = getGameId();
+    var myName = localStorage.getItem('name') || '';
+    if (!myName) {
+      content.innerHTML = '<p>Kein Spielername bekannt.</p>';
+      return;
+    }
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', '/api/protokoll/beer_summary_live?game_uuid=' + encodeURIComponent(gameUuid) + '&user_nick=' + encodeURIComponent(myName));
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.onreadystatechange = function() {
+      if (xhr.readyState === XMLHttpRequest.DONE) {
+        if (xhr.status !== 200) {
+          content.innerHTML = '<p>Noch keine Spieldaten für heute.</p>';
+          return;
+        }
+        var res = {};
+        try { res = JSON.parse(xhr.responseText); } catch(e) {}
+        if (!res.opponents || res.opponents.length === 0) {
+          content.innerHTML = '<p>Noch keine Spieldaten für heute.</p>';
+          return;
+        }
+        var summary = [{person: myName, opponents: res.opponents}];
+        content.innerHTML = buildBeerHtmlLive(summary);
+      }
+    };
+    xhr.send();
+  }
+
+  function buildBeerHtmlLive(summary) {
+    var html = '';
+    for (var i = 0; i < summary.length; i++) {
+      var s = summary[i];
+      html += '<h3 style="margin-bottom:4px;border-bottom:2px solid var(--border-color);padding-bottom:4px;">' + _esc(s.person) + '</h3>';
+      html += '<table class="table table-striped" style="max-width:600px;">';
+      html += '<thead><tr><th></th><th>bekommt</th><th>gibt aus</th><th>Differenz</th></tr></thead><tbody>';
+      for (var j = 0; j < s.opponents.length; j++) {
+        var o = s.opponents[j];
+        var diffClass = o.diff > 0 ? 'color:#4CAF50;' : (o.diff < 0 ? 'color:#e53935;' : '');
+        var diffPrefix = o.diff > 0 ? '+' : '';
+        html += '<tr><td><strong>' + _esc(o.opponent) + '</strong></td>' +
+          '<td>' + o.gives + '</td>' +
+          '<td>' + o.gets + '</td>' +
+          '<td style="font-weight:bold;' + diffClass + '">' + diffPrefix + o.diff + '</td></tr>';
+      }
+      html += '</tbody></table>';
+    }
+    return html;
+  }
+
+  function _esc(s) {
+    if (!s) return '';
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
   }
 
   // ============= Helpers =============
@@ -2151,6 +2228,15 @@
       camBtn.innerHTML = '<svg viewBox="0 0 512 512" fill="currentColor" width="16" height="16"><path d="M149.1 64.8L138.7 96H64C28.7 96 0 124.7 0 160v256c0 35.3 28.7 64 64 64h384c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H373.3l-10.4-31.2C356.4 45.2 338.1 32 317.4 32H194.6c-20.7 0-39 13.2-45.5 32.8zM256 384c-53 0-96-43-96-96s43-96 96-96 96 43 96 96-43 96-96 96z"/></svg>';
       container.insertBefore(camBtn, container.firstChild);
 
+      var beerBtn = document.createElement('a');
+      beerBtn.id = 'beer_floating_btn';
+      beerBtn.className = 'floating-icon-btn';
+      beerBtn.href = '#';
+      beerBtn.onclick = function(e) { e.preventDefault(); showBeerSummary(); };
+      beerBtn.title = 'Bier-Summe';
+      beerBtn.innerHTML = '<svg viewBox="0 0 512 512" fill="currentColor" width="16" height="16"><path d="M416 64h-48V16c0-8.8-7.2-16-16-16H64C55.2 0 48 7.2 48 16v352c0 44.2 35.8 80 80 80h176c44.2 0 80-35.8 80-80v-48h32c35.3 0 64-28.7 64-64V128c0-35.3-28.7-64-64-64zm-32 192c0 17.6-14.4 32-32 32h-32V128h32c17.6 0 32 14.4 32 32v96zM208 288c0 8.8-7.2 16-16 16s-16-7.2-16-16V128c0-8.8 7.2-16 16-16s16 7.2 16 16v160zm-80 0c0 8.8-7.2 16-16 16s-16-7.2-16-16V128c0-8.8 7.2-16 16-16s16 7.2 16 16v160zm160 0c0 8.8-7.2 16-16 16s-16-7.2-16-16V128c0-8.8 7.2-16 16-16s16 7.2 16 16v160z"/></svg>';
+      container.insertBefore(beerBtn, container.firstChild);
+
       var btn = document.createElement('a');
       btn.id = 'rules_floating_btn';
       btn.className = 'floating-icon-btn';
@@ -2164,6 +2250,12 @@
     if (rulesModal) {
       window.addEventListener('click', function(e) {
         if (e.target === rulesModal) rulesModal.style.display = 'none';
+      });
+    }
+    var beerModal = document.getElementById('beerModal');
+    if (beerModal) {
+      window.addEventListener('click', function(e) {
+        if (e.target === beerModal) beerModal.style.display = 'none';
       });
     }
   });

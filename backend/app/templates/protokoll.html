@@ -59,7 +59,7 @@
     <h4>Spieleabende &amp; Zuordnungen</h4>
     <p style="color:var(--text-muted);">Pro Spieleabend werden alle Nicks einmal zugeordnet. Die Zuordnung gilt für alle Spiele des Abends.</p>
     <div style="margin-bottom:12px;">
-      <label><input type="checkbox" id="filter-incomplete" onchange="loadGames()" style="transform:scale(1);margin-right:4px;">
+      <label><input type="checkbox" id="filter-incomplete" onchange="loadGames()" style="transform:scale(1);margin-right:4px;" checked>
         Nur Abende mit unvollständigen Zuordnungen</label>
     </div>
     <div id="games-list"></div>
@@ -120,7 +120,7 @@
     <p style="color:var(--text-muted);">Gleiches Format wie Export. Personen-Namen, die bereits als Person existieren, werden automatisch zugeordnet.</p>
     <textarea id="import-csv" class="form-control" rows="6" placeholder='Beispiel:&#10;25.01.2026;"Max";"Anna";"Tom"'></textarea>
     <button class="btn btn-primary" style="margin-top:8px;" onclick="doImport()">CSV importieren</button>
-    <p id="import-result" style="margin-top:8px; display:none;"></p>
+    <div id="import-result" style="margin-top:8px; display:none;"></div>
 
     <hr>
     <h4>Markdown Import</h4>
@@ -246,6 +246,7 @@ function addPerson() {
     if (status === 201) {
       inp.value = '';
       loadPersons();
+      loadGames();
     } else {
       alert(res.Message || 'Fehler');
     }
@@ -474,24 +475,29 @@ function renderStatsBeer(summary) {
     container.innerHTML = '<p style="color:var(--text-muted);">Keine Daten.</p>';
     return;
   }
+  container.innerHTML = buildBeerHtml(summary, false);
+}
+
+function buildBeerHtml(summary, useNicks) {
   var html = '';
   for (var i = 0; i < summary.length; i++) {
     var s = summary[i];
-    html += '<h5>' + esc(s.person) + '</h5>';
+    var name = useNicks ? s.person : s.person;
+    html += '<h3 style="margin-top:24px;margin-bottom:4px;border-bottom:2px solid var(--border-color);padding-bottom:4px;">' + esc(name) + '</h3>';
     html += '<table class="table table-striped" style="max-width:600px;">';
-    html += '<thead><tr><th>Gegenspieler</th><th>Gibt</th><th>Bekommt</th><th>Differenz</th></tr></thead><tbody>';
+    html += '<thead><tr><th></th><th>bekommt</th><th>gibt aus</th><th>Differenz</th></tr></thead><tbody>';
     for (var j = 0; j < s.opponents.length; j++) {
       var o = s.opponents[j];
       var diffClass = o.diff > 0 ? 'color:#4CAF50;' : (o.diff < 0 ? 'color:#e53935;' : '');
       var diffPrefix = o.diff > 0 ? '+' : '';
-      html += '<tr><td>' + esc(o.opponent) + '</td>' +
+      html += '<tr><td><strong>' + esc(o.opponent) + '</strong></td>' +
         '<td>' + o.gives + '</td>' +
         '<td>' + o.gets + '</td>' +
         '<td style="font-weight:bold;' + diffClass + '">' + diffPrefix + o.diff + '</td></tr>';
     }
     html += '</tbody></table>';
   }
-  container.innerHTML = html;
+  return html;
 }
 
 // ==================== Import / Export ====================
@@ -513,15 +519,46 @@ function doImport() {
   if (!csvText) { alert('Bitte CSV-Daten eingeben.'); return; }
   var resultEl = document.getElementById('import-result');
   resultEl.style.display = 'none';
+  resultEl.innerHTML = '';
 
-  xhrJSON('POST', '/api/protokoll/import', {csv: csvText}, function(res, status) {
-    resultEl.textContent = res.Message || 'Fertig';
-    resultEl.style.color = status === 200 ? '#4CAF50' : '#e53935';
-    resultEl.style.display = '';
-    if (status === 200) {
-      loadGames();
-      loadNickMappings();
+  xhrJSON('POST', '/api/protokoll/import', {csv: csvText, dry_run: true}, function(res) {
+    if (res.errors && res.errors.length > 0) {
+      var html = renderImportPreview(res, 'CSV');
+      html += '<button class="btn btn-primary btn-sm" style="margin-top:8px;" onclick="doImportConfirm(\'csv\')">Trotzdem importieren (' + res.imported + ' Spiele)</button>';
+      html += ' <button class="btn btn-default btn-sm" style="margin-top:8px;" onclick="document.getElementById(\'import-result\').style.display=\'none\'">Abbrechen</button>';
+      resultEl.innerHTML = html;
+      resultEl.style.display = '';
+    } else if (res.imported > 0) {
+      doImportConfirm('csv');
+    } else {
+      resultEl.innerHTML = '<p style="color:var(--text-muted);">Keine importierbaren Daten gefunden.</p>';
+      resultEl.style.display = '';
     }
+  });
+}
+
+function doImportConfirm(type) {
+  var resultEl, payload, url;
+  if (type === 'csv') {
+    resultEl = document.getElementById('import-result');
+    payload = {csv: document.getElementById('import-csv').value.trim()};
+    url = '/api/protokoll/import';
+  } else {
+    resultEl = document.getElementById('import-md-result');
+    payload = {text: document.getElementById('import-md').value.trim()};
+    url = '/api/protokoll/import_md';
+  }
+  resultEl.innerHTML = '<p style="color:var(--text-muted);">Importiere...</p>';
+
+  xhrJSON('POST', url, payload, function(res) {
+    var html = '<p style="color:#4CAF50;">' + esc(res.Message || 'Fertig') + '</p>';
+    if (res.errors && res.errors.length > 0) {
+      html += renderImportErrors(res.errors);
+    }
+    resultEl.innerHTML = html;
+    resultEl.style.display = '';
+    loadGames();
+    loadNickMappings();
   });
 }
 
@@ -530,26 +567,42 @@ function doImportMd() {
   if (!mdText) { alert('Bitte Markdown-Daten eingeben.'); return; }
   var resultEl = document.getElementById('import-md-result');
   resultEl.style.display = 'none';
+  resultEl.innerHTML = '';
 
-  xhrJSON('POST', '/api/protokoll/import_md', {text: mdText}, function(res, status) {
-    var html = '<p style="color:' + (res.imported > 0 ? '#4CAF50' : 'var(--text-muted)') + ';">' + esc(res.Message || 'Fertig') + '</p>';
+  xhrJSON('POST', '/api/protokoll/import_md', {text: mdText, dry_run: true}, function(res) {
     if (res.errors && res.errors.length > 0) {
-      html += '<p style="color:#e53935;"><strong>' + res.errors.length + ' Fehler:</strong></p>';
-      html += '<table class="table table-striped" style="max-width:800px;font-size:13px;">';
-      html += '<thead><tr><th>Zeile</th><th>Text</th><th>Fehler</th></tr></thead><tbody>';
-      for (var i = 0; i < res.errors.length; i++) {
-        var e = res.errors[i];
-        html += '<tr><td>' + e.line + '</td><td><code>' + esc(e.text) + '</code></td><td>' + esc(e.error) + '</td></tr>';
+      var html = renderImportPreview(res, 'Markdown');
+      if (res.imported > 0) {
+        html += '<button class="btn btn-primary btn-sm" style="margin-top:8px;" onclick="doImportConfirm(\'md\')">Trotzdem importieren (' + res.imported + ' Spiele)</button>';
       }
-      html += '</tbody></table>';
-    }
-    resultEl.innerHTML = html;
-    resultEl.style.display = '';
-    if (res.imported > 0) {
-      loadGames();
-      loadNickMappings();
+      html += ' <button class="btn btn-default btn-sm" style="margin-top:8px;" onclick="document.getElementById(\'import-md-result\').style.display=\'none\'">Abbrechen</button>';
+      resultEl.innerHTML = html;
+      resultEl.style.display = '';
+    } else if (res.imported > 0) {
+      doImportConfirm('md');
+    } else {
+      resultEl.innerHTML = '<p style="color:var(--text-muted);">Keine importierbaren Daten gefunden.</p>';
+      resultEl.style.display = '';
     }
   });
+}
+
+function renderImportPreview(res, label) {
+  var html = '<p><strong>' + res.imported + ' Spiele importierbar, ' + res.errors.length + ' Fehler:</strong></p>';
+  html += renderImportErrors(res.errors);
+  return html;
+}
+
+function renderImportErrors(errors) {
+  var html = '<div style="max-height:300px;overflow-y:auto;">';
+  html += '<table class="table table-striped" style="max-width:800px;font-size:13px;">';
+  html += '<thead><tr><th>Zeile</th><th>Text</th><th>Fehler</th></tr></thead><tbody>';
+  for (var i = 0; i < errors.length; i++) {
+    var e = errors[i];
+    html += '<tr><td>' + e.line + '</td><td><code>' + esc(e.text) + '</code></td><td>' + esc(e.error) + '</td></tr>';
+  }
+  html += '</tbody></table></div>';
+  return html;
 }
 
 function doDelete() {
