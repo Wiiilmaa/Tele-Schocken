@@ -111,14 +111,14 @@
   <!-- ==================== TAB: Import/Export ==================== -->
   <div id="tab-io" class="tab-panel" style="display:none;">
     <h4>CSV Export</h4>
-    <p style="color:var(--text-muted);">Format: <code>Datum(dd.mm.yyyy);"Verlierer";"Gewinner1";"Gewinner2";...</code></p>
+    <p style="color:var(--text-muted);">Format: <code>Datum(yyyymmdd);"Verlierer";"Gewinner1";"Gewinner2";...</code></p>
     <p>Exportiert die aktuell unter "Statistiken" gewählten Filter.</p>
     <button class="btn btn-primary" onclick="doExport()">Export herunterladen</button>
 
     <hr>
     <h4>CSV Import</h4>
     <p style="color:var(--text-muted);">Gleiches Format wie Export. Personen-Namen, die bereits als Person existieren, werden automatisch zugeordnet.</p>
-    <textarea id="import-csv" class="form-control" rows="6" placeholder='Beispiel:&#10;25.01.2026;"Max";"Anna";"Tom"'></textarea>
+    <textarea id="import-csv" class="form-control" rows="6" placeholder='Beispiel:&#10;20260125;"Max";"Anna";"Tom"'></textarea>
     <button class="btn btn-primary" style="margin-top:8px;" onclick="doImport()">CSV importieren</button>
     <div id="import-result" style="margin-top:8px; display:none;"></div>
 
@@ -128,6 +128,18 @@
     <textarea id="import-md" class="form-control" rows="10" placeholder='* 20260206&#10;&#9;* Bine: 1 Runde (Butt, Feldi, Yamaha, Danny)&#10;&#9;* Danny: 3 Runden (Butt, Feldi, Yamaha, Bine)'></textarea>
     <button class="btn btn-primary" style="margin-top:8px;" onclick="doImportMd()">Markdown importieren</button>
     <div id="import-md-result" style="margin-top:8px; display:none;"></div>
+
+    <hr>
+    <h4>Backup</h4>
+    <p style="color:var(--text-muted);">Komplettes Backup aller Protokolldaten (Personen, Zuordnungen, Spiele) als JSON.</p>
+    <button class="btn btn-primary" onclick="doBackup()">Backup herunterladen</button>
+
+    <hr>
+    <h4>Restore</h4>
+    <p style="color:var(--text-muted);">Backup-Datei wiederherstellen. Bestehende Spiele im Datumsbereich des Backups werden vorher gelöscht.</p>
+    <input type="file" id="restore-file" accept=".json" class="form-control" style="max-width:400px;">
+    <button class="btn btn-warning" style="margin-top:8px;" onclick="doRestore()">Restore starten</button>
+    <div id="restore-result" style="margin-top:8px; display:none;"></div>
 
     <hr>
     <h4>Daten löschen</h4>
@@ -483,11 +495,16 @@ function buildBeerHtml(summary, useNicks) {
   for (var i = 0; i < summary.length; i++) {
     var s = summary[i];
     var name = useNicks ? s.person : s.person;
-    html += '<h3 style="margin-top:24px;margin-bottom:4px;border-bottom:2px solid var(--border-color);padding-bottom:4px;">' + esc(name) + '</h3>';
+    var heading = s.heading || name;
+    html += '<h3 style="margin-top:24px;margin-bottom:4px;border-bottom:2px solid var(--border-color);padding-bottom:4px;">' + esc(heading) + '</h3>';
     html += '<table class="table table-striped" style="max-width:600px;">';
     html += '<thead><tr><th></th><th>bekommt</th><th>gibt aus</th><th>Differenz</th></tr></thead><tbody>';
+    var totalGives = 0, totalGets = 0, totalDiff = 0;
     for (var j = 0; j < s.opponents.length; j++) {
       var o = s.opponents[j];
+      totalGives += o.gives;
+      totalGets += o.gets;
+      totalDiff += o.diff;
       var diffClass = o.diff > 0 ? 'color:#4CAF50;' : (o.diff < 0 ? 'color:#e53935;' : '');
       var diffPrefix = o.diff > 0 ? '+' : '';
       html += '<tr><td><strong>' + esc(o.opponent) + '</strong></td>' +
@@ -495,6 +512,12 @@ function buildBeerHtml(summary, useNicks) {
         '<td>' + o.gets + '</td>' +
         '<td style="font-weight:bold;' + diffClass + '">' + diffPrefix + o.diff + '</td></tr>';
     }
+    var totalDiffClass = totalDiff > 0 ? 'color:#4CAF50;' : (totalDiff < 0 ? 'color:#e53935;' : '');
+    var totalDiffPrefix = totalDiff > 0 ? '+' : '';
+    html += '<tr style="font-weight:bold;border-top:2px solid var(--border-color);"><td>Gesamt</td>' +
+      '<td>' + totalGives + '</td>' +
+      '<td>' + totalGets + '</td>' +
+      '<td style="' + totalDiffClass + '">' + totalDiffPrefix + totalDiff + '</td></tr>';
     html += '</tbody></table>';
   }
   return html;
@@ -522,9 +545,13 @@ function doImport() {
   resultEl.innerHTML = '';
 
   xhrJSON('POST', '/api/protokoll/import', {csv: csvText, dry_run: true}, function(res) {
-    if (res.errors && res.errors.length > 0) {
-      var html = renderImportPreview(res, 'CSV');
-      html += '<button class="btn btn-primary btn-sm" style="margin-top:8px;" onclick="doImportConfirm(\'csv\')">Trotzdem importieren (' + res.imported + ' Spiele)</button>';
+    var needsConfirm = (res.errors && res.errors.length > 0) ||
+                       (res.unknown_persons && res.unknown_persons.length > 0);
+    if (needsConfirm) {
+      var html = renderImportPreview(res, 'CSV', 'csv');
+      if (res.imported > 0) {
+        html += '<button class="btn btn-primary btn-sm" style="margin-top:8px;" onclick="doImportConfirm(\'csv\')">Importieren (' + res.imported + ' Spiele)</button>';
+      }
       html += ' <button class="btn btn-default btn-sm" style="margin-top:8px;" onclick="document.getElementById(\'import-result\').style.display=\'none\'">Abbrechen</button>';
       resultEl.innerHTML = html;
       resultEl.style.display = '';
@@ -548,6 +575,16 @@ function doImportConfirm(type) {
     payload = {text: document.getElementById('import-md').value.trim()};
     url = '/api/protokoll/import_md';
   }
+
+  var checkboxes = resultEl.querySelectorAll('.create-person-cb:checked');
+  var createPersons = [];
+  for (var i = 0; i < checkboxes.length; i++) {
+    createPersons.push(checkboxes[i].value);
+  }
+  if (createPersons.length > 0) {
+    payload.create_persons = createPersons;
+  }
+
   resultEl.innerHTML = '<p style="color:var(--text-muted);">Importiere...</p>';
 
   xhrJSON('POST', url, payload, function(res) {
@@ -557,8 +594,7 @@ function doImportConfirm(type) {
     }
     resultEl.innerHTML = html;
     resultEl.style.display = '';
-    loadGames();
-    loadNickMappings();
+    loadAll();
   });
 }
 
@@ -570,10 +606,12 @@ function doImportMd() {
   resultEl.innerHTML = '';
 
   xhrJSON('POST', '/api/protokoll/import_md', {text: mdText, dry_run: true}, function(res) {
-    if (res.errors && res.errors.length > 0) {
-      var html = renderImportPreview(res, 'Markdown');
+    var needsConfirm = (res.errors && res.errors.length > 0) ||
+                       (res.unknown_persons && res.unknown_persons.length > 0);
+    if (needsConfirm) {
+      var html = renderImportPreview(res, 'Markdown', 'md');
       if (res.imported > 0) {
-        html += '<button class="btn btn-primary btn-sm" style="margin-top:8px;" onclick="doImportConfirm(\'md\')">Trotzdem importieren (' + res.imported + ' Spiele)</button>';
+        html += '<button class="btn btn-primary btn-sm" style="margin-top:8px;" onclick="doImportConfirm(\'md\')">Importieren (' + res.imported + ' Spiele)</button>';
       }
       html += ' <button class="btn btn-default btn-sm" style="margin-top:8px;" onclick="document.getElementById(\'import-md-result\').style.display=\'none\'">Abbrechen</button>';
       resultEl.innerHTML = html;
@@ -587,9 +625,25 @@ function doImportMd() {
   });
 }
 
-function renderImportPreview(res, label) {
-  var html = '<p><strong>' + res.imported + ' Spiele importierbar, ' + res.errors.length + ' Fehler:</strong></p>';
-  html += renderImportErrors(res.errors);
+function renderImportPreview(res, label, type) {
+  var html = '<p><strong>' + res.imported + ' Spiele importierbar';
+  if (res.errors && res.errors.length > 0) {
+    html += ', ' + res.errors.length + ' Fehler';
+  }
+  html += '</strong></p>';
+  if (res.unknown_persons && res.unknown_persons.length > 0) {
+    html += '<div style="border:1px solid var(--border-color);padding:12px;margin:8px 0;border-radius:4px;background:var(--bg-secondary);max-width:600px;">';
+    html += '<p><strong>Unbekannte Personen (' + res.unknown_persons.length + '):</strong></p>';
+    html += '<p style="color:var(--text-muted);font-size:13px;">Ausgewählte Personen werden beim Import automatisch angelegt.</p>';
+    for (var i = 0; i < res.unknown_persons.length; i++) {
+      var n = res.unknown_persons[i];
+      html += '<label style="display:block;margin:2px 0;"><input type="checkbox" class="create-person-cb" value="' + escAttr(n) + '" checked style="margin-right:4px;"> ' + esc(n) + '</label>';
+    }
+    html += '</div>';
+  }
+  if (res.errors && res.errors.length > 0) {
+    html += renderImportErrors(res.errors);
+  }
   return html;
 }
 
@@ -619,6 +673,77 @@ function doDelete() {
     resultEl.style.color = status === 200 ? '#4CAF50' : '#e53935';
     resultEl.style.display = '';
     if (status === 200) loadGames();
+  });
+}
+
+// ==================== Backup / Restore ====================
+
+function doBackup() {
+  window.location.href = '/api/protokoll/backup';
+}
+
+var _restoreBackup = null;
+function doRestore() {
+  var fileInput = document.getElementById('restore-file');
+  var resultEl = document.getElementById('restore-result');
+  resultEl.style.display = 'none';
+  resultEl.innerHTML = '';
+
+  if (!fileInput.files || !fileInput.files[0]) {
+    alert('Bitte eine Backup-Datei auswählen.');
+    return;
+  }
+
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      _restoreBackup = JSON.parse(e.target.result);
+    } catch(ex) {
+      resultEl.innerHTML = '<p style="color:#e53935;">Ungültige JSON-Datei.</p>';
+      resultEl.style.display = '';
+      return;
+    }
+
+    xhrJSON('POST', '/api/protokoll/restore', {backup: _restoreBackup, dry_run: true}, function(res, status) {
+      if (status !== 200) {
+        resultEl.innerHTML = '<p style="color:#e53935;">' + esc(res.Message || 'Fehler') + '</p>';
+        resultEl.style.display = '';
+        return;
+      }
+      var info = res.info || {};
+      var html = '<div style="border:1px solid var(--border-color);padding:12px;border-radius:4px;background:var(--bg-secondary);max-width:600px;">';
+      html += '<p><strong>Restore-Vorschau:</strong></p>';
+      html += '<ul>';
+      html += '<li>Datumsbereich: ' + esc(info.date_from || '?') + ' bis ' + esc(info.date_to || '?') + '</li>';
+      html += '<li>Personen im Backup: ' + info.persons_count + '</li>';
+      html += '<li>Nick-Zuordnungen: ' + info.nick_mappings_count + '</li>';
+      html += '<li>Spiele im Backup: ' + info.game_logs_count + '</li>';
+      html += '<li style="color:#e53935;">Bestehende Spiele im Bereich, die gelöscht werden: ' + info.games_to_delete + '</li>';
+      html += '</ul>';
+      html += '<button class="btn btn-warning btn-sm" onclick="doRestoreConfirm()">Restore durchführen</button>';
+      html += ' <button class="btn btn-default btn-sm" onclick="document.getElementById(\'restore-result\').style.display=\'none\'">Abbrechen</button>';
+      html += '</div>';
+      resultEl.innerHTML = html;
+      resultEl.style.display = '';
+    });
+  };
+  reader.readAsText(fileInput.files[0]);
+}
+
+function doRestoreConfirm() {
+  if (!_restoreBackup) return;
+  var resultEl = document.getElementById('restore-result');
+  resultEl.innerHTML = '<p style="color:var(--text-muted);">Restore läuft...</p>';
+
+  xhrJSON('POST', '/api/protokoll/restore', {backup: _restoreBackup}, function(res, status) {
+    if (status === 200) {
+      resultEl.innerHTML = '<p style="color:#4CAF50;">' + esc(res.Message || 'Fertig') + '</p>';
+      loadAll();
+    } else {
+      resultEl.innerHTML = '<p style="color:#e53935;">' + esc(res.Message || 'Fehler') + '</p>';
+    }
+    resultEl.style.display = '';
+    _restoreBackup = null;
   });
 }
 
