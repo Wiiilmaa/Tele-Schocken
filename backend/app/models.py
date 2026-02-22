@@ -230,3 +230,35 @@ class User(db.Model):
         self.leave_after_game = False
         self.pending_join = False
         self.penalty_count = 0
+
+
+class Person(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), unique=True, nullable=False)
+
+
+class GameLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    game_uuid = db.Column(db.String(200), index=True)
+    game_date = db.Column(db.Date, index=True)
+    created_at = db.Column(db.DateTime)
+    mapping_complete = db.Column(db.Boolean, default=False)
+    players = db.relationship('GameLogPlayer', backref='game_log',
+                              cascade='all, delete-orphan')
+
+
+class GameLogPlayer(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    game_log_id = db.Column(db.Integer, db.ForeignKey('game_log.id'),
+                            nullable=False)
+    nick = db.Column(db.String(200), nullable=False)
+    is_loser = db.Column(db.Boolean, default=False)
+    person_id = db.Column(db.Integer, db.ForeignKey('person.id'), nullable=True)
+    person = db.relationship('Person')
+
+
+class NickMapping(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nick = db.Column(db.String(200), unique=True, index=True)
+    person_id = db.Column(db.Integer, db.ForeignKey('person.id'), nullable=False)
+    person = db.relationship('Person')

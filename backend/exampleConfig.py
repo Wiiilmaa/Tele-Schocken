@@ -16,3 +16,5 @@ class Config(object):
     MAIL_PASSWORD = 'XXXX'
     MAIL_USE_TLS = False
     MAIL_USE_SSL = True
+
+    ADMIN_PASSWORD = 'changeme'

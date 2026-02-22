@@ -38,3 +38,8 @@ def game_play(gid):
     if game is None:
         return render_template('404.html')
     return render_template('gameplay.html', title='Spiel', game=game)
+
+
+@app.route('/protokoll')
+def protokoll():
+    return render_template('protokoll.html', title='Protokoll')

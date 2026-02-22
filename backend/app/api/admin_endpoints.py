@@ -384,8 +384,10 @@ def distribute_chips(gid):
     if game.status == Status.ROUNDFINISCH:
         game.status = Status.STARTED
 
-    # If GAMEFINISCH: execute deferred actions (sets status to STARTED or WAITING)
+    # If GAMEFINISCH: log result and execute deferred actions
     if game.status == Status.GAMEFINISCH:
+        from app.api.protocol_endpoints import log_game_result
+        log_game_result(game, target_user)
         execute_deferred_actions(game)
 
     db.session.add(game)
@@ -501,6 +503,8 @@ def transfer_chips(gid):
     message = _handle_round_end(game, userB)
 
     if game.status == Status.GAMEFINISCH:
+        from app.api.protocol_endpoints import log_game_result
+        log_game_result(game, userB)
         execute_deferred_actions(game)
 
     response = jsonify(Message=message)
