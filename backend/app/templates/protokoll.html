@@ -56,10 +56,11 @@
 
   <!-- ==================== TAB: Zuordnungen ==================== -->
   <div id="tab-mappings" class="tab-panel" style="display:none;">
-    <h4>Nick &rarr; Person Zuordnungen</h4>
+    <h4>Spieleabende &amp; Zuordnungen</h4>
+    <p style="color:var(--text-muted);">Pro Spieleabend werden alle Nicks einmal zugeordnet. Die Zuordnung gilt für alle Spiele des Abends.</p>
     <div style="margin-bottom:12px;">
       <label><input type="checkbox" id="filter-incomplete" onchange="loadGames()" style="transform:scale(1);margin-right:4px;">
-        Nur unvollständige anzeigen</label>
+        Nur Abende mit unvollständigen Zuordnungen</label>
     </div>
     <div id="games-list"></div>
   </div>
@@ -116,10 +117,17 @@
 
     <hr>
     <h4>CSV Import</h4>
-    <p style="color:var(--text-muted);">Gleices Format wie Export. Personen-Namen, die bereits als Person existieren, werden automatisch zugeordnet.</p>
-    <textarea id="import-csv" class="form-control" rows="8" placeholder='Beispiel:&#10;25.01.2026;"Max";"Anna";"Tom"'></textarea>
-    <button class="btn btn-primary" style="margin-top:8px;" onclick="doImport()">Importieren</button>
+    <p style="color:var(--text-muted);">Gleiches Format wie Export. Personen-Namen, die bereits als Person existieren, werden automatisch zugeordnet.</p>
+    <textarea id="import-csv" class="form-control" rows="6" placeholder='Beispiel:&#10;25.01.2026;"Max";"Anna";"Tom"'></textarea>
+    <button class="btn btn-primary" style="margin-top:8px;" onclick="doImport()">CSV importieren</button>
     <p id="import-result" style="margin-top:8px; display:none;"></p>
+
+    <hr>
+    <h4>Markdown Import</h4>
+    <p style="color:var(--text-muted);">Format aus Outliner-Export: Datum als <code>* YYYYMMDD</code>, darunter eingerückt <code>* Verlierer: N Runde(n) (Gewinner1, Gewinner2, ...)</code>. Jahres-Überschriften werden ignoriert.</p>
+    <textarea id="import-md" class="form-control" rows="10" placeholder='* 20260206&#10;&#9;* Bine: 1 Runde (Butt, Feldi, Yamaha, Danny)&#10;&#9;* Danny: 3 Runden (Butt, Feldi, Yamaha, Bine)'></textarea>
+    <button class="btn btn-primary" style="margin-top:8px;" onclick="doImportMd()">Markdown importieren</button>
+    <div id="import-md-result" style="margin-top:8px; display:none;"></div>
 
     <hr>
     <h4>Daten löschen</h4>
@@ -307,59 +315,106 @@ function renderGames(games) {
     return;
   }
 
-  var html = '';
-  var currentDate = '';
+  // Group by date
+  var byDate = {};
   for (var i = 0; i < games.length; i++) {
     var g = games[i];
-    if (g.game_date !== currentDate) {
-      if (currentDate) html += '</div>';
-      currentDate = g.game_date;
-      html += '<h5 style="margin-top:16px;">' + formatDate(g.game_date) + '</h5><div>';
+    var d = g.game_date;
+    if (!byDate[d]) byDate[d] = [];
+    byDate[d].push(g);
+  }
+
+  var html = '';
+  var dates = Object.keys(byDate).sort().reverse();
+
+  for (var di = 0; di < dates.length; di++) {
+    var date = dates[di];
+    var dateGames = byDate[date];
+
+    // Collect unique nicks and best known person_id for each
+    var nickMap = {};
+    var allComplete = true;
+    for (var gi = 0; gi < dateGames.length; gi++) {
+      var g = dateGames[gi];
+      if (!g.mapping_complete) allComplete = false;
+      for (var pi = 0; pi < g.players.length; pi++) {
+        var p = g.players[pi];
+        if (p.person_id) {
+          nickMap[p.nick] = p.person_id;
+        } else if (!nickMap.hasOwnProperty(p.nick)) {
+          nickMap[p.nick] = _nickMappings[p.nick] || null;
+        }
+      }
     }
-    var statusIcon = g.mapping_complete ? '&#9989;' : '&#9888;&#65039;';
-    html += '<div class="game-mapping-card" style="border:1px solid var(--border-color);padding:10px;margin-bottom:8px;border-radius:4px;background:var(--bg-secondary);">';
-    html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
-    html += '<span>' + statusIcon + ' Spiel #' + g.id + '</span>';
-    html += '<button class="btn btn-primary btn-xs" onclick="saveMapping(' + g.id + ')">Speichern</button>';
-    html += '</div>';
-    html += '<table class="table" style="margin:8px 0 0 0;"><thead><tr><th>Nick</th><th>Rolle</th><th>Person</th></tr></thead><tbody>';
-    for (var j = 0; j < g.players.length; j++) {
-      var p = g.players[j];
-      var role = p.is_loser ? '<strong style="color:var(--message-start);">Verlierer</strong>' : 'Gewinner';
-      html += '<tr><td>' + esc(p.nick) + '</td><td>' + role + '</td><td>';
-      html += '<select class="form-control mapping-select" data-player-id="' + p.id + '" data-game-id="' + g.id + '" style="width:auto;display:inline-block;">';
+
+    var statusIcon = allComplete ? '&#9989;' : '&#9888;&#65039;';
+
+    html += '<div style="border:1px solid var(--border-color);padding:12px;margin-bottom:16px;border-radius:4px;background:var(--bg-secondary);">';
+    html += '<h4 style="margin-top:0;">' + statusIcon + ' ' + formatDate(date) + ' <small style="font-weight:normal;">(' + dateGames.length + ' Spiele)</small></h4>';
+
+    // Nick mapping table
+    html += '<table class="table" style="max-width:500px;margin-bottom:8px;"><thead><tr><th>Nick</th><th>Person</th></tr></thead><tbody>';
+    var nicks = Object.keys(nickMap).sort();
+    for (var ni = 0; ni < nicks.length; ni++) {
+      var nick = nicks[ni];
+      var currentPid = nickMap[nick];
+      html += '<tr><td>' + esc(nick) + '</td><td>';
+      html += '<select class="form-control date-mapping-select" data-date="' + date + '" data-nick="' + encodeURIComponent(nick) + '" style="width:auto;display:inline-block;">';
       html += '<option value="">-- nicht zugeordnet --</option>';
-      var suggested = _nickMappings[p.nick] || null;
-      var assigned = p.person_id;
       for (var k = 0; k < _persons.length; k++) {
-        var selected = '';
-        if (assigned && assigned == _persons[k].id) selected = ' selected';
-        else if (!assigned && suggested && suggested == _persons[k].id) selected = ' selected';
+        var selected = currentPid && currentPid == _persons[k].id ? ' selected' : '';
         html += '<option value="' + _persons[k].id + '"' + selected + '>' + esc(_persons[k].name) + '</option>';
       }
       html += '</select></td></tr>';
     }
-    html += '</tbody></table></div>';
+    html += '</tbody></table>';
+    html += '<button class="btn btn-primary btn-sm" onclick="saveDateMapping(\'' + date + '\')">Zuordnungen speichern</button>';
+
+    // Games list
+    html += '<hr style="margin:12px 0;">';
+    html += '<table class="table table-striped" style="margin-bottom:0;"><thead><tr><th>Verlierer</th><th>Gegenspieler</th><th style="width:70px;"></th></tr></thead><tbody>';
+    for (var gi = 0; gi < dateGames.length; gi++) {
+      var g = dateGames[gi];
+      var loser = '', winners = [];
+      for (var pi = 0; pi < g.players.length; pi++) {
+        var p = g.players[pi];
+        if (p.is_loser) loser = p.nick;
+        else winners.push(p.nick);
+      }
+      html += '<tr><td><strong>' + esc(loser) + '</strong></td>';
+      html += '<td>' + winners.map(esc).join(', ') + '</td>';
+      html += '<td><button class="btn btn-danger btn-xs" onclick="deleteGame(' + g.id + ')" title="Spiel löschen">&times;</button></td></tr>';
+    }
+    html += '</tbody></table>';
+    html += '</div>';
   }
-  if (currentDate) html += '</div>';
+
   container.innerHTML = html;
 }
 
-function saveMapping(gameId) {
-  var selects = document.querySelectorAll('.mapping-select[data-game-id="' + gameId + '"]');
+function saveDateMapping(date) {
+  var selects = document.querySelectorAll('.date-mapping-select[data-date="' + date + '"]');
   var mappings = {};
   for (var i = 0; i < selects.length; i++) {
-    var playerId = selects[i].getAttribute('data-player-id');
+    var nick = decodeURIComponent(selects[i].getAttribute('data-nick'));
     var val = selects[i].value;
-    mappings[playerId] = val ? parseInt(val) : null;
+    mappings[nick] = val ? parseInt(val) : null;
   }
-  xhrJSON('PUT', '/api/protokoll/games/' + gameId + '/mapping', {mappings: mappings}, function(res, status) {
+  xhrJSON('PUT', '/api/protokoll/mapping_by_date', {date: date, mappings: mappings}, function(res, status) {
     if (status === 200) {
       loadGames();
       loadNickMappings();
     } else {
       alert(res.Message || 'Fehler');
     }
+  });
+}
+
+function deleteGame(id) {
+  if (!confirm('Dieses Spiel wirklich löschen?')) return;
+  xhrJSON('DELETE', '/api/protokoll/games', {ids: [id]}, function(res, status) {
+    if (status === 200) loadGames();
+    else alert(res.Message || 'Fehler');
   });
 }
 
@@ -464,6 +519,33 @@ function doImport() {
     resultEl.style.color = status === 200 ? '#4CAF50' : '#e53935';
     resultEl.style.display = '';
     if (status === 200) {
+      loadGames();
+      loadNickMappings();
+    }
+  });
+}
+
+function doImportMd() {
+  var mdText = document.getElementById('import-md').value.trim();
+  if (!mdText) { alert('Bitte Markdown-Daten eingeben.'); return; }
+  var resultEl = document.getElementById('import-md-result');
+  resultEl.style.display = 'none';
+
+  xhrJSON('POST', '/api/protokoll/import_md', {text: mdText}, function(res, status) {
+    var html = '<p style="color:' + (res.imported > 0 ? '#4CAF50' : 'var(--text-muted)') + ';">' + esc(res.Message || 'Fertig') + '</p>';
+    if (res.errors && res.errors.length > 0) {
+      html += '<p style="color:#e53935;"><strong>' + res.errors.length + ' Fehler:</strong></p>';
+      html += '<table class="table table-striped" style="max-width:800px;font-size:13px;">';
+      html += '<thead><tr><th>Zeile</th><th>Text</th><th>Fehler</th></tr></thead><tbody>';
+      for (var i = 0; i < res.errors.length; i++) {
+        var e = res.errors[i];
+        html += '<tr><td>' + e.line + '</td><td><code>' + esc(e.text) + '</code></td><td>' + esc(e.error) + '</td></tr>';
+      }
+      html += '</tbody></table>';
+    }
+    resultEl.innerHTML = html;
+    resultEl.style.display = '';
+    if (res.imported > 0) {
       loadGames();
       loadNickMappings();
     }

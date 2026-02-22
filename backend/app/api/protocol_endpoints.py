@@ -220,6 +220,45 @@ def delete_game_logs():
     return jsonify(Message='{} Spiele gelöscht'.format(deleted)), 200
 
 
+# --------------- Date-based Mapping ---------------
+
+@bp.route('/protokoll/mapping_by_date', methods=['PUT'])
+def update_mapping_by_date():
+    """Update nick->person mappings for ALL games on a given date."""
+    if not _check_protokoll_auth():
+        return _auth_error()
+
+    data = request.get_json() or {}
+    date_str = data.get('date')
+    mappings = data.get('mappings', {})  # {nick: person_id_or_null}
+
+    if not date_str:
+        return jsonify(Message='Datum fehlt'), 400
+
+    game_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+    game_logs = GameLog.query.filter_by(game_date=game_date).all()
+
+    for gl in game_logs:
+        for player in gl.players:
+            if player.nick in mappings:
+                person_id = mappings[player.nick]
+                player.person_id = person_id
+                if person_id:
+                    existing = NickMapping.query.filter_by(
+                        nick=player.nick).first()
+                    if existing:
+                        existing.person_id = person_id
+                    else:
+                        nm = NickMapping(nick=player.nick,
+                                         person_id=person_id)
+                        db.session.add(nm)
+        gl.mapping_complete = all(
+            p.person_id is not None for p in gl.players)
+
+    db.session.commit()
+    return jsonify(Message='OK'), 200
+
+
 # --------------- Nick Mappings ---------------
 
 @bp.route('/protokoll/nick_mappings', methods=['GET'])
@@ -471,6 +510,151 @@ def import_csv():
 
     db.session.commit()
     return jsonify(Message='{} Spiele importiert'.format(imported)), 200
+
+
+# --------------- Markdown Import ---------------
+
+def _parse_md_import(text):
+    """
+    Parse a markdown/outliner game log.
+
+    Expected structure:
+      * YYYYMMDD
+          * Loser: N Runde(n) (Winner1, Winner2, ...)
+    Year headings (* YYYY) are silently skipped as grouping headers.
+    Returns (results, errors) where results is a list of
+    (date, loser, count, [winners]) tuples and errors is a list of
+    (line_number, line_text, error_description) tuples.
+    """
+    import re
+
+    lines = text.split('\n')
+    current_date = None
+    results = []
+    errors = []
+
+    for i, line in enumerate(lines, 1):
+        stripped = line.strip()
+        if not stripped:
+            continue
+
+        # Remove markdown list markers (*, -, +) and leading whitespace
+        cleaned = re.sub(r'^[\s\t]*[\*\-\+]\s*', '', line).strip()
+        if not cleaned:
+            continue
+
+        # Date: 8 digits (YYYYMMDD)
+        if re.match(r'^\d{8}$', cleaned):
+            try:
+                current_date = datetime.strptime(cleaned, '%Y%m%d').date()
+            except ValueError:
+                errors.append((i, stripped, 'Ungültiges Datum: ' + cleaned))
+            continue
+
+        # Year heading: 4 digits only (just a grouping header, skip)
+        if re.match(r'^\d{4}$', cleaned):
+            continue
+
+        # Game entry: Loser: N Runde(n) (Winner1, Winner2, ...)
+        m = re.match(
+            r'^(.+?)\s*:\s*(\d+)\s*Runden?\s*\((.+)\)\s*$', cleaned)
+        if m:
+            if current_date is None:
+                errors.append(
+                    (i, stripped, 'Kein Datum vor dieser Zeile definiert'))
+                continue
+            loser = m.group(1).strip()
+            count = int(m.group(2))
+            winners = [w.strip() for w in m.group(3).split(',')
+                       if w.strip()]
+            if not winners:
+                errors.append((i, stripped, 'Leere Gewinner-Liste'))
+                continue
+            results.append((current_date, loser, count, winners))
+            continue
+
+        # Game entry without winners in parentheses
+        m = re.match(r'^(.+?)\s*:\s*(\d+)\s*Runden?\s*$', cleaned)
+        if m:
+            errors.append(
+                (i, stripped, 'Keine Gewinner in Klammern angegeben'))
+            continue
+
+        # Unrecognized non-empty line
+        errors.append(
+            (i, stripped, 'Zeile konnte nicht interpretiert werden'))
+
+    return results, errors
+
+
+@bp.route('/protokoll/import_md', methods=['POST'])
+def import_md():
+    if not _check_protokoll_auth():
+        return _auth_error()
+
+    data = request.get_json() or {}
+    text = data.get('text', '')
+
+    if not text:
+        return jsonify(Message='Keine Daten'), 400
+
+    results, errors = _parse_md_import(text)
+
+    if not results and errors:
+        return jsonify(
+            Message='Keine Spiele erkannt',
+            imported=0,
+            errors=[{'line': e[0], 'text': e[1], 'error': e[2]}
+                    for e in errors]
+        ), 200
+
+    person_by_name = {p.name: p for p in Person.query.all()}
+    imported = 0
+
+    for game_date, loser, count, winners in results:
+        for _ in range(count):
+            game_log = GameLog()
+            game_log.game_date = game_date
+            game_log.game_uuid = 'import'
+            game_log.created_at = datetime.utcnow()
+
+            lp = GameLogPlayer()
+            lp.nick = loser
+            lp.is_loser = True
+            if loser in person_by_name:
+                lp.person_id = person_by_name[loser].id
+            game_log.players.append(lp)
+
+            for wname in winners:
+                wp = GameLogPlayer()
+                wp.nick = wname
+                wp.is_loser = False
+                if wname in person_by_name:
+                    wp.person_id = person_by_name[wname].id
+                game_log.players.append(wp)
+
+            game_log.mapping_complete = all(
+                p.person_id is not None for p in game_log.players)
+
+            for p in game_log.players:
+                if p.person_id:
+                    existing_nm = NickMapping.query.filter_by(
+                        nick=p.nick).first()
+                    if not existing_nm:
+                        nm = NickMapping(nick=p.nick,
+                                         person_id=p.person_id)
+                        db.session.add(nm)
+
+            db.session.add(game_log)
+            imported += 1
+
+    db.session.commit()
+    return jsonify(
+        Message='{} Spiele importiert'.format(imported),
+        imported=imported,
+        errors=[{'line': e[0], 'text': e[1], 'error': e[2]}
+                for e in errors]
+    ), 200
 
 
 # --------------- Game Logging Helper ---------------
