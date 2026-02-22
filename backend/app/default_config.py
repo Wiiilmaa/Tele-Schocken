@@ -25,3 +25,5 @@ class DefaultConfig(object):
     MAX_CONTENT_LENGTH = 1024 * 1024 * 16
 
     BOOTSTRAP_SERVE_LOCAL = True
+
+    ADMIN_PASSWORD = ''
