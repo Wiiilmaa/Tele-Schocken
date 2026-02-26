@@ -1,4 +1,4 @@
-var CACHE_NAME = 'tele-schocken-static-v1';
+var CACHE_NAME = 'tele-schocken-static-v2';
 var TWO_MONTHS_MS = 60 * 24 * 60 * 60 * 1000;
 
 var STATIC_EXTENSIONS = [
@@ -8,10 +8,20 @@ var STATIC_EXTENSIONS = [
   '.woff', '.woff2', '.ttf', '.eot'
 ];
 
+var REVALIDATE_EXTENSIONS = ['.js', '.css'];
+
 function isStaticAsset(url) {
   var pathname = new URL(url).pathname.toLowerCase();
   for (var i = 0; i < STATIC_EXTENSIONS.length; i++) {
     if (pathname.endsWith(STATIC_EXTENSIONS[i])) return true;
+  }
+  return false;
+}
+
+function needsRevalidation(url) {
+  var pathname = new URL(url).pathname.toLowerCase();
+  for (var i = 0; i < REVALIDATE_EXTENSIONS.length; i++) {
+    if (pathname.endsWith(REVALIDATE_EXTENSIONS[i])) return true;
   }
   return false;
 }
@@ -40,17 +50,26 @@ self.addEventListener('fetch', function(event) {
   event.respondWith(
     caches.open(CACHE_NAME).then(function(cache) {
       return cache.match(event.request).then(function(cached) {
-        if (cached) {
-          updateTimestamp(event.request.url);
-          return cached;
-        }
-        return fetch(event.request).then(function(response) {
+        var fetchPromise = fetch(event.request).then(function(response) {
           if (response && response.status === 200) {
             cache.put(event.request, response.clone());
             updateTimestamp(event.request.url);
           }
           return response;
         });
+
+        if (cached && needsRevalidation(event.request.url)) {
+          // Stale-while-revalidate: sofort aus Cache, im Hintergrund aktualisieren
+          event.waitUntil(fetchPromise);
+          updateTimestamp(event.request.url);
+          return cached;
+        }
+
+        if (cached) {
+          updateTimestamp(event.request.url);
+          return cached;
+        }
+        return fetchPromise;
       });
     })
   );
