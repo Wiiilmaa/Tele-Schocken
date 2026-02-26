@@ -297,7 +297,26 @@ function joinMidGame() {
 // H2: Update admin panel select lists dynamically
 function updatePlayerSelects(game) {
   var myId = getMyId();
-  var selectIds = ['transfer_source_user', 'transfer_target_user', 'select_delete_player', 'select_choose_admin'];
+  var selectIds = ['transfer_source_user', 'transfer_target_user'];
+  selectIds.forEach(function (selectId) {
+    var el = document.getElementById(selectId);
+    if (!el) return;
+    // Clear existing options
+    while (el.options && el.options.length > 0) { el.remove(0); }
+    // For optgroups, clear children
+    while (el.firstChild) { el.removeChild(el.firstChild); }
+    // Repopulate from game.User (exclude own user)
+    game.User.forEach(function (u) {
+      if (!u.Pending_Join) {
+        var opt = document.createElement('option');
+        opt.value = u.Id;
+        opt.innerHTML = u.Name;
+        el.appendChild(opt);
+      }
+    });
+  });
+
+  selectIds = ['select_delete_player', 'select_choose_admin'];
   selectIds.forEach(function (selectId) {
     var el = document.getElementById(selectId);
     if (!el) return;
