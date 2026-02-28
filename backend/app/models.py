@@ -76,8 +76,12 @@ class Game(BaseGameData, db.Model):
 
     @property
     def active_users(self):
-        """Return users who are actively playing (not pending join)."""
-        return [u for u in self.users if not u.pending_join]
+        """Return users who are actively playing (not pending join),
+        sorted by turn_order so that _get_next_active_user cycles correctly."""
+        return sorted(
+            [u for u in self.users if not u.pending_join],
+            key=lambda u: u.turn_order or 0
+        )
 
     def _all_dice_visible(self):
         """Check if all active non-passive users have all 3 dice visible."""
@@ -90,9 +94,12 @@ class Game(BaseGameData, db.Model):
         """
         return a API conform Key Value Store that can convert to JSON
         """
-        arrayuser = []
-        for user in self.users:
-            arrayuser.append(user.to_dict())
+        active_sorted = sorted(
+            [u for u in self.users if not u.pending_join],
+            key=lambda u: u.turn_order or 0
+        )
+        pending = [u for u in self.users if u.pending_join]
+        arrayuser = [u.to_dict() for u in active_sorted + pending]
         data = {
             'Stack_Max': self.stack_max,
             'Stack': self.stack,
@@ -185,6 +192,8 @@ class User(db.Model):
     pending_join = db.Column(db.Boolean(), default=False)
     # Penalty counter for invalid pause attempts
     penalty_count = db.Column(db.Integer, default=0)
+    # Position in the turn rotation (lower = earlier in cycle from first_user)
+    turn_order = db.Column(db.Integer, default=0)
 
     def user_name(self):
         return Markup(self.name)
@@ -230,6 +239,7 @@ class User(db.Model):
         self.leave_after_game = False
         self.pending_join = False
         self.penalty_count = 0
+        self.turn_order = 0
 
 
 class Person(db.Model):

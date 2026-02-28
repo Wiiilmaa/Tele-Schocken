@@ -147,6 +147,8 @@ def set_game_user(gid):
 
     if game.player_changes_allowed:
         user.pending_join = False
+        existing_active = game.active_users
+        user.turn_order = max((u.turn_order or 0) for u in existing_active) + 1 if existing_active else 0
     else:
         user.pending_join = True
 

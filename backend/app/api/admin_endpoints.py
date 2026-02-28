@@ -126,15 +126,19 @@ def execute_deferred_actions(game):
     loser_id = game.first_user_id
 
     # 1. Activate pending players first so they are eligible as starter
+    newly_activated_ids = set()
     for user in game.users:
         if user.pending_join:
             user.pending_join = False
             user.chips = 0
             _reset_user_dice(user)
+            newly_activated_ids.add(user.id)
 
     # 2. Remove players marked for leaving
+    leaving_ids = set()
     leaving_users = [u for u in game.users if u.leave_after_game]
     for user in leaving_users:
+        leaving_ids.add(user.id)
         if user.id == loser_id:
             # Pick a random remaining player who stays
             remaining = [u for u in game.users
@@ -142,6 +146,25 @@ def execute_deferred_actions(game):
             if remaining:
                 loser_id = choice(remaining).id
         db.session.delete(user)
+
+    # 2b. Assign turn_order to newly activated players so they appear
+    #     at the end of the rotation (right before first_user/loser).
+    if newly_activated_ids:
+        remaining_active = [u for u in game.active_users
+                            if u.id not in leaving_ids]
+        existing = [u for u in remaining_active
+                    if u.id not in newly_activated_ids]
+        new_players = [u for u in remaining_active
+                       if u.id in newly_activated_ids]
+
+        sorted_existing = sorted(existing, key=lambda u: u.turn_order or 0)
+        first_idx = next(
+            (i for i, u in enumerate(sorted_existing) if u.id == loser_id), 0
+        )
+        rotated = sorted_existing[first_idx:] + sorted_existing[:first_idx]
+        all_players = rotated + new_players
+        for i, u in enumerate(all_players):
+            u.turn_order = i
 
     # 3. Set first_user for next game to loser
     game.first_user_id = loser_id
@@ -290,6 +313,11 @@ def start_game(gid):
         starter = choice(active)
         game.first_user_id = starter.id
         game.move_user_id = starter.id
+
+    # Assign turn_order: first_user=0, then cycle through remaining players
+    first_idx = next((i for i, u in enumerate(active) if u.id == game.first_user_id), 0)
+    for i in range(len(active)):
+        active[(first_idx + i) % len(active)].turn_order = i
 
     # Reset all users for fresh start
     for user in active:
