@@ -20,6 +20,7 @@
   --btn-default-border: #cccccc;
   --hr-color: #eeeeee;
   --passive-row: #d3d3d3;
+  --passive-text: #aaaaaa;
   --green-button-bg: #4CAF50;
   --gray-button-bg: #ffffff;
   --message-start: red;
@@ -57,6 +58,7 @@
   --btn-default-border: #45475a;
   --hr-color: #45475a;
   --passive-row: #313244;
+  --passive-text: #7f849c;
   --green-button-bg: #4CAF50;
   --gray-button-bg: #313244;
   --message-start: #f38ba8;
@@ -240,16 +242,25 @@ select optgroup {
   border-radius: 10px;
 } /* Gray */
 
-/* Table row highlight classes (used by JS instead of inline styles) */
-.row-active-turn {
+/* Table row highlight classes — applied on <td> to guarantee visibility
+   during table-reorder animations and to override any lingering flash
+   animations (Web Animations API beats CSS on <tr>, but not a fresh
+   CSS value on the same <td>). */
+.row-active-turn > td:not(.dice-cell) {
   background-color: var(--highlight-row) !important;
 }
-.row-passive {
+.row-passive > td:not(.dice-cell) {
   background-color: var(--passive-row) !important;
-  color: var(--text-muted);
+  color: var(--passive-text) !important;
 }
-.row-normal {
-  background-color: transparent !important;
+.row-normal > td:not(.dice-cell) {
+  background-color: var(--bg-primary) !important;
+}
+
+/* Default opaque background for all non-dice cells so rows don't
+   show through each other during the slide animation. */
+#player_table td:not(.dice-cell) {
+  background-color: var(--bg-primary);
 }
 
 br {

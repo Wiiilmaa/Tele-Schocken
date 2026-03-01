@@ -225,7 +225,7 @@ body {
 .pending-row {
   opacity: 0.5;
 }
-#player_table .row-stripe {
+#player_table .row-stripe > td:not(.dice-cell) {
   background-color: var(--table-stripe-bg) !important;
 }
 #player_table .row-own-player {

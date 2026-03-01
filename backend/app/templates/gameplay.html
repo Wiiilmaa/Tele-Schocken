@@ -1329,13 +1329,12 @@
     if (!row) return;
     var color = getComputedStyle(document.documentElement).getPropertyValue(cssVar).trim();
     if (!color) return;
-    // Animate each cell individually — <tr> background is hidden beneath
-    // the cell layer in the CSS table model, so it must be per-<td>.
     var cells = row.querySelectorAll('td:not(.dice-cell)');
     for (var i = 0; i < cells.length; i++) {
+      var endColor = getComputedStyle(cells[i]).backgroundColor || 'transparent';
       cells[i].animate([
         { backgroundColor: color },
-        { backgroundColor: 'transparent' }
+        { backgroundColor: endColor }
       ], { duration: 8000, easing: 'ease-out' });
     }
   }
@@ -1714,9 +1713,17 @@
         }
       }
 
-      // Row background color via CSS classes (dark-mode safe)
+      // Row background color via CSS classes (dark-mode safe).
+      // Cancel any running flash animations on cells first so they
+      // cannot override the new CSS background (Web Animations API
+      // has higher priority than CSS on the same element).
       row.classList.remove('row-passive', 'row-normal', 'row-stripe', 'row-own-player', 'row-active-turn');
       row.style.backgroundColor = '';
+      var bgCells = row.querySelectorAll('td:not(.dice-cell)');
+      for (var ci = 0; ci < bgCells.length; ci++) {
+        var cellAnims = bgCells[ci].getAnimations ? bgCells[ci].getAnimations() : [];
+        for (var ai = 0; ai < cellAnims.length; ai++) cellAnims[ai].cancel();
+      }
       if (juser.Pending_Join) {
         // Already handled by pending-row class
       } else if (juser.Passive) {
