@@ -77,8 +77,7 @@
 {% block scripts %}
 {{ super() }}
 
-<script type=text/javascript src="{{url_for('static', filename='scripts/socket.io.js') }}">
-</script>
+<script src="{{url_for('static', filename='scripts/socket.io.js') }}"></script>
 <script src="{{ url_for('static', filename='scripts/qrcode.min.js') }}"></script>
 <script>
   // Handle device switch: read params from URL and set localStorage
