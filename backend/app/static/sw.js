@@ -5,10 +5,10 @@ var STATIC_EXTENSIONS = [
   '.mp3', '.wav', '.ogg', '.webm',
   '.js', '.css',
   '.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.ico',
-  '.woff', '.woff2', '.ttf', '.eot', '.html', '.htm'
+  '.woff', '.woff2', '.ttf', '.eot'
 ];
 
-var REVALIDATE_EXTENSIONS = ['.js', '.css', '.html', '.htm'];
+var REVALIDATE_EXTENSIONS = ['.js', '.css'];
 
 function isStaticAsset(url) {
   var pathname = new URL(url).pathname.toLowerCase();

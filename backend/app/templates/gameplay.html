@@ -6,7 +6,7 @@
 <div class="page-content">
 
 <div style="text-align: center">
-  <h2 class="message" id="Message"></h2>
+  <h2 class="message" id="Message" aria-live="polite"></h2>
 </div>
 <div class="status-bar">
   <div id="game_phase_col" class="hidden-xs hidden-sm" style="display:none">
@@ -39,20 +39,20 @@
         <div class="controls-btn-row">
           <div class="controls-left">
             <div class="buttongray containerturner" id='startgame_id'>
-              <img src="{{ url_for('static', filename = 'image/throw_the_dice.svg')}}" alt="throw the dice">
-              <button id='btn_dice' onclick="dice()" class="btn" title="Würfeln">Würfeln</button>
+              <img src="{{ url_for('static', filename = 'image/throw_the_dice.svg')}}" alt="throw the dice" width="1024" height="1024">
+              <button id='btn_dice' onclick="dice()" class="btn" title="Würfeln" aria-label="Würfeln">Würfeln</button>
               <p style="text-align: center">Würfeln</p>
             </div>
           </div>
           <div class="controls-center">
             <div class="buttongray containercup" id="btn_pullup_container">
-              <img src="{{ url_for('static', filename = 'image/pulldiceup.svg')}}" alt="pull dice cup up">
-              <button onclick="pullup()" class="btn" title="Aufdecken">Aufdecken</button>
+              <img src="{{ url_for('static', filename = 'image/pulldiceup.svg')}}" alt="pull dice cup up" width="1024" height="1024">
+              <button onclick="pullup()" class="btn" title="Aufdecken" aria-label="Aufdecken">Aufdecken</button>
               <p style="text-align: center">Aufdecken</p>
             </div>
             <div class="buttongray containercup">
-              <img src="{{ url_for('static', filename = 'image/pulldicedown.svg')}}" alt="pull dice cup down">
-              <button onclick="pulldown()" class="btn" title="Zudecken">Zudecken</button>
+              <img src="{{ url_for('static', filename = 'image/pulldicedown.svg')}}" alt="pull dice cup down" width="1024" height="1024">
+              <button onclick="pulldown()" class="btn" title="Zudecken" aria-label="Zudecken">Zudecken</button>
               <p style="text-align: center">Zudecken</p>
             </div>
           </div>
@@ -78,12 +78,12 @@
           </div>
           <div class="dice-turn-buttons" id="dice_turn_buttons">
             <div id="btn_turn_2" class="containerturner" style="display:none">
-              <img src="{{ url_for('static', filename = 'image/2_6er.svg')}}" alt="Zwei Sechsen zu Eins">
-              <button onclick="turnSixes(1)" class="btn" title="Zwei Sechsen zu Eins"></button>
+              <img src="{{ url_for('static', filename = 'image/2_6er.svg')}}" alt="Zwei Sechsen zu Eins" width="1334" height="750">
+              <button onclick="turnSixes(1)" class="btn" title="Zwei Sechsen zu Eins" aria-label="Zwei Sechsen zu Eins"></button>
             </div>
             <div id="btn_turn_3" class="containerturner" style="display:none">
-              <img src="{{ url_for('static', filename = 'image/3_6er.svg')}}" alt="Drei Sechsen zu zwei Einsen">
-              <button onclick="turnSixes(2)" class="btn" title="Drei Sechsen zu zwei Einsen"></button>
+              <img src="{{ url_for('static', filename = 'image/3_6er.svg')}}" alt="Drei Sechsen zu zwei Einsen" width="1334" height="750">
+              <button onclick="turnSixes(2)" class="btn" title="Drei Sechsen zu zwei Einsen" aria-label="Drei Sechsen zu zwei Einsen"></button>
             </div>
           </div>
         </div>
@@ -136,7 +136,7 @@
 </div>
 
 <!-- Disclosure toggle for admin & links section -->
-<button class="disclosure-toggle" id="bottom_panel_toggle" onclick="toggleBottomPanel()" type="button">
+<button class="disclosure-toggle" id="bottom_panel_toggle" onclick="toggleBottomPanel()" type="button" aria-label="Admin-Bereich ein-/ausblenden" aria-expanded="false">
   <span class="disclosure-arrow" id="disclosure_arrow"></span>
 </button>
 
@@ -190,7 +190,7 @@
 {% block scripts %}
 {{ super() }}
 <script src="{{ url_for('static', filename='scripts/qrcode.min.js') }}"></script>
-<script src="{{ url_for('static', filename='scripts/html2canvas.min.js') }}"></script>
+<script src="{{ url_for('static', filename='scripts/html2canvas.min.js') }}" defer></script>
 <script>
   // Handle device switch: read params from URL and set localStorage
   (function() {
@@ -228,9 +228,11 @@
   function toggleBottomPanel() {
     var panel = document.getElementById('bottom_panel');
     var arrow = document.getElementById('disclosure_arrow');
+    var toggle = document.getElementById('bottom_panel_toggle');
     var isOpen = panel.style.display !== 'none';
     panel.style.display = isOpen ? 'none' : '';
     arrow.classList.toggle('open', !isOpen);
+    if (toggle) toggle.setAttribute('aria-expanded', !isOpen);
   }
 
   // Toggle between invite link and device-switch link
@@ -1820,16 +1822,17 @@
       }
     }
 
-    // Game message
+    // Game message (uses CSS transition instead of animation for compositing)
     var el_message = document.getElementById('Message');
     if (game.Message) {
-      if (el_message.innerHTML != 'Nachricht: ' + game.Message) {
-        el_message.className = "message";
-        el_message.style.animation = 'none';
+      if (el_message.innerHTML != game.Message) {
+        el_message.style.transition = 'none';
+        el_message.style.color = 'var(--message-start)';
         el_message.offsetHeight;
-        el_message.style.animation = null;
+        el_message.style.transition = '';
+        el_message.style.color = '';
       }
-      el_message.innerHTML = 'Nachricht: ' + game.Message;
+      el_message.innerHTML = game.Message;
     } else {
       el_message.innerHTML = '';
     }

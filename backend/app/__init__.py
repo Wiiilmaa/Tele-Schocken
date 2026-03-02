@@ -2,6 +2,7 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_bootstrap import Bootstrap
+from flask_compress import Compress
 
 from .default_config import DefaultConfig
 
@@ -13,6 +14,24 @@ if app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite"):
     migrate = Migrate(app, db, render_as_batch=True)
 else:
     migrate = Migrate(app, db, render_as_batch=False)
+
+Compress(app)
+
+
+@app.after_request
+def add_security_headers(response):
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data: blob:; "
+        "connect-src 'self' ws: wss:; "
+        "font-src 'self'"
+    )
+    return response
 
 
 from app.api import bp as api_bp
@@ -32,6 +51,23 @@ def create_app():
         migrate = Migrate(app, db, render_as_batch=True)
     else:
         migrate = Migrate(app, db, render_as_batch=False)
+    Compress(app)
+
+    @app.after_request
+    def add_security_headers(response):
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+        response.headers['X-Frame-Options'] = 'DENY'
+        response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
+        response.headers['Content-Security-Policy'] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data: blob:; "
+            "connect-src 'self' ws: wss:; "
+            "font-src 'self'"
+        )
+        return response
+
     from app.api import bp as api_bp
     app.register_blueprint(api_bp, url_prefix='/api')
     from app import routes, models, errors

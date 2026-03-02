@@ -268,22 +268,18 @@ br {
    margin: 10px 0;
 }
 
-@keyframes messageanimation {
-  from {color: var(--message-start);}
-  to {color: var(--message-end);}
-}
-
-
 video {
  width: 100%;
  height: auto;
 }
 
-/* The element to apply the animation to */
 .message {
   color: var(--message-end);
-  animation-name: messageanimation;
-  animation-duration: 15s;
+  transition: color 15s ease;
+}
+
+.message:empty {
+  display: none;
 }
 
 /* Container needed to position the button. Adjust the width as needed */
