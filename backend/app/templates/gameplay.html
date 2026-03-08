@@ -2243,7 +2243,7 @@
     html += '<tr><td>Q / Numpad +</td><td>Aufdecken</td></tr>';
     html += '<tr><td>W / Numpad \u2212</td><td>Zudecken</td></tr>';
     html += '<tr><td>Shift+E / Numpad /</td><td>Zug beenden (Ende)</td></tr>';
-    html += '<tr><td>Numpad 7</td><td>Sechsen in Einsen umwandeln</td></tr>';
+    html += '<tr><td>7 / Numpad 7</td><td>Sechsen in Einsen umwandeln</td></tr>';
     html += '</tbody></table>';
     content.innerHTML = html;
   }
@@ -2469,7 +2469,7 @@
       if (key === '4' || code === 'Numpad4') { e.preventDefault(); _kbClickDiceCell(3); return; }
       if (key === '5' || code === 'Numpad5') { e.preventDefault(); _kbClickDiceCell(4); return; }
       if (key === '6' || code === 'Numpad6') { e.preventDefault(); _kbClickDiceCell(5); return; }
-      if (code === 'Numpad7') { e.preventDefault(); _kbTurnSixes(); return; }
+      if (key === '7' || code === 'Numpad7') { e.preventDefault(); _kbTurnSixes(); return; }
     }
 
     if (!e.ctrlKey && !e.metaKey) {
