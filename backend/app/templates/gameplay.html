@@ -758,6 +758,9 @@
 
         cube.style.transform = 'rotateX(' + oldRot.x + 'deg) rotateY(' + oldRot.y + 'deg)';
 
+        cupCell.classList.add('dcell-clickable');
+        cupCell.onclick = function() { toggleDice(idx); };
+
         setTimeout(function() {
           void cube.offsetHeight;
           var spinsX = (Math.floor(Math.random() * 3) + 2) * 360;
@@ -964,7 +967,35 @@
 
   function toggleDice(diceIdx) {
     _diceInCup[diceIdx] = !_diceInCup[diceIdx];
-    renderDiceCup();
+    if (_diceAnimating) {
+      _toggleDiceVisual(diceIdx);
+    } else {
+      renderDiceCup();
+    }
+  }
+
+  function _toggleDiceVisual(diceIdx) {
+    var cupCell = document.getElementById('dcell' + diceIdx);
+    var outCell = document.getElementById('dcell' + (3 + diceIdx));
+    if (_diceInCup[diceIdx]) {
+      outCell.innerHTML = '';
+      outCell.onclick = null;
+      outCell.className = 'dcell dcell-out';
+      addPlaceholder(outCell);
+      cupCell.innerHTML = '';
+      cupCell.className = 'dcell dcell-cup dcell-clickable';
+      appendDice(cupCell, _myDiceValues[diceIdx]);
+      cupCell.onclick = function() { toggleDice(diceIdx); };
+    } else {
+      cupCell.innerHTML = '';
+      cupCell.onclick = null;
+      cupCell.className = 'dcell dcell-cup';
+      addPlaceholder(cupCell);
+      outCell.innerHTML = '';
+      outCell.className = 'dcell dcell-out dcell-clickable';
+      appendDice(outCell, _myDiceValues[diceIdx]);
+      outCell.onclick = function() { toggleDice(diceIdx); };
+    }
   }
 
   function updateTurnButtons() {
