@@ -29,7 +29,7 @@ def game(gid):
     game = Game.query.filter_by(UUID=gid).first()
     if game is None:
         return render_template('404.html')
-    return render_template('game.html', title='Spiel', game=game)
+    return render_template('game.html', title='Spiel starten', game=game)
 
 
 @app.route('/game/<gid>', methods=['GET', 'POST'])
@@ -37,7 +37,7 @@ def game_play(gid):
     game = Game.query.filter_by(UUID=gid).first()
     if game is None:
         return render_template('404.html')
-    return render_template('gameplay.html', title='Spiel', game=game)
+    return render_template('gameplay.html', title='Schocken', game=game)
 
 
 @app.route('/protokoll')
