@@ -1117,6 +1117,10 @@
       _btnDice.removeAttribute('data-cooldown');
       var anyInCup = _diceInCup[0] || _diceInCup[1] || _diceInCup[2];
       _btnDice.disabled = !anyInCup;
+      var throwBtn = document.getElementById('startgame_id');
+      if (_lastGameState && _lastGameState.Move === getMyId() && throwBtn) {
+        throwBtn.className = 'buttongreen containerturner';
+      }
     }, 2500);
 
     clearSwapState();
@@ -2085,10 +2089,11 @@
     }
 
     // Throw button color and state
+    var diceOnCooldown = document.getElementById('btn_dice').getAttribute('data-cooldown') === 'true';
     if (notEnoughPlayers) {
       throwbutton.className = 'buttongray containerturner';
       throwbutton.disabled = true;
-    } else if (id == waiting_user_id) {
+    } else if (id == waiting_user_id && !diceOnCooldown) {
       throwbutton.className = 'buttongreen containerturner';
       throwbutton.disabled = false;
     } else {
