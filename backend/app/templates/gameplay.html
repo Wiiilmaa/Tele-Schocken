@@ -529,6 +529,7 @@
   var _diceHiddenAfterRoll = false;
   var _diceOutAtRoll = [false, false, false];
   var _diceAnimating = false;
+  var _rollInProgress = false;
   var _needsDiceRestore = true;
 
   function getGameId() {
@@ -700,7 +701,7 @@
     for (var i = 0; i < 3; i++) {
       if (inCup[i] && newValues[i] > 0) pending++;
     }
-    if (pending === 0) { renderDiceCup(); return; }
+    if (pending === 0) { _rollInProgress = false; renderDiceCup(); return; }
 
     _diceAnimating = true;
     var maxDelay = 0;
@@ -776,6 +777,7 @@
 
     setTimeout(function() {
       _diceAnimating = false;
+      _rollInProgress = false;
       renderDiceCup();
     }, ANIM_DURATION + maxDelay + 100);
   }
@@ -788,6 +790,7 @@
       _lastRollAnimTimer = null;
     }
     _diceAnimating = false;
+    _rollInProgress = false;
   }
 
   function animateLastRoll(oldValues, inCup) {
@@ -798,6 +801,7 @@
     }
     if (pending === 0) {
       _diceHiddenAfterRoll = true;
+      _rollInProgress = false;
       renderDiceCup();
       return;
     }
@@ -875,6 +879,7 @@
     _lastRollAnimTimer = setTimeout(function() {
       _lastRollAnimTimer = null;
       _diceAnimating = false;
+      _rollInProgress = false;
       _diceHiddenAfterRoll = true;
       renderDiceCup();
     }, ANIM_DURATION + 100);
@@ -1004,6 +1009,7 @@
     btn2.style.display = 'none';
     btn3.style.display = 'none';
 
+    if (_rollInProgress) return;
     if (isSwapActive()) return;
     if (_diceHiddenAfterRoll) return;
 
@@ -1103,6 +1109,7 @@
 
   // ============= Game Actions =============
   function dice() {
+    _rollInProgress = true;
     var _btnDice = document.getElementById("btn_dice");
     _btnDice.disabled = true;
     _btnDice.setAttribute('data-cooldown', 'true');
@@ -1126,6 +1133,7 @@
         if (!_diceInCup[0] || !_diceInCup[1] || !_diceInCup[2]) {
           alert('Beim ersten Wurf alle Würfel in den Becher Packen!');
           document.getElementById("btn_dice").disabled = false;
+          _rollInProgress = false;
           return;
         }
       }
@@ -1139,6 +1147,7 @@
         var res = JSON.parse(xhttp.responseText);
         if (xhttp.status == 201) {
           if (res.fallen) {
+            _rollInProgress = false;
             alert('Würfel vom Tisch gefallen Schnapsrunde!');
           } else {
             playSound(soundDice);
@@ -1172,6 +1181,7 @@
             }
           }
         } else {
+          _rollInProgress = false;
           alert('' + res.Message);
         }
       }
@@ -2228,7 +2238,7 @@
     html += '<tr><td>Q / Numpad +</td><td>Aufdecken</td></tr>';
     html += '<tr><td>W / Numpad \u2212</td><td>Zudecken</td></tr>';
     html += '<tr><td>Shift+E / Numpad /</td><td>Zug beenden (Ende)</td></tr>';
-    html += '<tr><td>Numpad 9</td><td>Sechsen in Einsen umwandeln</td></tr>';
+    html += '<tr><td>Numpad 7</td><td>Sechsen in Einsen umwandeln</td></tr>';
     html += '</tbody></table>';
     content.innerHTML = html;
   }
@@ -2454,7 +2464,7 @@
       if (key === '4' || code === 'Numpad4') { e.preventDefault(); _kbClickDiceCell(3); return; }
       if (key === '5' || code === 'Numpad5') { e.preventDefault(); _kbClickDiceCell(4); return; }
       if (key === '6' || code === 'Numpad6') { e.preventDefault(); _kbClickDiceCell(5); return; }
-      if (code === 'Numpad9') { e.preventDefault(); _kbTurnSixes(); return; }
+      if (code === 'Numpad7') { e.preventDefault(); _kbTurnSixes(); return; }
     }
 
     if (!e.ctrlKey && !e.metaKey) {
