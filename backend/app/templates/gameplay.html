@@ -2189,6 +2189,16 @@
     }
     html += '</tbody></table>';
     html += '<p><small>Alle weiteren Kombinationen: Schrott (1 Chip)</small></p>';
+    html += '<h3 style="margin-top:24px;">Tastatursteuerung</h3>';
+    html += '<table class="table table-condensed"><thead><tr><th>Taste(n)</th><th>Funktion</th></tr></thead><tbody>';
+    html += '<tr><td>Enter / Leertaste / Numpad Enter</td><td>Hauptaktion (Würfeln / Aufdecken / Alles aufdecken / Verteilen)</td></tr>';
+    html += '<tr><td>1, 2, 3 / Numpad 1, 2, 3</td><td>Würfel im Becher anklicken (rauslegen / zurücklegen)</td></tr>';
+    html += '<tr><td>4, 5, 6 / Numpad 4, 5, 6</td><td>Rausgelegte Würfel anklicken (zurücklegen / Umwandlung rückgängig)</td></tr>';
+    html += '<tr><td>Q / Numpad +</td><td>Aufdecken</td></tr>';
+    html += '<tr><td>W / Numpad \u2212</td><td>Zudecken</td></tr>';
+    html += '<tr><td>Shift+E / Numpad /</td><td>Zug beenden (Ende)</td></tr>';
+    html += '<tr><td>Numpad 9</td><td>Sechsen in Einsen umwandeln</td></tr>';
+    html += '</tbody></table>';
     content.innerHTML = html;
   }
 
@@ -2306,6 +2316,126 @@
       window.addEventListener('click', function(e) {
         if (e.target === beerModal) beerModal.style.display = 'none';
       });
+    }
+  });
+
+  // ============= Keyboard shortcuts =============
+  function _kbIsModalOpen() {
+    var rm = document.getElementById('rulesModal');
+    var bm = document.getElementById('beerModal');
+    return (rm && rm.style.display === 'block') || (bm && bm.style.display === 'block');
+  }
+
+  function _kbPrimaryAction() {
+    var throwBtn = document.getElementById('startgame_id');
+    var diceBtn = document.getElementById('btn_dice');
+    if (throwBtn && throwBtn.classList.contains('buttongreen') && diceBtn && !diceBtn.disabled) {
+      dice(); return;
+    }
+    var pullupContainer = document.getElementById('btn_pullup_container');
+    if (pullupContainer && pullupContainer.classList.contains('buttongreen')) {
+      pullup(); return;
+    }
+    var revealAllBtn = document.getElementById('reveal_all_btn');
+    if (revealAllBtn && !revealAllBtn.disabled) {
+      vote_reveal_all(); return;
+    }
+    var distributeBtn = document.getElementById('distribute_btn');
+    if (distributeBtn && !distributeBtn.disabled) {
+      distribute(); return;
+    }
+  }
+
+  function _kbClickDiceCell(idx) {
+    var cell = document.getElementById('dcell' + idx);
+    if (cell && cell.classList.contains('dcell-clickable') && cell.onclick) {
+      cell.onclick();
+    }
+  }
+
+  function _kbAufdecken() {
+    var container = document.getElementById('btn_pullup_container');
+    if (!container) return;
+    var btn = container.querySelector('button');
+    if (btn && !btn.disabled) pullup();
+  }
+
+  function _kbZudecken() {
+    var cups = document.querySelectorAll('.containercup');
+    for (var i = 0; i < cups.length; i++) {
+      if (cups[i].id !== 'btn_pullup_container') {
+        var btn = cups[i].querySelector('button');
+        if (btn && !btn.disabled) { pulldown(); return; }
+      }
+    }
+  }
+
+  function _kbEnde() {
+    var btn = document.getElementById('btn_endpause');
+    if (btn && !btn.disabled && btn.getAttribute('data-mode') === 'ende') {
+      endpause_click();
+    }
+  }
+
+  function _kbTurnSixes() {
+    var btn3 = document.getElementById('btn_turn_3');
+    if (btn3 && btn3.style.display !== 'none') {
+      var inner = btn3.querySelector('button');
+      if (inner && !inner.disabled) { turnSixes(2); return; }
+    }
+    var btn2 = document.getElementById('btn_turn_2');
+    if (btn2 && btn2.style.display !== 'none') {
+      var inner = btn2.querySelector('button');
+      if (inner && !inner.disabled) { turnSixes(1); return; }
+    }
+  }
+
+  document.addEventListener('keydown', function(e) {
+    var tag = e.target.tagName.toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+
+    if (_kbIsModalOpen()) {
+      if (e.key === 'Escape') {
+        var rm = document.getElementById('rulesModal');
+        var bm = document.getElementById('beerModal');
+        if (rm && rm.style.display === 'block') rm.style.display = 'none';
+        if (bm && bm.style.display === 'block') bm.style.display = 'none';
+      }
+      return;
+    }
+
+    var gc = document.getElementById('game_controls');
+    if (!gc || gc.style.display === 'none') return;
+
+    unlockAudio();
+
+    var key = e.key;
+    var code = e.code;
+
+    if (key === 'Enter' || key === ' ' || code === 'NumpadEnter') {
+      e.preventDefault(); _kbPrimaryAction(); return;
+    }
+
+    if (!e.shiftKey && !e.ctrlKey && !e.metaKey) {
+      if (key === '1' || code === 'Numpad1') { e.preventDefault(); _kbClickDiceCell(0); return; }
+      if (key === '2' || code === 'Numpad2') { e.preventDefault(); _kbClickDiceCell(1); return; }
+      if (key === '3' || code === 'Numpad3') { e.preventDefault(); _kbClickDiceCell(2); return; }
+      if (key === '4' || code === 'Numpad4') { e.preventDefault(); _kbClickDiceCell(3); return; }
+      if (key === '5' || code === 'Numpad5') { e.preventDefault(); _kbClickDiceCell(4); return; }
+      if (key === '6' || code === 'Numpad6') { e.preventDefault(); _kbClickDiceCell(5); return; }
+      if (code === 'Numpad9') { e.preventDefault(); _kbTurnSixes(); return; }
+    }
+
+    if (!e.ctrlKey && !e.metaKey) {
+      if (key === 'q' || key === 'Q' || code === 'NumpadAdd') {
+        e.preventDefault(); _kbAufdecken(); return;
+      }
+      if (key === 'w' || key === 'W' || code === 'NumpadSubtract') {
+        e.preventDefault(); _kbZudecken(); return;
+      }
+      if ((e.shiftKey && (key === 'E' || key === 'e')) || code === 'NumpadDivide') {
+        e.preventDefault(); _kbEnde(); return;
+      }
     }
   });
 </script>
