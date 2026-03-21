@@ -2243,6 +2243,7 @@
     html += '<tr><td>Q / Numpad +</td><td>Aufdecken</td></tr>';
     html += '<tr><td>W / Numpad \u2212</td><td>Zudecken</td></tr>';
     html += '<tr><td>Shift+E / Numpad /</td><td>Zug beenden (Ende)</td></tr>';
+    html += '<tr><td>Shift+P</td><td>Pause (ein-/ausschalten)</td></tr>';
     html += '<tr><td>7 / Numpad 7</td><td>Sechsen in Einsen umwandeln</td></tr>';
     html += '</tbody></table>';
     content.innerHTML = html;
@@ -2423,6 +2424,13 @@
     }
   }
 
+  function _kbPause() {
+    var btn = document.getElementById('btn_endpause');
+    if (btn && !btn.disabled && btn.getAttribute('data-mode') === 'pause') {
+      endpause_click();
+    }
+  }
+
   function _kbTurnSixes() {
     var btn3 = document.getElementById('btn_turn_3');
     if (btn3 && btn3.style.display !== 'none') {
@@ -2481,6 +2489,9 @@
       }
       if ((e.shiftKey && (key === 'E' || key === 'e')) || code === 'NumpadDivide') {
         e.preventDefault(); _kbEnde(); return;
+      }
+      if (e.shiftKey && (key === 'P' || key === 'p')) {
+        e.preventDefault(); _kbPause(); return;
       }
     }
   });
