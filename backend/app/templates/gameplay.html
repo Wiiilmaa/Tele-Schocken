@@ -316,40 +316,36 @@
 
   // ============= H3: Sound handling =============
   var audioUnlocked = false;
-  var soundDice, soundLift, soundDiceY;
-  var _soundsReady = false;
 
-  var _defaultSoundUrls = {
-    rolling_dice: "{{ url_for('static', filename='audio/rolling_dice.mp3') }}",
-    lift_cup:     "{{ url_for('static', filename='audio/lift_cup.mp3') }}",
-    roll_now:     "{{ url_for('static', filename='audio/roll_now.mp3') }}"
-  };
+  var soundDice  = new Audio("{{ url_for('static', filename='audio/rolling_dice.mp3') }}");
+  soundDice.preload = 'auto';
+  var soundLift  = new Audio("{{ url_for('static', filename='audio/lift_cup.mp3') }}");
+  soundLift.preload = 'auto';
+  var soundDiceY = new Audio("{{ url_for('static', filename='audio/roll_now.mp3') }}");
+  soundDiceY.preload = 'auto';
 
-  function _initSounds(urls) {
-    soundDice  = new Audio(urls.rolling_dice);  soundDice.preload  = 'auto';
-    soundLift  = new Audio(urls.lift_cup);      soundLift.preload  = 'auto';
-    soundDiceY = new Audio(urls.roll_now);      soundDiceY.preload = 'auto';
-    try { soundDice.load(); soundLift.load(); soundDiceY.load(); } catch(e) {}
-    _soundsReady = true;
-  }
+  try { soundDice.load(); soundLift.load(); soundDiceY.load(); } catch(e) {}
 
-  // Resolve person-specific sounds before preloading; fall back to defaults
+  // Replace with person-specific sounds if a NickMapping exists for this nick
   (function() {
     var nick = localStorage.getItem('name');
-    if (!nick) { _initSounds(_defaultSoundUrls); return; }
+    if (!nick) return;
     var xhr = new XMLHttpRequest();
     xhr.open('GET', '/api/sounds?nick=' + encodeURIComponent(nick));
-    xhr.timeout = 3000;
     xhr.onreadystatechange = function() {
-      if (xhr.readyState !== 4) return;
-      if (_soundsReady) return;
-      if (xhr.status === 200) {
-        try { var urls = JSON.parse(xhr.responseText); _initSounds(urls); return; }
-        catch(e) {}
+      if (xhr.readyState !== 4 || xhr.status !== 200) return;
+      try { var urls = JSON.parse(xhr.responseText); } catch(e) { return; }
+      function replaceIfDifferent(current, url) {
+        if (!url || current.src.endsWith(url)) return current;
+        var a = new Audio(url);
+        a.preload = 'auto';
+        try { a.load(); } catch(e) {}
+        return a;
       }
-      _initSounds(_defaultSoundUrls);
+      soundDice  = replaceIfDifferent(soundDice, urls.rolling_dice);
+      soundDiceY = replaceIfDifferent(soundDiceY, urls.roll_now);
+      soundLift  = replaceIfDifferent(soundLift, urls.lift_cup);
     };
-    xhr.ontimeout = function() { if (!_soundsReady) _initSounds(_defaultSoundUrls); };
     xhr.send();
   })();
 
