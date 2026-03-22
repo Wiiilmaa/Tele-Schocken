@@ -184,6 +184,33 @@
   </div>
 </div>
 
+<!-- Keyboard settings modal -->
+<div id="kbModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <span class="close" onclick="closeKbModal()">&times;</span>
+      <h2>Tastatursteuerung</h2>
+    </div>
+    <div class="modal-body">
+      <div id="kb_content"></div>
+      <div style="margin-top:16px;">
+        <button class="btn btn-primary btn-sm" onclick="kbSave()">An Person speichern</button>
+        <button class="btn btn-default btn-sm" onclick="kbReset()">Zurücksetzen</button>
+        <button class="btn btn-default btn-sm" onclick="kbShowLoadMenu()">Laden von…</button>
+      </div>
+      <div id="kb_load_menu" style="display:none; margin-top:8px;"></div>
+      <div id="kb_status" style="margin-top:8px;"></div>
+    </div>
+  </div>
+</div>
+<style>
+.kb-pill{display:inline-block;background:var(--bg-secondary,#e8e8e8);border:1px solid var(--border-color,#ccc);border-radius:3px;padding:1px 6px;margin:1px 2px;font-size:12px;white-space:nowrap}
+.kb-pill-remove{cursor:pointer;margin-left:3px;font-weight:bold;opacity:.6}
+.kb-pill-remove:hover{opacity:1;color:#e53935}
+.kb-recording{color:#ff9800;font-weight:bold;font-size:12px;animation:kb-blink 1s infinite}
+@keyframes kb-blink{0%,100%{opacity:1}50%{opacity:.4}}
+</style>
+
 </div> <!-- /.page-content -->
 
 {% endblock %}
@@ -2236,15 +2263,16 @@
     html += '</tbody></table>';
     html += '<p><small>Alle weiteren Kombinationen: Schrott (1 Chip)</small></p>';
     html += '<h3 style="margin-top:24px;">Tastatursteuerung</h3>';
+    var bindings = _kbGetBindings();
     html += '<table class="table table-condensed"><thead><tr><th>Taste(n)</th><th>Funktion</th></tr></thead><tbody>';
-    html += '<tr><td>Enter / Leertaste / Numpad Enter</td><td>Hauptaktion (Würfeln / Aufdecken / Alles aufdecken / Verteilen)</td></tr>';
-    html += '<tr><td>1, 2, 3 / Numpad 1, 2, 3</td><td>Würfel im Becher anklicken (rauslegen / zurücklegen)</td></tr>';
-    html += '<tr><td>4, 5, 6 / Numpad 4, 5, 6</td><td>Rausgelegte Würfel anklicken (zurücklegen / Umwandlung rückgängig)</td></tr>';
-    html += '<tr><td>Q / Numpad +</td><td>Aufdecken</td></tr>';
-    html += '<tr><td>W / Numpad \u2212</td><td>Zudecken</td></tr>';
-    html += '<tr><td>Shift+E / Numpad /</td><td>Zug beenden (Ende)</td></tr>';
-    html += '<tr><td>Shift+P</td><td>Pause (ein-/ausschalten)</td></tr>';
-    html += '<tr><td>7 / Numpad 7</td><td>Sechsen in Einsen umwandeln</td></tr>';
+    for (var ki = 0; ki < KB_ACTION_ORDER.length; ki++) {
+      var act = KB_ACTION_ORDER[ki];
+      var keys = bindings[act] || [];
+      if (keys.length === 0) continue;
+      var keyLabels = [];
+      for (var kj = 0; kj < keys.length; kj++) keyLabels.push(keys[kj].label);
+      html += '<tr><td>' + keyLabels.join(' / ') + '</td><td>' + KB_ACTION_LABELS[act] + '</td></tr>';
+    }
     html += '</tbody></table>';
     content.innerHTML = html;
   }
@@ -2317,6 +2345,7 @@
       if (joinInput && !joinInput.value) joinInput.value = savedName;
     }
     initial_game_data();
+    _kbAutoLoad();
   }
 
   startup();
@@ -2351,6 +2380,15 @@
       btn.title = 'Regeln';
       btn.innerHTML = '<svg viewBox="0 0 448 512" fill="currentColor" width="16" height="16"><path d="M448 360V24c0-13.3-10.7-24-24-24H96C43 0 0 43 0 96v320c0 53 43 96 96 96h328c13.3 0 24-10.7 24-24v-16c0-8.6-4.6-16.2-11.5-20.4-4.8-12-4.8-42.2 0-54.2 6.9-4.2 11.5-11.8 11.5-20.4zM96 404c-28.4 0-48-10.2-48-28s19.6-28 48-28h288v56H96zm0-236h288v24H96v-24z"/></svg>';
       container.insertBefore(btn, container.firstChild);
+
+      var kbBtn = document.createElement('a');
+      kbBtn.id = 'kb_floating_btn';
+      kbBtn.className = 'floating-icon-btn';
+      kbBtn.href = '#';
+      kbBtn.onclick = function(e) { e.preventDefault(); showKbModal(); };
+      kbBtn.title = 'Tastatursteuerung';
+      kbBtn.innerHTML = '<svg viewBox="0 0 576 512" fill="currentColor" width="16" height="16"><path d="M528 64H48C21.49 64 0 85.49 0 112v288c0 26.51 21.49 48 48 48h480c26.51 0 48-21.49 48-48V112c0-26.51-21.49-48-48-48zm8 336c0 4.411-3.589 8-8 8H48c-4.411 0-8-3.589-8-8V112c0-4.411 3.589-8 8-8h480c4.411 0 8 3.589 8 8v288zM170 270v-28c0-6.627-5.373-12-12-12h-28c-6.627 0-12 5.373-12 12v28c0 6.627 5.373 12 12 12h28c6.627 0 12-5.373 12-12zm96 0v-28c0-6.627-5.373-12-12-12h-28c-6.627 0-12 5.373-12 12v28c0 6.627 5.373 12 12 12h28c6.627 0 12-5.373 12-12zm96 0v-28c0-6.627-5.373-12-12-12h-28c-6.627 0-12 5.373-12 12v28c0 6.627 5.373 12 12 12h28c6.627 0 12-5.373 12-12zm96 0v-28c0-6.627-5.373-12-12-12h-28c-6.627 0-12 5.373-12 12v28c0 6.627 5.373 12 12 12h28c6.627 0 12-5.373 12-12zm-336 82v-28c0-6.627-5.373-12-12-12H72c-6.627 0-12 5.373-12 12v28c0 6.627 5.373 12 12 12h28c6.627 0 12-5.373 12-12zm384 0v-28c0-6.627-5.373-12-12-12h-28c-6.627 0-12 5.373-12 12v28c0 6.627 5.373 12 12 12h28c6.627 0 12-5.373 12-12zM98 198v-28c0-6.627-5.373-12-12-12H58c-6.627 0-12 5.373-12 12v28c0 6.627 5.373 12 12 12h28c6.627 0 12-5.373 12-12zm96 0v-28c0-6.627-5.373-12-12-12h-28c-6.627 0-12 5.373-12 12v28c0 6.627 5.373 12 12 12h28c6.627 0 12-5.373 12-12zm96 0v-28c0-6.627-5.373-12-12-12h-28c-6.627 0-12 5.373-12 12v28c0 6.627 5.373 12 12 12h28c6.627 0 12-5.373 12-12zm96 0v-28c0-6.627-5.373-12-12-12h-28c-6.627 0-12 5.373-12 12v28c0 6.627 5.373 12 12 12h28c6.627 0 12-5.373 12-12zm96 0v-28c0-6.627-5.373-12-12-12h-28c-6.627 0-12 5.373-12 12v28c0 6.627 5.373 12 12 12h28c6.627 0 12-5.373 12-12zm-98 158v-16c0-6.627-5.373-12-12-12H204c-6.627 0-12 5.373-12 12v16c0 6.627 5.373 12 12 12h168c6.627 0 12-5.373 12-12z"/></svg>';
+      container.insertBefore(kbBtn, container.firstChild);
     }
     var rulesModal = document.getElementById('rulesModal');
     if (rulesModal) {
@@ -2364,15 +2402,130 @@
         if (e.target === beerModal) beerModal.style.display = 'none';
       });
     }
+    var kbModal = document.getElementById('kbModal');
+    if (kbModal) {
+      window.addEventListener('click', function(e) {
+        if (e.target === kbModal) closeKbModal();
+      });
+    }
   });
 
-  // ============= Keyboard shortcuts =============
-  function _kbIsModalOpen() {
-    var rm = document.getElementById('rulesModal');
-    var bm = document.getElementById('beerModal');
-    return (rm && rm.style.display === 'block') || (bm && bm.style.display === 'block');
+  // ============= Configurable keyboard bindings =============
+  var KB_ACTION_LABELS = {
+    primary_action: 'Hauptaktion (Würfeln / Aufdecken / …)',
+    dice_cup_0: 'Würfel 1 im Becher',
+    dice_cup_1: 'Würfel 2 im Becher',
+    dice_cup_2: 'Würfel 3 im Becher',
+    dice_out_0: 'Würfel 1 rausgelegt',
+    dice_out_1: 'Würfel 2 rausgelegt',
+    dice_out_2: 'Würfel 3 rausgelegt',
+    dice_toggle_0: 'Würfel 1 rein/raus',
+    dice_toggle_1: 'Würfel 2 rein/raus',
+    dice_toggle_2: 'Würfel 3 rein/raus',
+    aufdecken: 'Aufdecken',
+    zudecken: 'Zudecken',
+    ende: 'Zug beenden (Ende)',
+    pause: 'Pause',
+    turn_sixes: 'Sechsen umwandeln'
+  };
+  var KB_ACTION_ORDER = [
+    'primary_action',
+    'dice_cup_0', 'dice_cup_1', 'dice_cup_2',
+    'dice_out_0', 'dice_out_1', 'dice_out_2',
+    'dice_toggle_0', 'dice_toggle_1', 'dice_toggle_2',
+    'aufdecken', 'zudecken', 'ende', 'pause', 'turn_sixes'
+  ];
+  var DEFAULT_KEYBINDINGS = {
+    primary_action: [
+      {code:'Enter',shift:false,label:'Enter'},
+      {code:'Space',shift:false,label:'Leertaste'},
+      {code:'NumpadEnter',shift:false,label:'Numpad Enter'}
+    ],
+    dice_cup_0: [{code:'Digit1',shift:false,label:'1'},{code:'Numpad1',shift:false,label:'Numpad 1'}],
+    dice_cup_1: [{code:'Digit2',shift:false,label:'2'},{code:'Numpad2',shift:false,label:'Numpad 2'}],
+    dice_cup_2: [{code:'Digit3',shift:false,label:'3'},{code:'Numpad3',shift:false,label:'Numpad 3'}],
+    dice_out_0: [{code:'Digit4',shift:false,label:'4'},{code:'Numpad4',shift:false,label:'Numpad 4'}],
+    dice_out_1: [{code:'Digit5',shift:false,label:'5'},{code:'Numpad5',shift:false,label:'Numpad 5'}],
+    dice_out_2: [{code:'Digit6',shift:false,label:'6'},{code:'Numpad6',shift:false,label:'Numpad 6'}],
+    dice_toggle_0: [],
+    dice_toggle_1: [],
+    dice_toggle_2: [],
+    aufdecken: [{code:'KeyQ',shift:false,label:'Q'},{code:'NumpadAdd',shift:false,label:'Numpad +'}],
+    zudecken: [{code:'KeyW',shift:false,label:'W'},{code:'NumpadSubtract',shift:false,label:'Numpad \u2212'}],
+    ende: [{code:'KeyE',shift:true,label:'Shift+E'},{code:'NumpadDivide',shift:false,label:'Numpad /'}],
+    pause: [{code:'KeyP',shift:true,label:'Shift+P'}],
+    turn_sixes: [{code:'Digit7',shift:false,label:'7'},{code:'Numpad7',shift:false,label:'Numpad 7'}]
+  };
+
+  var _currentBindings = null;
+  var _kbRecording = null;
+  var _kbPersonsCache = null;
+
+  function _kbDeepCopy(o) { return JSON.parse(JSON.stringify(o)); }
+
+  function _kbGetBindings() {
+    if (!_currentBindings) {
+      var stored = localStorage.getItem('keybindings');
+      if (stored) { try { _currentBindings = JSON.parse(stored); } catch(e) {} }
+      if (!_currentBindings) _currentBindings = _kbDeepCopy(DEFAULT_KEYBINDINGS);
+      for (var a in DEFAULT_KEYBINDINGS) {
+        if (!_currentBindings[a]) _currentBindings[a] = [];
+      }
+    }
+    return _currentBindings;
   }
 
+  function _kbSaveLocal() {
+    localStorage.setItem('keybindings', JSON.stringify(_kbGetBindings()));
+  }
+
+  function _kbApplyBindings(bindings) {
+    _currentBindings = _kbDeepCopy(bindings);
+    for (var a in DEFAULT_KEYBINDINGS) {
+      if (!_currentBindings[a]) _currentBindings[a] = [];
+    }
+    _kbSaveLocal();
+  }
+
+  function _kbAutoLoad() {
+    var nick = localStorage.getItem('name');
+    if (!nick) return;
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', '/api/keybindings?nick=' + encodeURIComponent(nick));
+    xhr.onreadystatechange = function() {
+      if (xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
+        try {
+          var res = JSON.parse(xhr.responseText);
+          if (res.bindings) _kbApplyBindings(res.bindings);
+        } catch(e) {}
+      }
+    };
+    xhr.send();
+  }
+
+  function _kbMakeLabel(e) {
+    var parts = [];
+    if (e.shiftKey) parts.push('Shift');
+    var n = e.code;
+    if (n === 'Space') n = 'Leertaste';
+    else if (n === 'Enter') n = 'Enter';
+    else if (n === 'NumpadEnter') n = 'Numpad Enter';
+    else if (n === 'NumpadAdd') n = 'Numpad +';
+    else if (n === 'NumpadSubtract') n = 'Numpad \u2212';
+    else if (n === 'NumpadMultiply') n = 'Numpad *';
+    else if (n === 'NumpadDivide') n = 'Numpad /';
+    else if (n === 'NumpadDecimal') n = 'Numpad .';
+    else if (n.startsWith('Numpad')) n = 'Numpad ' + n.replace('Numpad','');
+    else if (n.startsWith('Key')) n = n.replace('Key','');
+    else if (n.startsWith('Digit')) n = n.replace('Digit','');
+    else if (n === 'Backspace') n = 'Backspace';
+    else if (n === 'Tab') n = 'Tab';
+    else if (n === 'Delete') n = 'Entf';
+    parts.push(n);
+    return parts.join('+');
+  }
+
+  // --- Action handlers ---
   function _kbPrimaryAction() {
     var throwBtn = document.getElementById('startgame_id');
     var diceBtn = document.getElementById('btn_dice');
@@ -2384,20 +2537,19 @@
       pullup(); return;
     }
     var revealAllBtn = document.getElementById('reveal_all_btn');
-    if (revealAllBtn && !revealAllBtn.disabled) {
-      vote_reveal_all(); return;
-    }
+    if (revealAllBtn && !revealAllBtn.disabled) { vote_reveal_all(); return; }
     var distributeBtn = document.getElementById('distribute_btn');
-    if (distributeBtn && !distributeBtn.disabled) {
-      distribute(); return;
-    }
+    if (distributeBtn && !distributeBtn.disabled) { distribute(); return; }
   }
 
   function _kbClickDiceCell(idx) {
     var cell = document.getElementById('dcell' + idx);
-    if (cell && cell.classList.contains('dcell-clickable') && cell.onclick) {
-      cell.onclick();
-    }
+    if (cell && cell.classList.contains('dcell-clickable') && cell.onclick) cell.onclick();
+  }
+
+  function _kbToggleDice(diceIdx) {
+    if (_diceInCup[diceIdx]) _kbClickDiceCell(diceIdx);
+    else _kbClickDiceCell(3 + diceIdx);
   }
 
   function _kbAufdecken() {
@@ -2419,16 +2571,12 @@
 
   function _kbEnde() {
     var btn = document.getElementById('btn_endpause');
-    if (btn && !btn.disabled && btn.getAttribute('data-mode') === 'ende') {
-      endpause_click();
-    }
+    if (btn && !btn.disabled && btn.getAttribute('data-mode') === 'ende') endpause_click();
   }
 
   function _kbPause() {
     var btn = document.getElementById('btn_endpause');
-    if (btn && !btn.disabled && btn.getAttribute('data-mode') === 'pause') {
-      endpause_click();
-    }
+    if (btn && !btn.disabled && btn.getAttribute('data-mode') === 'pause') endpause_click();
   }
 
   function _kbTurnSixes() {
@@ -2444,16 +2592,174 @@
     }
   }
 
+  var KB_ACTION_HANDLERS = {
+    primary_action: _kbPrimaryAction,
+    dice_cup_0: function(){_kbClickDiceCell(0);}, dice_cup_1: function(){_kbClickDiceCell(1);}, dice_cup_2: function(){_kbClickDiceCell(2);},
+    dice_out_0: function(){_kbClickDiceCell(3);}, dice_out_1: function(){_kbClickDiceCell(4);}, dice_out_2: function(){_kbClickDiceCell(5);},
+    dice_toggle_0: function(){_kbToggleDice(0);}, dice_toggle_1: function(){_kbToggleDice(1);}, dice_toggle_2: function(){_kbToggleDice(2);},
+    aufdecken: _kbAufdecken, zudecken: _kbZudecken,
+    ende: _kbEnde, pause: _kbPause, turn_sixes: _kbTurnSixes
+  };
+
+  // --- Modal helpers ---
+  function _kbIsModalOpen() {
+    var rm = document.getElementById('rulesModal');
+    var bm = document.getElementById('beerModal');
+    var km = document.getElementById('kbModal');
+    return (rm && rm.style.display === 'block')
+        || (bm && bm.style.display === 'block')
+        || (km && km.style.display === 'block');
+  }
+
+  function showKbModal() {
+    _kbRecording = null;
+    document.getElementById('kbModal').style.display = 'block';
+    document.getElementById('kb_load_menu').style.display = 'none';
+    document.getElementById('kb_status').innerHTML = '';
+    _kbRenderConfig();
+  }
+  function closeKbModal() {
+    _kbRecording = null;
+    document.getElementById('kbModal').style.display = 'none';
+  }
+
+  function _kbRenderConfig() {
+    var bindings = _kbGetBindings();
+    var html = '<table class="table table-condensed"><thead><tr><th>Aktion</th><th>Tasten</th><th></th></tr></thead><tbody>';
+    for (var ai = 0; ai < KB_ACTION_ORDER.length; ai++) {
+      var action = KB_ACTION_ORDER[ai];
+      html += '<tr><td style="white-space:nowrap">' + KB_ACTION_LABELS[action] + '</td><td>';
+      var keys = bindings[action] || [];
+      for (var ki = 0; ki < keys.length; ki++) {
+        html += '<span class="kb-pill">' + _esc(keys[ki].label)
+              + ' <span class="kb-pill-remove" onclick="_kbRemoveKey(\'' + action + '\',' + ki + ')">\u00d7</span></span> ';
+      }
+      html += '</td><td>';
+      if (_kbRecording && _kbRecording.action === action) {
+        html += '<span class="kb-recording">Taste dr\u00fccken\u2026 (Esc=Abbruch)</span>';
+      } else {
+        html += '<button class="btn btn-default btn-xs" onclick="_kbStartRecord(\'' + action + '\')">+</button>';
+      }
+      html += '</td></tr>';
+    }
+    html += '</tbody></table>';
+    document.getElementById('kb_content').innerHTML = html;
+  }
+
+  function _kbStartRecord(action) {
+    _kbRecording = {action: action};
+    _kbRenderConfig();
+  }
+
+  function _kbRemoveKey(action, index) {
+    var bindings = _kbGetBindings();
+    if (bindings[action]) { bindings[action].splice(index, 1); _kbSaveLocal(); }
+    _kbRenderConfig();
+  }
+
+  function kbReset() {
+    _currentBindings = _kbDeepCopy(DEFAULT_KEYBINDINGS);
+    _kbSaveLocal();
+    _kbRenderConfig();
+    var st = document.getElementById('kb_status');
+    st.innerHTML = '<small>Standardbelegung wiederhergestellt.</small>';
+    setTimeout(function(){st.innerHTML='';},3000);
+  }
+
+  function kbSave() {
+    var nick = localStorage.getItem('name');
+    if (!nick) {
+      document.getElementById('kb_status').innerHTML = '<small style="color:#e53935;">Kein Spielername bekannt.</small>';
+      return;
+    }
+    var xhr = new XMLHttpRequest();
+    xhr.open('PUT', '/api/keybindings');
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.onreadystatechange = function() {
+      if (xhr.readyState === XMLHttpRequest.DONE) {
+        var st = document.getElementById('kb_status');
+        if (xhr.status === 200) {
+          var res = JSON.parse(xhr.responseText);
+          st.innerHTML = '<small style="color:#4CAF50;">Gespeichert f\u00fcr ' + _esc(res.person_name) + '.</small>';
+        } else {
+          var res = {}; try{res=JSON.parse(xhr.responseText);}catch(e){}
+          st.innerHTML = '<small style="color:#e53935;">' + _esc(res.Message||'Fehler') + '</small>';
+        }
+        setTimeout(function(){st.innerHTML='';},4000);
+      }
+    };
+    xhr.send(JSON.stringify({nick: nick, bindings: _kbGetBindings()}));
+  }
+
+  function kbShowLoadMenu() {
+    var menu = document.getElementById('kb_load_menu');
+    if (menu.style.display !== 'none') { menu.style.display = 'none'; return; }
+    menu.innerHTML = '<small>Lade\u2026</small>';
+    menu.style.display = 'block';
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', '/api/keybindings/persons');
+    xhr.onreadystatechange = function() {
+      if (xhr.readyState === XMLHttpRequest.DONE) {
+        if (xhr.status === 200) {
+          _kbPersonsCache = JSON.parse(xhr.responseText);
+          if (_kbPersonsCache.length === 0) {
+            menu.innerHTML = '<small>Keine gespeicherten Belegungen vorhanden.</small>';
+            return;
+          }
+          var h = '<strong>Belegung laden von:</strong><br>';
+          for (var i = 0; i < _kbPersonsCache.length; i++) {
+            h += '<button class="btn btn-default btn-xs" style="margin:2px;" '
+               + 'onclick="kbLoadFromPerson(' + _kbPersonsCache[i].id + ')">'
+               + _esc(_kbPersonsCache[i].name) + '</button> ';
+          }
+          menu.innerHTML = h;
+        } else {
+          menu.innerHTML = '<small style="color:#e53935;">Fehler beim Laden.</small>';
+        }
+      }
+    };
+    xhr.send();
+  }
+
+  function kbLoadFromPerson(personId) {
+    if (!_kbPersonsCache) return;
+    for (var i = 0; i < _kbPersonsCache.length; i++) {
+      if (_kbPersonsCache[i].id === personId && _kbPersonsCache[i].bindings) {
+        _kbApplyBindings(_kbPersonsCache[i].bindings);
+        _kbRenderConfig();
+        document.getElementById('kb_load_menu').style.display = 'none';
+        var st = document.getElementById('kb_status');
+        st.innerHTML = '<small style="color:#4CAF50;">Belegung von ' + _esc(_kbPersonsCache[i].name) + ' geladen.</small>';
+        setTimeout(function(){st.innerHTML='';},3000);
+        return;
+      }
+    }
+  }
+
+  // --- Main keydown handler ---
   document.addEventListener('keydown', function(e) {
     var tag = e.target.tagName.toLowerCase();
     if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+
+    if (_kbRecording) {
+      e.preventDefault();
+      if (e.key === 'Escape') { _kbRecording = null; _kbRenderConfig(); return; }
+      var binding = {code: e.code, shift: e.shiftKey, label: _kbMakeLabel(e)};
+      _kbGetBindings()[_kbRecording.action].push(binding);
+      _kbSaveLocal();
+      _kbRecording = null;
+      _kbRenderConfig();
+      return;
+    }
 
     if (_kbIsModalOpen()) {
       if (e.key === 'Escape') {
         var rm = document.getElementById('rulesModal');
         var bm = document.getElementById('beerModal');
+        var km = document.getElementById('kbModal');
         if (rm && rm.style.display === 'block') rm.style.display = 'none';
         if (bm && bm.style.display === 'block') bm.style.display = 'none';
+        if (km && km.style.display === 'block') km.style.display = 'none';
       }
       return;
     }
@@ -2463,35 +2769,18 @@
 
     unlockAudio();
 
-    var key = e.key;
-    var code = e.code;
-
-    if (key === 'Enter' || key === ' ' || code === 'NumpadEnter') {
-      e.preventDefault(); _kbPrimaryAction(); return;
-    }
-
-    if (!e.shiftKey && !e.ctrlKey && !e.metaKey) {
-      if (key === '1' || code === 'Numpad1') { e.preventDefault(); _kbClickDiceCell(0); return; }
-      if (key === '2' || code === 'Numpad2') { e.preventDefault(); _kbClickDiceCell(1); return; }
-      if (key === '3' || code === 'Numpad3') { e.preventDefault(); _kbClickDiceCell(2); return; }
-      if (key === '4' || code === 'Numpad4') { e.preventDefault(); _kbClickDiceCell(3); return; }
-      if (key === '5' || code === 'Numpad5') { e.preventDefault(); _kbClickDiceCell(4); return; }
-      if (key === '6' || code === 'Numpad6') { e.preventDefault(); _kbClickDiceCell(5); return; }
-      if (key === '7' || code === 'Numpad7') { e.preventDefault(); _kbTurnSixes(); return; }
-    }
-
-    if (!e.ctrlKey && !e.metaKey) {
-      if (key === 'q' || key === 'Q' || code === 'NumpadAdd') {
-        e.preventDefault(); _kbAufdecken(); return;
-      }
-      if (key === 'w' || key === 'W' || code === 'NumpadSubtract') {
-        e.preventDefault(); _kbZudecken(); return;
-      }
-      if ((e.shiftKey && (key === 'E' || key === 'e')) || code === 'NumpadDivide') {
-        e.preventDefault(); _kbEnde(); return;
-      }
-      if (e.shiftKey && (key === 'P' || key === 'p')) {
-        e.preventDefault(); _kbPause(); return;
+    var bindings = _kbGetBindings();
+    for (var action in bindings) {
+      var list = bindings[action];
+      for (var i = 0; i < list.length; i++) {
+        var b = list[i];
+        if (e.code === b.code && e.shiftKey === !!b.shift && !e.ctrlKey && !e.metaKey) {
+          if (KB_ACTION_HANDLERS[action]) {
+            e.preventDefault();
+            KB_ACTION_HANDLERS[action]();
+            return;
+          }
+        }
       }
     }
   });
