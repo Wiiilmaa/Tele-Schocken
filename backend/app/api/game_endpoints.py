@@ -3,7 +3,7 @@ from app import app, db
 
 from flask_socketio import emit, join_room
 from flask import jsonify
-from flask import request
+from flask import request, url_for
 from app.models import User, Game, Status, NickMapping, Person
 from random import randint, random, seed
 from datetime import datetime
@@ -786,9 +786,9 @@ def get_sound_urls():
         if person_name:
             personal_file = f'{sound}_{person_name}.mp3'
             if os.path.isfile(os.path.join(audio_dir, personal_file)):
-                urls[sound] = f'/static/audio/{personal_file}'
+                urls[sound] = url_for('static', filename=f'audio/{personal_file}')
                 continue
-        urls[sound] = f'/static/audio/{sound}.mp3'
+        urls[sound] = url_for('static', filename=f'audio/{sound}.mp3')
 
     return jsonify(urls), 200
 
