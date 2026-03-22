@@ -316,22 +316,46 @@
 
   // ============= H3: Sound handling =============
   var audioUnlocked = false;
+  var soundDice, soundLift, soundDiceY;
+  var _soundsReady = false;
 
-  const soundDice = new Audio("{{ url_for('static', filename = 'audio/wuerfeln.mp3')}}");
-  soundDice.preload = 'auto';
-  const soundLift = new Audio("{{ url_for('static', filename = 'audio/hoch_die_Becher_Markus.mp3')}}");
-  soundLift.preload = 'auto';
-  const soundDiceY = new Audio("{{ url_for('static', filename = 'audio/wuerfelnYannick.mp3')}}");
-  soundDiceY.preload = 'auto';
+  var _defaultSoundUrls = {
+    rolling_dice: "{{ url_for('static', filename='audio/rolling_dice.mp3') }}",
+    lift_cup:     "{{ url_for('static', filename='audio/lift_cup.mp3') }}",
+    roll_now:     "{{ url_for('static', filename='audio/roll_now.mp3') }}"
+  };
 
-  // Preload
-  try { soundDice.load(); soundLift.load(); soundDiceY.load(); } catch(e) {}
+  function _initSounds(urls) {
+    soundDice  = new Audio(urls.rolling_dice);  soundDice.preload  = 'auto';
+    soundLift  = new Audio(urls.lift_cup);      soundLift.preload  = 'auto';
+    soundDiceY = new Audio(urls.roll_now);      soundDiceY.preload = 'auto';
+    try { soundDice.load(); soundLift.load(); soundDiceY.load(); } catch(e) {}
+    _soundsReady = true;
+  }
+
+  // Resolve person-specific sounds before preloading; fall back to defaults
+  (function() {
+    var nick = localStorage.getItem('name');
+    if (!nick) { _initSounds(_defaultSoundUrls); return; }
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', '/api/sounds?nick=' + encodeURIComponent(nick));
+    xhr.timeout = 3000;
+    xhr.onreadystatechange = function() {
+      if (xhr.readyState !== 4) return;
+      if (_soundsReady) return;
+      if (xhr.status === 200) {
+        try { var urls = JSON.parse(xhr.responseText); _initSounds(urls); return; }
+        catch(e) {}
+      }
+      _initSounds(_defaultSoundUrls);
+    };
+    xhr.ontimeout = function() { if (!_soundsReady) _initSounds(_defaultSoundUrls); };
+    xhr.send();
+  })();
 
   // Unlock audio on first user interaction.
   // Play each element muted so the browser marks it as user-initiated.
   // (On iOS, audio.volume is read-only and always 1, so we must use .muted instead.)
-  // Only pause afterwards if no real playSound() call has claimed the element
-  // in the meantime (detected by .muted still being true).
   function unlockAudio() {
     if (audioUnlocked) return;
     audioUnlocked = true;
@@ -340,7 +364,6 @@
       var p = audio.play();
       if (p) {
         p.then(function() {
-          // If still muted, no real playSound happened — safe to reset.
           if (audio.muted) {
             audio.pause();
             audio.currentTime = 0;
@@ -350,7 +373,6 @@
           audio.muted = false;
         });
       } else {
-        // Older browser without promise-based play
         setTimeout(function() {
           if (audio.muted) {
             audio.pause();
@@ -370,7 +392,7 @@
 
   function playSound(audio) {
     if (!audio) return;
-    audio.muted = false;  // claim element (prevents unlock from pausing it)
+    audio.muted = false;
     try { audio.currentTime = 0; } catch(e) {}
     var p = audio.play();
     if (p !== undefined) {
