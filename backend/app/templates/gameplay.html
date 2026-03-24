@@ -1360,14 +1360,14 @@
 
   function buildSortedOrder(users, firstId) {
     var activeMap = {};
+    var passive = [];
     var pending = [];
     for (var i = 0; i < users.length; i++) {
       if (users[i].Pending_Join) pending.push(users[i]);
+      else if (users[i].Passive) passive.push(users[i]);
       else activeMap[String(users[i].Id)] = users[i];
     }
 
-    // Preserve established rotation: keep known players in their order,
-    // remove departed ones, append newly active players at the end
     var newRotation = [];
     for (var i = 0; i < _activeRotation.length; i++) {
       if (activeMap[_activeRotation[i]]) newRotation.push(_activeRotation[i]);
@@ -1376,10 +1376,9 @@
     for (var i = 0; i < newRotation.length; i++) inRotation[newRotation[i]] = true;
     for (var i = 0; i < users.length; i++) {
       var uid = String(users[i].Id);
-      if (!users[i].Pending_Join && !inRotation[uid]) newRotation.push(uid);
+      if (!users[i].Pending_Join && !users[i].Passive && !inRotation[uid]) newRotation.push(uid);
     }
 
-    // Rotate so firstId is first
     var firstIdx = -1;
     for (var i = 0; i < newRotation.length; i++) {
       if (newRotation[i] == String(firstId)) { firstIdx = i; break; }
@@ -1393,7 +1392,7 @@
     for (var i = 0; i < newRotation.length; i++) {
       if (activeMap[newRotation[i]]) result.push(activeMap[newRotation[i]]);
     }
-    return result.concat(pending);
+    return result.concat(passive).concat(pending);
   }
 
   function getOrderIds(tbody) {
@@ -1441,6 +1440,7 @@
         el.style.transform = '';
         el.style.position = '';
         el.style.willChange = '';
+        el.style.pointerEvents = '';
       }
     }
     _runningAnims = [];
@@ -1459,7 +1459,11 @@
           if (curDom[ci] !== desiredOrder[ci]) { match = false; break; }
         }
       }
-      if (match) {
+      var hasAdded = false;
+      for (var ni = 0; ni < desiredOrder.length; ni++) {
+        if (!oldSnapshot[desiredOrder[ni]]) { hasAdded = true; break; }
+      }
+      if (match && !hasAdded) {
         updateRowCounters(tbody);
         _tableOrder = desiredOrder.slice();
         if (onComplete) onComplete();
@@ -1470,9 +1474,12 @@
     _tableAnimating = true;
     _runningAnims = [];
 
+    var addedSet = {};
+    for (var ni = 0; ni < desiredOrder.length; ni++) {
+      if (!oldSnapshot[desiredOrder[ni]]) addedSet[desiredOrder[ni]] = true;
+    }
+
     // ---- Phase 1: Collect departing rows ----
-    // Departing rows stay in the DOM as real <tr> elements during animation.
-    // They fly left while remaining rows animate to their new positions.
     var departingRows = [];
     for (var ri = 0; ri < removedIds.length; ri++) {
       var rRow = document.getElementById('row' + removedIds[ri]);
@@ -1526,6 +1533,7 @@
     var animData = [];
     for (var ai = 0; ai < desiredOrder.length; ai++) {
       var auid = desiredOrder[ai];
+      if (addedSet[auid]) continue;
       var aRow = document.getElementById('row' + auid);
       if (!aRow || currentPositions[auid] === undefined
           || targetPositions[auid] === undefined) continue;
@@ -1600,8 +1608,33 @@
       departDelay += 60;
     }
 
-    // ---- Phase 6a: Settle animations (rows shifted by removals only) ----
     var baseDelay = removedIds.length > 0 ? 200 : 0;
+
+    // ---- Phase 5b: Animate arriving rows flying in from left ----
+    var arriveBaseDelay = baseDelay;
+    if (sequence.length > 0 || settlers.length > 0) {
+      arriveBaseDelay += flightMs * 0.4;
+    }
+    var addedKeys = Object.keys(addedSet);
+    for (var ari = 0; ari < addedKeys.length; ari++) {
+      var arUid = addedKeys[ari];
+      var arRow = document.getElementById('row' + arUid);
+      if (!arRow) continue;
+      var arCur = currentPositions[arUid];
+      var arTgt = targetPositions[arUid];
+      var arEndOff = (arTgt !== undefined && arCur !== undefined) ? (arTgt - arCur) : 0;
+      arRow.style.position = 'relative';
+      arRow.style.willChange = 'transform, opacity';
+      arRow.style.pointerEvents = 'none';
+      var arAnim = arRow.animate([
+        { transform: 'translateX(-120%) translateY(' + arEndOff + 'px)', opacity: 0, offset: 0 },
+        { transform: 'translateX(-60%) translateY(' + arEndOff + 'px)',  opacity: 1, offset: 0.6 },
+        { transform: 'translateX(0) translateY(' + arEndOff + 'px)',     opacity: 1, offset: 1.0 }
+      ], { duration: 500, delay: arriveBaseDelay + ari * 60, easing: 'cubic-bezier(0.1, 0.7, 0.75, 1)', fill: 'both' });
+      _runningAnims.push({ anim: arAnim, row: arRow, isArriving: true });
+    }
+
+    // ---- Phase 6a: Settle animations ----
     for (var sti = 0; sti < settlers.length; sti++) {
       var s = settlers[sti];
       s.row.style.position = 'relative';
@@ -1661,6 +1694,7 @@
           a.row.style.transform = '';
           a.row.style.position = '';
           a.row.style.willChange = '';
+          a.row.style.pointerEvents = '';
         }
       }
       for (var i = 0; i < desiredOrder.length; i++) {
