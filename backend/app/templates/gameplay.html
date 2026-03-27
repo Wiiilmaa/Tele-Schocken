@@ -184,6 +184,33 @@
   </div>
 </div>
 
+<!-- Keyboard settings modal -->
+<div id="kbModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <span class="close" onclick="closeKbModal()">&times;</span>
+      <h2>Tastatursteuerung</h2>
+    </div>
+    <div class="modal-body">
+      <div id="kb_content"></div>
+      <div style="margin-top:16px;">
+        <button class="btn btn-primary btn-sm" onclick="kbSave()">An Person speichern</button>
+        <button class="btn btn-default btn-sm" onclick="kbReset()">Zurücksetzen</button>
+        <button class="btn btn-default btn-sm" onclick="kbShowLoadMenu()">Laden von…</button>
+      </div>
+      <div id="kb_load_menu" style="display:none; margin-top:8px;"></div>
+      <div id="kb_status" style="margin-top:8px;"></div>
+    </div>
+  </div>
+</div>
+<style>
+.kb-pill{display:inline-block;background:var(--bg-secondary,#e8e8e8);border:1px solid var(--border-color,#ccc);border-radius:3px;padding:1px 6px;margin:1px 2px;font-size:12px;white-space:nowrap}
+.kb-pill-remove{cursor:pointer;margin-left:3px;font-weight:bold;opacity:.6}
+.kb-pill-remove:hover{opacity:1;color:#e53935}
+.kb-recording{color:#ff9800;font-weight:bold;font-size:12px;animation:kb-blink 1s infinite}
+@keyframes kb-blink{0%,100%{opacity:1}50%{opacity:.4}}
+</style>
+
 </div> <!-- /.page-content -->
 
 {% endblock %}
@@ -290,21 +317,41 @@
   // ============= H3: Sound handling =============
   var audioUnlocked = false;
 
-  const soundDice = new Audio("{{ url_for('static', filename = 'audio/wuerfeln.mp3')}}");
+  var soundDice  = new Audio("{{ url_for('static', filename='audio/rolling_dice.mp3') }}");
   soundDice.preload = 'auto';
-  const soundLift = new Audio("{{ url_for('static', filename = 'audio/hoch_die_Becher_Markus.mp3')}}");
+  var soundLift  = new Audio("{{ url_for('static', filename='audio/lift_cup.mp3') }}");
   soundLift.preload = 'auto';
-  const soundDiceY = new Audio("{{ url_for('static', filename = 'audio/wuerfelnYannick.mp3')}}");
+  var soundDiceY = new Audio("{{ url_for('static', filename='audio/roll_now.mp3') }}");
   soundDiceY.preload = 'auto';
 
-  // Preload
   try { soundDice.load(); soundLift.load(); soundDiceY.load(); } catch(e) {}
+
+  // Replace with person-specific sounds if a NickMapping exists for this nick
+  (function() {
+    var nick = localStorage.getItem('name');
+    if (!nick) return;
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', '/api/sounds?nick=' + encodeURIComponent(nick));
+    xhr.onreadystatechange = function() {
+      if (xhr.readyState !== 4 || xhr.status !== 200) return;
+      try { var urls = JSON.parse(xhr.responseText); } catch(e) { return; }
+      function replaceIfDifferent(current, url) {
+        if (!url || current.src.endsWith(url)) return current;
+        var a = new Audio(url);
+        a.preload = 'auto';
+        try { a.load(); } catch(e) {}
+        return a;
+      }
+      soundDice  = replaceIfDifferent(soundDice, urls.rolling_dice);
+      soundDiceY = replaceIfDifferent(soundDiceY, urls.roll_now);
+      soundLift  = replaceIfDifferent(soundLift, urls.lift_cup);
+    };
+    xhr.send();
+  })();
 
   // Unlock audio on first user interaction.
   // Play each element muted so the browser marks it as user-initiated.
   // (On iOS, audio.volume is read-only and always 1, so we must use .muted instead.)
-  // Only pause afterwards if no real playSound() call has claimed the element
-  // in the meantime (detected by .muted still being true).
   function unlockAudio() {
     if (audioUnlocked) return;
     audioUnlocked = true;
@@ -313,7 +360,6 @@
       var p = audio.play();
       if (p) {
         p.then(function() {
-          // If still muted, no real playSound happened — safe to reset.
           if (audio.muted) {
             audio.pause();
             audio.currentTime = 0;
@@ -323,7 +369,6 @@
           audio.muted = false;
         });
       } else {
-        // Older browser without promise-based play
         setTimeout(function() {
           if (audio.muted) {
             audio.pause();
@@ -343,7 +388,7 @@
 
   function playSound(audio) {
     if (!audio) return;
-    audio.muted = false;  // claim element (prevents unlock from pausing it)
+    audio.muted = false;
     try { audio.currentTime = 0; } catch(e) {}
     var p = audio.play();
     if (p !== undefined) {
@@ -1293,9 +1338,12 @@
       gameControls.style.display = 'none';
       joinForm.style.display = 'block';
       pendingNotice.style.display = 'none';
-      if (wasHidden) {
-        var joinInput = document.getElementById('join_name');
-        if (joinInput) joinInput.focus();
+      var joinBtn = document.getElementById('join_btn');
+      var joinInput = document.getElementById('join_name');
+      if (joinBtn) joinBtn.disabled = false;
+      if (joinInput) joinInput.disabled = false;
+      if (wasHidden && joinInput) {
+        joinInput.focus();
       }
     } else {
       var me = game.User.find(function(u) { return u.Id === myId; });
@@ -1315,14 +1363,14 @@
 
   function buildSortedOrder(users, firstId) {
     var activeMap = {};
+    var passive = [];
     var pending = [];
     for (var i = 0; i < users.length; i++) {
       if (users[i].Pending_Join) pending.push(users[i]);
+      else if (users[i].Passive) passive.push(users[i]);
       else activeMap[String(users[i].Id)] = users[i];
     }
 
-    // Preserve established rotation: keep known players in their order,
-    // remove departed ones, append newly active players at the end
     var newRotation = [];
     for (var i = 0; i < _activeRotation.length; i++) {
       if (activeMap[_activeRotation[i]]) newRotation.push(_activeRotation[i]);
@@ -1331,10 +1379,9 @@
     for (var i = 0; i < newRotation.length; i++) inRotation[newRotation[i]] = true;
     for (var i = 0; i < users.length; i++) {
       var uid = String(users[i].Id);
-      if (!users[i].Pending_Join && !inRotation[uid]) newRotation.push(uid);
+      if (!users[i].Pending_Join && !users[i].Passive && !inRotation[uid]) newRotation.push(uid);
     }
 
-    // Rotate so firstId is first
     var firstIdx = -1;
     for (var i = 0; i < newRotation.length; i++) {
       if (newRotation[i] == String(firstId)) { firstIdx = i; break; }
@@ -1348,7 +1395,7 @@
     for (var i = 0; i < newRotation.length; i++) {
       if (activeMap[newRotation[i]]) result.push(activeMap[newRotation[i]]);
     }
-    return result.concat(pending);
+    return result.concat(passive).concat(pending);
   }
 
   function getOrderIds(tbody) {
@@ -1396,6 +1443,7 @@
         el.style.transform = '';
         el.style.position = '';
         el.style.willChange = '';
+        el.style.pointerEvents = '';
       }
     }
     _runningAnims = [];
@@ -1414,7 +1462,11 @@
           if (curDom[ci] !== desiredOrder[ci]) { match = false; break; }
         }
       }
-      if (match) {
+      var hasAdded = false;
+      for (var ni = 0; ni < desiredOrder.length; ni++) {
+        if (!oldSnapshot[desiredOrder[ni]]) { hasAdded = true; break; }
+      }
+      if (match && !hasAdded) {
         updateRowCounters(tbody);
         _tableOrder = desiredOrder.slice();
         if (onComplete) onComplete();
@@ -1425,9 +1477,12 @@
     _tableAnimating = true;
     _runningAnims = [];
 
+    var addedSet = {};
+    for (var ni = 0; ni < desiredOrder.length; ni++) {
+      if (!oldSnapshot[desiredOrder[ni]]) addedSet[desiredOrder[ni]] = true;
+    }
+
     // ---- Phase 1: Collect departing rows ----
-    // Departing rows stay in the DOM as real <tr> elements during animation.
-    // They fly left while remaining rows animate to their new positions.
     var departingRows = [];
     for (var ri = 0; ri < removedIds.length; ri++) {
       var rRow = document.getElementById('row' + removedIds[ri]);
@@ -1481,6 +1536,7 @@
     var animData = [];
     for (var ai = 0; ai < desiredOrder.length; ai++) {
       var auid = desiredOrder[ai];
+      if (addedSet[auid]) continue;
       var aRow = document.getElementById('row' + auid);
       if (!aRow || currentPositions[auid] === undefined
           || targetPositions[auid] === undefined) continue;
@@ -1555,8 +1611,33 @@
       departDelay += 60;
     }
 
-    // ---- Phase 6a: Settle animations (rows shifted by removals only) ----
     var baseDelay = removedIds.length > 0 ? 200 : 0;
+
+    // ---- Phase 5b: Animate arriving rows flying in from left ----
+    var arriveBaseDelay = baseDelay;
+    if (sequence.length > 0 || settlers.length > 0) {
+      arriveBaseDelay += flightMs * 0.4;
+    }
+    var addedKeys = Object.keys(addedSet);
+    for (var ari = 0; ari < addedKeys.length; ari++) {
+      var arUid = addedKeys[ari];
+      var arRow = document.getElementById('row' + arUid);
+      if (!arRow) continue;
+      var arCur = currentPositions[arUid];
+      var arTgt = targetPositions[arUid];
+      var arEndOff = (arTgt !== undefined && arCur !== undefined) ? (arTgt - arCur) : 0;
+      arRow.style.position = 'relative';
+      arRow.style.willChange = 'transform, opacity';
+      arRow.style.pointerEvents = 'none';
+      var arAnim = arRow.animate([
+        { transform: 'translateX(-120%) translateY(' + arEndOff + 'px)', opacity: 0, offset: 0 },
+        { transform: 'translateX(-60%) translateY(' + arEndOff + 'px)',  opacity: 1, offset: 0.6 },
+        { transform: 'translateX(0) translateY(' + arEndOff + 'px)',     opacity: 1, offset: 1.0 }
+      ], { duration: 500, delay: arriveBaseDelay + ari * 60, easing: 'cubic-bezier(0.1, 0.7, 0.75, 1)', fill: 'both' });
+      _runningAnims.push({ anim: arAnim, row: arRow, isArriving: true });
+    }
+
+    // ---- Phase 6a: Settle animations ----
     for (var sti = 0; sti < settlers.length; sti++) {
       var s = settlers[sti];
       s.row.style.position = 'relative';
@@ -1616,6 +1697,7 @@
           a.row.style.transform = '';
           a.row.style.position = '';
           a.row.style.willChange = '';
+          a.row.style.pointerEvents = '';
         }
       }
       for (var i = 0; i < desiredOrder.length; i++) {
@@ -1791,6 +1873,7 @@
 
   // ============= Main refresh function =============
   function refresh_game(game) {
+    var prevGameState = _lastGameState;
     _lastGameState = game;
     var gameid = getGameId();
     var waiting_user_id = game.Move;
@@ -1917,6 +2000,21 @@
       playSound(soundDiceY);
     }
     _lastWaitingUserId = waiting_user_id;
+
+    // Reset rotation when a previously pending player becomes active (new game)
+    if (prevGameState && game.First) {
+      var prevPending = {};
+      prevGameState.User.forEach(function(u) {
+        if (u.Pending_Join) prevPending[String(u.Id)] = true;
+      });
+      for (var pi = 0; pi < game.User.length; pi++) {
+        if (!game.User[pi].Pending_Join && !game.User[pi].Passive
+            && prevPending[String(game.User[pi].Id)]) {
+          _activeRotation = [];
+          break;
+        }
+      }
+    }
 
     // Sort users so the round starter is first (preserving rotation order)
     if (game.First) {
@@ -2235,17 +2333,6 @@
     }
     html += '</tbody></table>';
     html += '<p><small>Alle weiteren Kombinationen: Schrott (1 Chip)</small></p>';
-    html += '<h3 style="margin-top:24px;">Tastatursteuerung</h3>';
-    html += '<table class="table table-condensed"><thead><tr><th>Taste(n)</th><th>Funktion</th></tr></thead><tbody>';
-    html += '<tr><td>Enter / Leertaste / Numpad Enter</td><td>Hauptaktion (Würfeln / Aufdecken / Alles aufdecken / Verteilen)</td></tr>';
-    html += '<tr><td>1, 2, 3 / Numpad 1, 2, 3</td><td>Würfel im Becher anklicken (rauslegen / zurücklegen)</td></tr>';
-    html += '<tr><td>4, 5, 6 / Numpad 4, 5, 6</td><td>Rausgelegte Würfel anklicken (zurücklegen / Umwandlung rückgängig)</td></tr>';
-    html += '<tr><td>Q / Numpad +</td><td>Aufdecken</td></tr>';
-    html += '<tr><td>W / Numpad \u2212</td><td>Zudecken</td></tr>';
-    html += '<tr><td>Shift+E / Numpad /</td><td>Zug beenden (Ende)</td></tr>';
-    html += '<tr><td>Shift+P</td><td>Pause (ein-/ausschalten)</td></tr>';
-    html += '<tr><td>7 / Numpad 7</td><td>Sechsen in Einsen umwandeln</td></tr>';
-    html += '</tbody></table>';
     content.innerHTML = html;
   }
 
@@ -2317,6 +2404,7 @@
       if (joinInput && !joinInput.value) joinInput.value = savedName;
     }
     initial_game_data();
+    _kbAutoLoad();
   }
 
   startup();
@@ -2324,6 +2412,19 @@
   document.addEventListener('DOMContentLoaded', function() {
     var container = document.getElementById('floating-icons');
     if (container) {
+      var kbBtn = document.createElement('a');
+      kbBtn.id = 'kb_floating_btn';
+      kbBtn.className = 'floating-icon-btn';
+      kbBtn.href = '#';
+      kbBtn.onclick = function(e) { e.preventDefault(); showKbModal(); };
+      kbBtn.title = 'Tastatursteuerung';
+      kbBtn.style.display = 'none';
+      kbBtn.innerHTML = '<svg viewBox="0 0 576 512" fill="currentColor" width="16" height="16"><path d="M528 64H48C21.49 64 0 85.49 0 112v288c0 26.51 21.49 48 48 48h480c26.51 0 48-21.49 48-48V112c0-26.51-21.49-48-48-48zm8 336c0 4.411-3.589 8-8 8H48c-4.411 0-8-3.589-8-8V112c0-4.411 3.589-8 8-8h480c4.411 0 8 3.589 8 8v288zM170 270v-28c0-6.627-5.373-12-12-12h-28c-6.627 0-12 5.373-12 12v28c0 6.627 5.373 12 12 12h28c6.627 0 12-5.373 12-12zm96 0v-28c0-6.627-5.373-12-12-12h-28c-6.627 0-12 5.373-12 12v28c0 6.627 5.373 12 12 12h28c6.627 0 12-5.373 12-12zm96 0v-28c0-6.627-5.373-12-12-12h-28c-6.627 0-12 5.373-12 12v28c0 6.627 5.373 12 12 12h28c6.627 0 12-5.373 12-12zm96 0v-28c0-6.627-5.373-12-12-12h-28c-6.627 0-12 5.373-12 12v28c0 6.627 5.373 12 12 12h28c6.627 0 12-5.373 12-12zm-336 82v-28c0-6.627-5.373-12-12-12H72c-6.627 0-12 5.373-12 12v28c0 6.627 5.373 12 12 12h28c6.627 0 12-5.373 12-12zm384 0v-28c0-6.627-5.373-12-12-12h-28c-6.627 0-12 5.373-12 12v28c0 6.627 5.373 12 12 12h28c6.627 0 12-5.373 12-12zM98 198v-28c0-6.627-5.373-12-12-12H58c-6.627 0-12 5.373-12 12v28c0 6.627 5.373 12 12 12h28c6.627 0 12-5.373 12-12zm96 0v-28c0-6.627-5.373-12-12-12h-28c-6.627 0-12 5.373-12 12v28c0 6.627 5.373 12 12 12h28c6.627 0 12-5.373 12-12zm96 0v-28c0-6.627-5.373-12-12-12h-28c-6.627 0-12 5.373-12 12v28c0 6.627 5.373 12 12 12h28c6.627 0 12-5.373 12-12zm96 0v-28c0-6.627-5.373-12-12-12h-28c-6.627 0-12 5.373-12 12v28c0 6.627 5.373 12 12 12h28c6.627 0 12-5.373 12-12zm96 0v-28c0-6.627-5.373-12-12-12h-28c-6.627 0-12 5.373-12 12v28c0 6.627 5.373 12 12 12h28c6.627 0 12-5.373 12-12zm-98 158v-16c0-6.627-5.373-12-12-12H204c-6.627 0-12 5.373-12 12v16c0 6.627 5.373 12 12 12h168c6.627 0 12-5.373 12-12z"/></svg>';
+      container.insertBefore(kbBtn, container.firstChild);
+      if (!matchMedia('(hover: none) and (pointer: coarse)').matches) {
+        kbBtn.style.display = '';
+      }
+
       var camBtn = document.createElement('a');
       camBtn.id = 'screenshot_floating_btn';
       camBtn.className = 'floating-icon-btn';
@@ -2364,15 +2465,130 @@
         if (e.target === beerModal) beerModal.style.display = 'none';
       });
     }
+    var kbModal = document.getElementById('kbModal');
+    if (kbModal) {
+      window.addEventListener('click', function(e) {
+        if (e.target === kbModal) closeKbModal();
+      });
+    }
   });
 
-  // ============= Keyboard shortcuts =============
-  function _kbIsModalOpen() {
-    var rm = document.getElementById('rulesModal');
-    var bm = document.getElementById('beerModal');
-    return (rm && rm.style.display === 'block') || (bm && bm.style.display === 'block');
+  // ============= Configurable keyboard bindings =============
+  var KB_ACTION_LABELS = {
+    primary_action: 'Hauptaktion (Würfeln / Aufdecken / …)',
+    dice_cup_0: 'Würfel 1 im Becher',
+    dice_cup_1: 'Würfel 2 im Becher',
+    dice_cup_2: 'Würfel 3 im Becher',
+    dice_out_0: 'Würfel 1 rausgelegt',
+    dice_out_1: 'Würfel 2 rausgelegt',
+    dice_out_2: 'Würfel 3 rausgelegt',
+    dice_toggle_0: 'Würfel 1 rein/raus',
+    dice_toggle_1: 'Würfel 2 rein/raus',
+    dice_toggle_2: 'Würfel 3 rein/raus',
+    aufdecken: 'Aufdecken',
+    zudecken: 'Zudecken',
+    ende: 'Zug beenden (Ende)',
+    pause: 'Pause',
+    turn_sixes: 'Sechsen umwandeln'
+  };
+  var KB_ACTION_ORDER = [
+    'primary_action',
+    'dice_cup_0', 'dice_cup_1', 'dice_cup_2',
+    'dice_out_0', 'dice_out_1', 'dice_out_2',
+    'dice_toggle_0', 'dice_toggle_1', 'dice_toggle_2',
+    'aufdecken', 'zudecken', 'ende', 'pause', 'turn_sixes'
+  ];
+  var DEFAULT_KEYBINDINGS = {
+    primary_action: [
+      {code:'Enter',shift:false,label:'Enter'},
+      {code:'Space',shift:false,label:'Leertaste'},
+      {code:'NumpadEnter',shift:false,label:'Numpad Enter'}
+    ],
+    dice_cup_0: [{code:'Digit1',shift:false,label:'1'},{code:'Numpad1',shift:false,label:'Numpad 1'}],
+    dice_cup_1: [{code:'Digit2',shift:false,label:'2'},{code:'Numpad2',shift:false,label:'Numpad 2'}],
+    dice_cup_2: [{code:'Digit3',shift:false,label:'3'},{code:'Numpad3',shift:false,label:'Numpad 3'}],
+    dice_out_0: [{code:'Digit4',shift:false,label:'4'},{code:'Numpad4',shift:false,label:'Numpad 4'}],
+    dice_out_1: [{code:'Digit5',shift:false,label:'5'},{code:'Numpad5',shift:false,label:'Numpad 5'}],
+    dice_out_2: [{code:'Digit6',shift:false,label:'6'},{code:'Numpad6',shift:false,label:'Numpad 6'}],
+    dice_toggle_0: [],
+    dice_toggle_1: [],
+    dice_toggle_2: [],
+    aufdecken: [{code:'KeyQ',shift:false,label:'Q'},{code:'NumpadAdd',shift:false,label:'Numpad +'}],
+    zudecken: [{code:'KeyW',shift:false,label:'W'},{code:'NumpadSubtract',shift:false,label:'Numpad \u2212'}],
+    ende: [{code:'KeyE',shift:true,label:'Shift+E'},{code:'NumpadDivide',shift:false,label:'Numpad /'}],
+    pause: [{code:'KeyP',shift:true,label:'Shift+P'}],
+    turn_sixes: [{code:'Digit7',shift:false,label:'7'},{code:'Numpad7',shift:false,label:'Numpad 7'}]
+  };
+
+  var _currentBindings = null;
+  var _kbRecording = null;
+  var _kbPersonsCache = null;
+
+  function _kbDeepCopy(o) { return JSON.parse(JSON.stringify(o)); }
+
+  function _kbGetBindings() {
+    if (!_currentBindings) {
+      var stored = localStorage.getItem('keybindings');
+      if (stored) { try { _currentBindings = JSON.parse(stored); } catch(e) {} }
+      if (!_currentBindings) _currentBindings = _kbDeepCopy(DEFAULT_KEYBINDINGS);
+      for (var a in DEFAULT_KEYBINDINGS) {
+        if (!_currentBindings[a]) _currentBindings[a] = [];
+      }
+    }
+    return _currentBindings;
   }
 
+  function _kbSaveLocal() {
+    localStorage.setItem('keybindings', JSON.stringify(_kbGetBindings()));
+  }
+
+  function _kbApplyBindings(bindings) {
+    _currentBindings = _kbDeepCopy(bindings);
+    for (var a in DEFAULT_KEYBINDINGS) {
+      if (!_currentBindings[a]) _currentBindings[a] = [];
+    }
+    _kbSaveLocal();
+  }
+
+  function _kbAutoLoad() {
+    var nick = localStorage.getItem('name');
+    if (!nick) return;
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', '/api/keybindings?nick=' + encodeURIComponent(nick));
+    xhr.onreadystatechange = function() {
+      if (xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
+        try {
+          var res = JSON.parse(xhr.responseText);
+          if (res.bindings) _kbApplyBindings(res.bindings);
+        } catch(e) {}
+      }
+    };
+    xhr.send();
+  }
+
+  function _kbMakeLabel(e) {
+    var parts = [];
+    if (e.shiftKey) parts.push('Shift');
+    var n = e.code;
+    if (n === 'Space') n = 'Leertaste';
+    else if (n === 'Enter') n = 'Enter';
+    else if (n === 'NumpadEnter') n = 'Numpad Enter';
+    else if (n === 'NumpadAdd') n = 'Numpad +';
+    else if (n === 'NumpadSubtract') n = 'Numpad \u2212';
+    else if (n === 'NumpadMultiply') n = 'Numpad *';
+    else if (n === 'NumpadDivide') n = 'Numpad /';
+    else if (n === 'NumpadDecimal') n = 'Numpad .';
+    else if (n.startsWith('Numpad')) n = 'Numpad ' + n.replace('Numpad','');
+    else if (n.startsWith('Key')) n = n.replace('Key','');
+    else if (n.startsWith('Digit')) n = n.replace('Digit','');
+    else if (n === 'Backspace') n = 'Backspace';
+    else if (n === 'Tab') n = 'Tab';
+    else if (n === 'Delete') n = 'Entf';
+    parts.push(n);
+    return parts.join('+');
+  }
+
+  // --- Action handlers ---
   function _kbPrimaryAction() {
     var throwBtn = document.getElementById('startgame_id');
     var diceBtn = document.getElementById('btn_dice');
@@ -2384,20 +2600,19 @@
       pullup(); return;
     }
     var revealAllBtn = document.getElementById('reveal_all_btn');
-    if (revealAllBtn && !revealAllBtn.disabled) {
-      vote_reveal_all(); return;
-    }
+    if (revealAllBtn && !revealAllBtn.disabled) { vote_reveal_all(); return; }
     var distributeBtn = document.getElementById('distribute_btn');
-    if (distributeBtn && !distributeBtn.disabled) {
-      distribute(); return;
-    }
+    if (distributeBtn && !distributeBtn.disabled) { distribute(); return; }
   }
 
   function _kbClickDiceCell(idx) {
     var cell = document.getElementById('dcell' + idx);
-    if (cell && cell.classList.contains('dcell-clickable') && cell.onclick) {
-      cell.onclick();
-    }
+    if (cell && cell.classList.contains('dcell-clickable') && cell.onclick) cell.onclick();
+  }
+
+  function _kbToggleDice(diceIdx) {
+    if (_diceInCup[diceIdx]) _kbClickDiceCell(diceIdx);
+    else _kbClickDiceCell(3 + diceIdx);
   }
 
   function _kbAufdecken() {
@@ -2419,16 +2634,12 @@
 
   function _kbEnde() {
     var btn = document.getElementById('btn_endpause');
-    if (btn && !btn.disabled && btn.getAttribute('data-mode') === 'ende') {
-      endpause_click();
-    }
+    if (btn && !btn.disabled && btn.getAttribute('data-mode') === 'ende') endpause_click();
   }
 
   function _kbPause() {
     var btn = document.getElementById('btn_endpause');
-    if (btn && !btn.disabled && btn.getAttribute('data-mode') === 'pause') {
-      endpause_click();
-    }
+    if (btn && !btn.disabled && btn.getAttribute('data-mode') === 'pause') endpause_click();
   }
 
   function _kbTurnSixes() {
@@ -2444,16 +2655,180 @@
     }
   }
 
+  var KB_ACTION_HANDLERS = {
+    primary_action: _kbPrimaryAction,
+    dice_cup_0: function(){_kbClickDiceCell(0);}, dice_cup_1: function(){_kbClickDiceCell(1);}, dice_cup_2: function(){_kbClickDiceCell(2);},
+    dice_out_0: function(){_kbClickDiceCell(3);}, dice_out_1: function(){_kbClickDiceCell(4);}, dice_out_2: function(){_kbClickDiceCell(5);},
+    dice_toggle_0: function(){_kbToggleDice(0);}, dice_toggle_1: function(){_kbToggleDice(1);}, dice_toggle_2: function(){_kbToggleDice(2);},
+    aufdecken: _kbAufdecken, zudecken: _kbZudecken,
+    ende: _kbEnde, pause: _kbPause, turn_sixes: _kbTurnSixes
+  };
+
+  // --- Modal helpers ---
+  function _kbIsModalOpen() {
+    var rm = document.getElementById('rulesModal');
+    var bm = document.getElementById('beerModal');
+    var km = document.getElementById('kbModal');
+    return (rm && rm.style.display === 'block')
+        || (bm && bm.style.display === 'block')
+        || (km && km.style.display === 'block');
+  }
+
+  function showKbModal() {
+    _kbRecording = null;
+    document.getElementById('kbModal').style.display = 'block';
+    document.getElementById('kb_load_menu').style.display = 'none';
+    document.getElementById('kb_status').innerHTML = '';
+    _kbRenderConfig();
+  }
+  function closeKbModal() {
+    _kbRecording = null;
+    document.getElementById('kbModal').style.display = 'none';
+  }
+
+  function _kbRenderConfig() {
+    var bindings = _kbGetBindings();
+    var html = '<table class="table table-condensed"><thead><tr><th>Aktion</th><th>Tasten</th><th></th></tr></thead><tbody>';
+    for (var ai = 0; ai < KB_ACTION_ORDER.length; ai++) {
+      var action = KB_ACTION_ORDER[ai];
+      html += '<tr><td style="white-space:nowrap">' + KB_ACTION_LABELS[action] + '</td><td>';
+      var keys = bindings[action] || [];
+      for (var ki = 0; ki < keys.length; ki++) {
+        html += '<span class="kb-pill">' + _esc(keys[ki].label)
+              + ' <span class="kb-pill-remove" onclick="_kbRemoveKey(\'' + action + '\',' + ki + ')">\u00d7</span></span> ';
+      }
+      html += '</td><td>';
+      if (_kbRecording && _kbRecording.action === action) {
+        html += '<span class="kb-recording">Taste dr\u00fccken\u2026 (Esc=Abbruch)</span>';
+      } else {
+        html += '<button class="btn btn-default btn-xs" onclick="_kbStartRecord(\'' + action + '\')">+</button>';
+      }
+      html += '</td></tr>';
+    }
+    html += '</tbody></table>';
+    document.getElementById('kb_content').innerHTML = html;
+  }
+
+  function _kbStartRecord(action) {
+    _kbRecording = {action: action};
+    _kbRenderConfig();
+  }
+
+  function _kbRemoveKey(action, index) {
+    var bindings = _kbGetBindings();
+    if (bindings[action]) { bindings[action].splice(index, 1); _kbSaveLocal(); }
+    _kbRenderConfig();
+  }
+
+  function kbReset() {
+    _currentBindings = _kbDeepCopy(DEFAULT_KEYBINDINGS);
+    _kbSaveLocal();
+    _kbRenderConfig();
+    var st = document.getElementById('kb_status');
+    st.innerHTML = '<small>Standardbelegung wiederhergestellt.</small>';
+    setTimeout(function(){st.innerHTML='';},3000);
+  }
+
+  function kbSave() {
+    var nick = localStorage.getItem('name');
+    if (!nick) {
+      document.getElementById('kb_status').innerHTML = '<small style="color:#e53935;">Kein Spielername bekannt.</small>';
+      return;
+    }
+    var xhr = new XMLHttpRequest();
+    xhr.open('PUT', '/api/keybindings');
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.onreadystatechange = function() {
+      if (xhr.readyState === XMLHttpRequest.DONE) {
+        var st = document.getElementById('kb_status');
+        if (xhr.status === 200) {
+          var res = JSON.parse(xhr.responseText);
+          st.innerHTML = '<small style="color:#4CAF50;">Gespeichert f\u00fcr ' + _esc(res.person_name) + '.</small>';
+        } else {
+          var res = {}; try{res=JSON.parse(xhr.responseText);}catch(e){}
+          st.innerHTML = '<small style="color:#e53935;">' + _esc(res.Message||'Fehler') + '</small>';
+        }
+        setTimeout(function(){st.innerHTML='';},4000);
+      }
+    };
+    xhr.send(JSON.stringify({nick: nick, bindings: _kbGetBindings()}));
+  }
+
+  function kbShowLoadMenu() {
+    var menu = document.getElementById('kb_load_menu');
+    if (menu.style.display !== 'none') { menu.style.display = 'none'; return; }
+    menu.innerHTML = '<small>Lade\u2026</small>';
+    menu.style.display = 'block';
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', '/api/keybindings/persons');
+    xhr.onreadystatechange = function() {
+      if (xhr.readyState === XMLHttpRequest.DONE) {
+        if (xhr.status === 200) {
+          _kbPersonsCache = JSON.parse(xhr.responseText);
+          if (_kbPersonsCache.length === 0) {
+            menu.innerHTML = '<small>Keine gespeicherten Belegungen vorhanden.</small>';
+            return;
+          }
+          var h = '<strong>Belegung laden von:</strong><br>';
+          for (var i = 0; i < _kbPersonsCache.length; i++) {
+            h += '<button class="btn btn-default btn-xs" style="margin:2px;" '
+               + 'onclick="kbLoadFromPerson(' + _kbPersonsCache[i].id + ')">'
+               + _esc(_kbPersonsCache[i].name) + '</button> ';
+          }
+          menu.innerHTML = h;
+        } else {
+          menu.innerHTML = '<small style="color:#e53935;">Fehler beim Laden.</small>';
+        }
+      }
+    };
+    xhr.send();
+  }
+
+  function kbLoadFromPerson(personId) {
+    if (!_kbPersonsCache) return;
+    for (var i = 0; i < _kbPersonsCache.length; i++) {
+      if (_kbPersonsCache[i].id === personId && _kbPersonsCache[i].bindings) {
+        _kbApplyBindings(_kbPersonsCache[i].bindings);
+        _kbRenderConfig();
+        document.getElementById('kb_load_menu').style.display = 'none';
+        var st = document.getElementById('kb_status');
+        st.innerHTML = '<small style="color:#4CAF50;">Belegung von ' + _esc(_kbPersonsCache[i].name) + ' geladen.</small>';
+        setTimeout(function(){st.innerHTML='';},3000);
+        return;
+      }
+    }
+  }
+
+  // --- Main keydown handler ---
   document.addEventListener('keydown', function(e) {
     var tag = e.target.tagName.toLowerCase();
     if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+
+    if (_kbRecording) {
+      e.preventDefault();
+      if (e.key === 'Escape') { _kbRecording = null; _kbRenderConfig(); return; }
+      var binding = {code: e.code, shift: e.shiftKey, label: _kbMakeLabel(e)};
+      var all = _kbGetBindings();
+      for (var a in all) {
+        all[a] = all[a].filter(function(b) {
+          return !(b.code === binding.code && !!b.shift === !!binding.shift);
+        });
+      }
+      all[_kbRecording.action].push(binding);
+      _kbSaveLocal();
+      _kbRecording = null;
+      _kbRenderConfig();
+      return;
+    }
 
     if (_kbIsModalOpen()) {
       if (e.key === 'Escape') {
         var rm = document.getElementById('rulesModal');
         var bm = document.getElementById('beerModal');
+        var km = document.getElementById('kbModal');
         if (rm && rm.style.display === 'block') rm.style.display = 'none';
         if (bm && bm.style.display === 'block') bm.style.display = 'none';
+        if (km && km.style.display === 'block') km.style.display = 'none';
       }
       return;
     }
@@ -2462,36 +2837,21 @@
     if (!gc || gc.style.display === 'none') return;
 
     unlockAudio();
+    var kbb = document.getElementById('kb_floating_btn');
+    if (kbb && kbb.style.display === 'none') kbb.style.display = '';
 
-    var key = e.key;
-    var code = e.code;
-
-    if (key === 'Enter' || key === ' ' || code === 'NumpadEnter') {
-      e.preventDefault(); _kbPrimaryAction(); return;
-    }
-
-    if (!e.shiftKey && !e.ctrlKey && !e.metaKey) {
-      if (key === '1' || code === 'Numpad1') { e.preventDefault(); _kbClickDiceCell(0); return; }
-      if (key === '2' || code === 'Numpad2') { e.preventDefault(); _kbClickDiceCell(1); return; }
-      if (key === '3' || code === 'Numpad3') { e.preventDefault(); _kbClickDiceCell(2); return; }
-      if (key === '4' || code === 'Numpad4') { e.preventDefault(); _kbClickDiceCell(3); return; }
-      if (key === '5' || code === 'Numpad5') { e.preventDefault(); _kbClickDiceCell(4); return; }
-      if (key === '6' || code === 'Numpad6') { e.preventDefault(); _kbClickDiceCell(5); return; }
-      if (key === '7' || code === 'Numpad7') { e.preventDefault(); _kbTurnSixes(); return; }
-    }
-
-    if (!e.ctrlKey && !e.metaKey) {
-      if (key === 'q' || key === 'Q' || code === 'NumpadAdd') {
-        e.preventDefault(); _kbAufdecken(); return;
-      }
-      if (key === 'w' || key === 'W' || code === 'NumpadSubtract') {
-        e.preventDefault(); _kbZudecken(); return;
-      }
-      if ((e.shiftKey && (key === 'E' || key === 'e')) || code === 'NumpadDivide') {
-        e.preventDefault(); _kbEnde(); return;
-      }
-      if (e.shiftKey && (key === 'P' || key === 'p')) {
-        e.preventDefault(); _kbPause(); return;
+    var bindings = _kbGetBindings();
+    for (var action in bindings) {
+      var list = bindings[action];
+      for (var i = 0; i < list.length; i++) {
+        var b = list[i];
+        if (e.code === b.code && e.shiftKey === !!b.shift && !e.ctrlKey && !e.metaKey) {
+          if (KB_ACTION_HANDLERS[action]) {
+            e.preventDefault();
+            KB_ACTION_HANDLERS[action]();
+            return;
+          }
+        }
       }
     }
   });

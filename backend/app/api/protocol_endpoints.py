@@ -1081,3 +1081,62 @@ def log_game_result(game, loser):
         p.person_id is not None for p in game_log.players)
 
     db.session.add(game_log)
+
+
+# ============= Keyboard bindings =============
+
+def _resolve_person_by_nick(nick):
+    """Return Person for a nick via NickMapping, or None."""
+    nm = NickMapping.query.filter_by(nick=nick).first()
+    if nm:
+        return Person.query.get(nm.person_id)
+    return None
+
+
+@bp.route('/keybindings', methods=['GET'])
+def get_keybindings():
+    nick = request.args.get('nick', '').strip()
+    if not nick:
+        return jsonify(Message='nick parameter required'), 400
+    person = _resolve_person_by_nick(nick)
+    if not person:
+        return jsonify(bindings=None, person_name=None), 200
+    bindings = None
+    if person.keyboard_bindings:
+        try:
+            bindings = json.loads(person.keyboard_bindings)
+        except (ValueError, TypeError):
+            pass
+    return jsonify(bindings=bindings, person_id=person.id,
+                   person_name=person.name), 200
+
+
+@bp.route('/keybindings', methods=['PUT'])
+def save_keybindings():
+    data = request.get_json() or {}
+    nick = data.get('nick', '').strip()
+    bindings = data.get('bindings')
+    if not nick:
+        return jsonify(Message='nick required'), 400
+    person = _resolve_person_by_nick(nick)
+    if not person:
+        return jsonify(Message='Kein Person-Mapping für diesen Nick'), 404
+    person.keyboard_bindings = json.dumps(bindings) if bindings else None
+    db.session.commit()
+    return jsonify(Message='Gespeichert', person_name=person.name), 200
+
+
+@bp.route('/keybindings/persons', methods=['GET'])
+def list_keybinding_persons():
+    persons = Person.query.filter(
+        Person.keyboard_bindings.isnot(None),
+        Person.keyboard_bindings != ''
+    ).order_by(Person.name).all()
+    result = []
+    for p in persons:
+        try:
+            bindings = json.loads(p.keyboard_bindings)
+        except (ValueError, TypeError):
+            continue
+        result.append({'id': p.id, 'name': p.name, 'bindings': bindings})
+    return jsonify(result), 200

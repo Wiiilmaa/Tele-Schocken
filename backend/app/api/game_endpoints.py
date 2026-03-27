@@ -3,11 +3,12 @@ from app import app, db
 
 from flask_socketio import emit, join_room
 from flask import jsonify
-from flask import request
-from app.models import User, Game, Status
+from flask import request, url_for
+from app.models import User, Game, Status, NickMapping, Person
 from random import randint, random, seed
 from datetime import datetime
 from jinja2 import utils
+import os
 
 from app.api.errors import bad_request
 from sqlalchemy.exc import IntegrityError
@@ -760,6 +761,36 @@ def vote_reveal_all(gid):
 
     emit('reload_game', game.to_dict(), room=gid, namespace='/game')
     return jsonify(Message='Stimme gezählt'), 200
+
+
+# ============= Personalized Sound URLs =============
+
+SOUND_NAMES = ['rolling_dice', 'roll_now', 'lift_cup']
+
+@bp.route('/sounds', methods=['GET'])
+def get_sound_urls():
+    """Return sound URLs for a nick, using person-specific files if available."""
+    nick = request.args.get('nick', '').strip()
+    audio_dir = os.path.join(app.static_folder, 'audio')
+    person_name = None
+
+    if nick:
+        nm = NickMapping.query.filter_by(nick=nick).first()
+        if nm:
+            person = Person.query.get(nm.person_id)
+            if person:
+                person_name = person.name
+
+    urls = {}
+    for sound in SOUND_NAMES:
+        if person_name:
+            personal_file = f'{sound}_{person_name}.mp3'
+            if os.path.isfile(os.path.join(audio_dir, personal_file)):
+                urls[sound] = url_for('static', filename=f'audio/{personal_file}')
+                continue
+        urls[sound] = url_for('static', filename=f'audio/{sound}.mp3')
+
+    return jsonify(urls), 200
 
 
 # to fall a dice from the tableCount

@@ -245,6 +245,7 @@ class User(db.Model):
 class Person(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200), unique=True, nullable=False)
+    keyboard_bindings = db.Column(db.Text, nullable=True)
 
 
 class GameLog(db.Model):
