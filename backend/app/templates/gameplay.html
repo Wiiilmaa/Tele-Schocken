@@ -1338,9 +1338,12 @@
       gameControls.style.display = 'none';
       joinForm.style.display = 'block';
       pendingNotice.style.display = 'none';
-      if (wasHidden) {
-        var joinInput = document.getElementById('join_name');
-        if (joinInput) joinInput.focus();
+      var joinBtn = document.getElementById('join_btn');
+      var joinInput = document.getElementById('join_name');
+      if (joinBtn) joinBtn.disabled = false;
+      if (joinInput) joinInput.disabled = false;
+      if (wasHidden && joinInput) {
+        joinInput.focus();
       }
     } else {
       var me = game.User.find(function(u) { return u.Id === myId; });
