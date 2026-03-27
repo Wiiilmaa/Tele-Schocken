@@ -1870,6 +1870,7 @@
 
   // ============= Main refresh function =============
   function refresh_game(game) {
+    var prevGameState = _lastGameState;
     _lastGameState = game;
     var gameid = getGameId();
     var waiting_user_id = game.Move;
@@ -1996,6 +1997,21 @@
       playSound(soundDiceY);
     }
     _lastWaitingUserId = waiting_user_id;
+
+    // Reset rotation when a previously pending player becomes active (new game)
+    if (prevGameState && game.First) {
+      var prevPending = {};
+      prevGameState.User.forEach(function(u) {
+        if (u.Pending_Join) prevPending[String(u.Id)] = true;
+      });
+      for (var pi = 0; pi < game.User.length; pi++) {
+        if (!game.User[pi].Pending_Join && !game.User[pi].Passive
+            && prevPending[String(game.User[pi].Id)]) {
+          _activeRotation = [];
+          break;
+        }
+      }
+    }
 
     // Sort users so the round starter is first (preserving rotation order)
     if (game.First) {
