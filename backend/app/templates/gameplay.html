@@ -561,7 +561,6 @@
 
   // Table ordering state
   var _tableOrder = [];          // current display order of user IDs (strings)
-  var _activeRotation = [];      // persistent rotation order of active user IDs
   var _tableAnimating = false;
   var _runningAnims = [];        // active Animation objects for cancellation
   var _isFirstTableLoad = true;
@@ -1362,40 +1361,24 @@
   // ============= Table reorder helpers =============
 
   function buildSortedOrder(users, firstId) {
-    var activeMap = {};
+    var active = [];
     var passive = [];
     var pending = [];
     for (var i = 0; i < users.length; i++) {
       if (users[i].Pending_Join) pending.push(users[i]);
       else if (users[i].Passive) passive.push(users[i]);
-      else activeMap[String(users[i].Id)] = users[i];
-    }
-
-    var newRotation = [];
-    for (var i = 0; i < _activeRotation.length; i++) {
-      if (activeMap[_activeRotation[i]]) newRotation.push(_activeRotation[i]);
-    }
-    var inRotation = {};
-    for (var i = 0; i < newRotation.length; i++) inRotation[newRotation[i]] = true;
-    for (var i = 0; i < users.length; i++) {
-      var uid = String(users[i].Id);
-      if (!users[i].Pending_Join && !users[i].Passive && !inRotation[uid]) newRotation.push(uid);
+      else active.push(users[i]);
     }
 
     var firstIdx = -1;
-    for (var i = 0; i < newRotation.length; i++) {
-      if (newRotation[i] == String(firstId)) { firstIdx = i; break; }
+    for (var i = 0; i < active.length; i++) {
+      if (String(active[i].Id) == String(firstId)) { firstIdx = i; break; }
     }
     if (firstIdx > 0) {
-      newRotation = newRotation.slice(firstIdx).concat(newRotation.slice(0, firstIdx));
+      active = active.slice(firstIdx).concat(active.slice(0, firstIdx));
     }
-    _activeRotation = newRotation.slice();
 
-    var result = [];
-    for (var i = 0; i < newRotation.length; i++) {
-      if (activeMap[newRotation[i]]) result.push(activeMap[newRotation[i]]);
-    }
-    return result.concat(passive).concat(pending);
+    return active.concat(passive).concat(pending);
   }
 
   function getOrderIds(tbody) {
@@ -1873,7 +1856,6 @@
 
   // ============= Main refresh function =============
   function refresh_game(game) {
-    var prevGameState = _lastGameState;
     _lastGameState = game;
     var gameid = getGameId();
     var waiting_user_id = game.Move;
@@ -2001,22 +1983,7 @@
     }
     _lastWaitingUserId = waiting_user_id;
 
-    // Reset rotation when a previously pending player becomes active (new game)
-    if (prevGameState && game.First) {
-      var prevPending = {};
-      prevGameState.User.forEach(function(u) {
-        if (u.Pending_Join) prevPending[String(u.Id)] = true;
-      });
-      for (var pi = 0; pi < game.User.length; pi++) {
-        if (!game.User[pi].Pending_Join && !game.User[pi].Passive
-            && prevPending[String(game.User[pi].Id)]) {
-          _activeRotation = [];
-          break;
-        }
-      }
-    }
-
-    // Sort users so the round starter is first (preserving rotation order)
+    // Sort users so the round starter is first
     if (game.First) {
       game.User = buildSortedOrder(game.User, game.First);
     }

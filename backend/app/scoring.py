@@ -120,9 +120,8 @@ def calculate_scoring(game):
         first_index = 0
 
     # Reorder starting from first_user, track seat position (i)
-    # Compute 'matched' field: 0 for the first player, then incremented
-    # when the current player has the same dice result and throw count
-    # as the predecessor (i.e. "nachgelegt").
+    # Compute 'matched' field: count how many earlier players in seat order
+    # share the same dice result and throw count (i.e. "nachgelegt").
     ordered = []
     for i in range(len(playing)):
         idx = (first_index + i) % len(playing)
@@ -130,11 +129,10 @@ def calculate_scoring(game):
         dice_val = get_dice_value(u)
         scoring = get_scoring(dice_val, complete_rules)
         matched = 0
-        if i > 0:
-            prev = ordered[i - 1]
+        for prev in ordered:
             if (prev['scoring']['order'] == scoring['order'] and
                     prev['number_dice'] == u.number_dice):
-                matched = prev['matched'] + 1
+                matched += 1
         ordered.append({
             'id': u.id,
             'name': u.name,
