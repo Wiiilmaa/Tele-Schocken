@@ -563,6 +563,8 @@
   var _tableOrder = [];          // current display order of user IDs (strings)
   var _tableAnimating = false;
   var _runningAnims = [];        // active Animation objects for cancellation
+  var _animTargetOrder = [];     // desiredOrder of the running animation (for selective retarget)
+  var _animGeneration = 0;       // incremented each animation cycle; stale finalize()s are ignored
   var _isFirstTableLoad = true;
 
   // Dice cup state
@@ -1416,11 +1418,17 @@
     }
   }
 
-  function cancelTableAnimations() {
+  function cancelTableAnimations(returnVisualSnapshot) {
+    var visualSnap = {};
     for (var i = 0; i < _runningAnims.length; i++) {
-      _runningAnims[i].anim.cancel();
-      var el = _runningAnims[i].row;
-      if (_runningAnims[i].isDeparting) {
+      var entry = _runningAnims[i];
+      if (returnVisualSnapshot && !entry.isDeparting && entry.row.id) {
+        var uid = entry.row.id.replace('row', '');
+        visualSnap[uid] = entry.row.getBoundingClientRect();
+      }
+      entry.anim.cancel();
+      var el = entry.row;
+      if (entry.isDeparting) {
         if (el.parentNode) el.parentNode.removeChild(el);
       } else {
         el.style.transform = '';
@@ -1431,34 +1439,94 @@
     }
     _runningAnims = [];
     _tableAnimating = false;
+    return visualSnap;
   }
 
   function animateTableTransition(tbody, oldSnapshot, desiredOrder, removedIds, onComplete) {
-    if (_tableAnimating) cancelTableAnimations();
+    var unchangedUids = null;
+
+    if (_tableAnimating) {
+      var hasStructuralChange = removedIds.length > 0;
+      if (!hasStructuralChange) {
+        for (var sci = 0; sci < desiredOrder.length; sci++) {
+          if (!oldSnapshot[desiredOrder[sci]]) { hasStructuralChange = true; break; }
+        }
+      }
+      if (!hasStructuralChange && desiredOrder.length !== _animTargetOrder.length) {
+        hasStructuralChange = true;
+      }
+
+      if (hasStructuralChange) {
+        var visualSnap = cancelTableAnimations(true);
+        for (var vk in visualSnap) oldSnapshot[vk] = visualSnap[vk];
+      } else {
+        unchangedUids = {};
+        for (var ci = 0; ci < desiredOrder.length; ci++) {
+          if (ci < _animTargetOrder.length && _animTargetOrder[ci] === desiredOrder[ci]) {
+            unchangedUids[desiredOrder[ci]] = true;
+          }
+        }
+
+        var keptAnims = [];
+        for (var ki = 0; ki < _runningAnims.length; ki++) {
+          var entry = _runningAnims[ki];
+          var euid = entry.row.id ? entry.row.id.replace('row', '') : '';
+          if (entry.isDeparting || entry.isArriving) {
+            entry.anim.cancel();
+            if (entry.isDeparting && entry.row.parentNode)
+              entry.row.parentNode.removeChild(entry.row);
+            if (entry.isArriving) {
+              entry.row.style.transform = '';
+              entry.row.style.position = '';
+              entry.row.style.willChange = '';
+              entry.row.style.pointerEvents = '';
+            }
+          } else if (unchangedUids[euid]) {
+            keptAnims.push(entry);
+          } else {
+            oldSnapshot[euid] = entry.row.getBoundingClientRect();
+            entry.anim.cancel();
+            entry.row.style.transform = '';
+            entry.row.style.position = '';
+            entry.row.style.willChange = '';
+            entry.row.style.pointerEvents = '';
+          }
+        }
+        _runningAnims = keptAnims;
+      }
+    }
 
     // Early exit: nothing to animate
     if (removedIds.length === 0) {
       var curDom = getOrderIds(tbody);
       var match = curDom.length === desiredOrder.length;
       if (match) {
-        for (var ci = 0; ci < desiredOrder.length; ci++) {
-          if (curDom[ci] !== desiredOrder[ci]) { match = false; break; }
+        for (var eci = 0; eci < desiredOrder.length; eci++) {
+          if (curDom[eci] !== desiredOrder[eci]) { match = false; break; }
         }
       }
       var hasAdded = false;
       for (var ni = 0; ni < desiredOrder.length; ni++) {
         if (!oldSnapshot[desiredOrder[ni]]) { hasAdded = true; break; }
       }
-      if (match && !hasAdded) {
+      var hasChanged = false;
+      if (unchangedUids) {
+        for (var dci = 0; dci < desiredOrder.length; dci++) {
+          if (!unchangedUids[desiredOrder[dci]]) { hasChanged = true; break; }
+        }
+      }
+      if (match && !hasAdded && !hasChanged) {
         updateRowCounters(tbody);
         _tableOrder = desiredOrder.slice();
+        _animTargetOrder = desiredOrder.slice();
         if (onComplete) onComplete();
         return;
       }
     }
 
     _tableAnimating = true;
-    _runningAnims = [];
+    _animGeneration++;
+    if (!unchangedUids) _runningAnims = [];
 
     var addedSet = {};
     for (var ni = 0; ni < desiredOrder.length; ni++) {
@@ -1520,6 +1588,7 @@
     for (var ai = 0; ai < desiredOrder.length; ai++) {
       var auid = desiredOrder[ai];
       if (addedSet[auid]) continue;
+      if (unchangedUids && unchangedUids[auid]) continue;
       var aRow = document.getElementById('row' + auid);
       if (!aRow || currentPositions[auid] === undefined
           || targetPositions[auid] === undefined) continue;
@@ -1669,8 +1738,12 @@
       _runningAnims.push({ anim: fAnim, row: row });
     }
 
+    _animTargetOrder = desiredOrder.slice();
+
     // ---- Phase 7: Completion ----
+    var myGeneration = _animGeneration;
     function finalize() {
+      if (myGeneration !== _animGeneration) return;
       for (var i = 0; i < _runningAnims.length; i++) {
         var a = _runningAnims[i];
         a.anim.cancel();
