@@ -399,6 +399,7 @@
   // ============= Screenshot =============
   var _screenshotBlob = null;
   var _screenshotDataUrl = null;
+  var _lastCapturedScoringKey = null;
 
   function captureScreenshot() {
     var area = document.getElementById('screenshot_area');
@@ -2276,6 +2277,7 @@
 
     if (newPhase === 'distribute') {
       var fullInfo = formatScoringText(game.Scoring);
+      var scoringKey = game.Scoring ? (game.Scoring.High + '|' + game.Scoring.Low + '|' + game.Scoring.Chips) : null;
       if (_currentRoundPhase !== 'distribute') {
         // Flash high (green) and low (red) rows when distribute button appears
         if (game.Scoring) {
@@ -2290,6 +2292,23 @@
           if (btn) btn.disabled = false;
         }, 3000);
         // Capture screenshot once the final result is rendered
+        _lastCapturedScoringKey = scoringKey;
+        setTimeout(captureScreenshot, 500);
+      } else if (scoringKey && scoringKey !== _lastCapturedScoringKey) {
+        // New scoring data in same distribute phase (missed phase transition) —
+        // re-render UI and re-capture screenshot
+        if (game.Scoring) {
+          if (game.Scoring.High_Id) flashRowColor('row' + game.Scoring.High_Id, '--flash-high');
+          if (game.Scoring.Low_Id)  flashRowColor('row' + game.Scoring.Low_Id, '--flash-low');
+        }
+        roundRow.innerHTML = '<button class="btn btn-success" id="distribute_btn" '
+          + 'onclick="distribute()" disabled>Verteilen</button> '
+          + '<span id="round_info_text">' + fullInfo + '</span>';
+        setTimeout(function() {
+          var btn = document.getElementById('distribute_btn');
+          if (btn) btn.disabled = false;
+        }, 3000);
+        _lastCapturedScoringKey = scoringKey;
         setTimeout(captureScreenshot, 500);
       } else {
         var infoSpan = document.getElementById('round_info_text');
@@ -2323,6 +2342,7 @@
         }
       }
     } else if (newPhase === 'running') {
+      _lastCapturedScoringKey = null;
       var lastText = formatScoringText(game.Last_Scoring);
       if (lastText) {
         roundRow.innerHTML = '<span>Letzte Runde: ' + lastText + '</span>';
