@@ -394,6 +394,11 @@ def set_user_passiv(gid, uid):
             if game.move_user_id == -1:
                 game.message = "Aufdecken!"
 
+            # If the round starter goes passive before throwing, transfer
+            # first_user role to the new move_user so throw limits work.
+            if user.id == game.first_user_id and user.number_dice == 0 and game.move_user_id != -1:
+                game.first_user_id = game.move_user_id
+
         db.session.add(user)
         db.session.commit()
         response = jsonify(Message='Hat geklappt!')
