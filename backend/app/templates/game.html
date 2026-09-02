@@ -219,17 +219,17 @@
       }
     }
 
-    var maxVotes = 0;
+    var totalVotes = 0;
     for (var key in votes) {
-      if (votes[key] > maxVotes) maxVotes = votes[key];
+      totalVotes += votes[key];
     }
-    if (maxVotes === 0) maxVotes = 1;
+    if (totalVotes === 0) totalVotes = 1;
 
     var html = '';
     for (var i = 0; i < _rulesets.length; i++) {
       var rs = _rulesets[i];
       var count = votes[rs.id] || 0;
-      var pct = (count / maxVotes) * 100;
+      var pct = (count / totalVotes) * 100;
       var isMine = (rs.id === myVote);
       var star = isMine ? '★' : '';
 
@@ -238,7 +238,6 @@
       html += '<div class="vote-item-content">';
       html += '<span class="vote-star">' + star + '</span>';
       html += '<span class="vote-name">' + rs.name + '</span>';
-      html += '<span class="vote-count">' + count + '</span>';
       html += '</div></div>';
     }
     container.innerHTML = html;

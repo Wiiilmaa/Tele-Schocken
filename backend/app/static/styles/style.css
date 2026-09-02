@@ -281,13 +281,6 @@ select optgroup {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.vote-count {
-  flex-shrink: 0;
-  font-weight: bold;
-  margin-left: 8px;
-  min-width: 1.5em;
-  text-align: right;
-}
 
 /* ============= Lobby vote panel ============= */
 .lobby-vote-panel {
