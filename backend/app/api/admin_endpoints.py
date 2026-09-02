@@ -254,7 +254,7 @@ def create_Game():
         user = User()
         user.name = escapedusername
         user.is_admin = True  # Creator is first admin
-        user.ruleset_vote = game.ruleset_id or 'classic_13'
+        user.ruleset_vote = game.ruleset_id or 'jule_13'
         game.users.append(user)
         db.session.add(game)
         db.session.commit()
@@ -302,14 +302,14 @@ def start_game(gid):
         game.stack = escaped_stack_max
         escaped_play_final = str(utils.escape(data['play_final']))
         game.play_final = escaped_play_final.lower() in ['true', '1', 't', 'y', 'yes']
-        game.ruleset_id = 'classic_13'  # default
+        game.ruleset_id = 'jule_13'  # default
     else:
         # Use the game's current ruleset_id (set by voting or default)
-        current_rid = game.ruleset_id or 'classic_13'
+        current_rid = game.ruleset_id or 'jule_13'
         ruleset = get_ruleset(current_rid)
         if ruleset is None:
-            ruleset = get_ruleset('classic_13')
-            current_rid = 'classic_13'
+            ruleset = get_ruleset('jule_13')
+            current_rid = 'jule_13'
         game.ruleset_id = current_rid
         game.stack_max = ruleset['stack_max']
         game.stack = ruleset['stack_max']

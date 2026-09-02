@@ -162,7 +162,7 @@ class Game(BaseGameData, db.Model):
         self.lobby_after_game = False
         self.reveal_votes = ''
         self.player_changes_allowed = True
-        self.ruleset_id = 'classic_13'
+        self.ruleset_id = 'jule_13'
 
         self.started = datetime.now()
         self.refreshed = datetime.now()

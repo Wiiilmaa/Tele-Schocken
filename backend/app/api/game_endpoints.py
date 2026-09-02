@@ -146,7 +146,7 @@ def set_game_user(gid):
 
     user = User()
     user.name = escapedusername
-    user.ruleset_vote = game.ruleset_id or 'classic_13'
+    user.ruleset_vote = game.ruleset_id or 'jule_13'
 
     if game.player_changes_allowed:
         user.pending_join = False
