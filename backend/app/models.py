@@ -117,6 +117,13 @@ class Game(BaseGameData, db.Model):
             'Reveal_Votes': len([v for v in (self.reveal_votes or '').split(',') if v]),
         }
 
+        # Aggregate ruleset votes from all users
+        vote_counts = {}
+        for u in self.users:
+            if u.ruleset_vote:
+                vote_counts[u.ruleset_vote] = vote_counts.get(u.ruleset_vote, 0) + 1
+        data['Ruleset_Votes'] = vote_counts
+
         # Add live scoring when ready for distribution
         if self.move_user_id == -1 and self._all_dice_visible():
             try:
@@ -155,6 +162,7 @@ class Game(BaseGameData, db.Model):
         self.lobby_after_game = False
         self.reveal_votes = ''
         self.player_changes_allowed = True
+        self.ruleset_id = 'classic_13'
 
         self.started = datetime.now()
         self.refreshed = datetime.now()
@@ -194,6 +202,8 @@ class User(db.Model):
     penalty_count = db.Column(db.Integer, default=0)
     # Position in the turn rotation (lower = earlier in cycle from first_user)
     turn_order = db.Column(db.Integer, default=0)
+    # Ruleset vote: which ruleset this user votes for
+    ruleset_vote = db.Column(db.String(50))
 
     def user_name(self):
         return Markup(self.name)
@@ -223,6 +233,7 @@ class User(db.Model):
             'Leave_After_Game': self.leave_after_game or False,
             'Pending_Join': self.pending_join or False,
             'Penalty_Count': self.penalty_count or 0,
+            'Ruleset_Vote': self.ruleset_vote or '',
         }
         return data
 
@@ -240,6 +251,7 @@ class User(db.Model):
         self.pending_join = False
         self.penalty_count = 0
         self.turn_order = 0
+        self.ruleset_vote = None
 
 
 class Person(db.Model):

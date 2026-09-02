@@ -166,7 +166,13 @@
       <h2 id="rules_title">Regeln</h2>
     </div>
     <div class="modal-body">
-      <div id="rules_content"></div>
+      <div class="rules-layout">
+        <div class="rules-main" id="rules_content"></div>
+        <div class="vote-panel" id="vote_panel">
+          <h3>Abstimmung</h3>
+          <div id="vote_list"></div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -2375,6 +2381,8 @@
     if (game.Ruleset) {
       updateRulesModal(game.Ruleset);
     }
+    // Update vote panel
+    updateVotePanel(game);
   }
 
   // R6: Build rules modal content
@@ -2394,6 +2402,80 @@
     html += '</tbody></table>';
     html += '<p><small>Alle weiteren Kombinationen: Schrott (1 Chip)</small></p>';
     content.innerHTML = html;
+  }
+
+  var _cachedRulesets = null;
+
+  function loadRulesetsForVoting(callback) {
+    if (_cachedRulesets) { callback(_cachedRulesets); return; }
+    var xhttp = new XMLHttpRequest();
+    xhttp.open("GET", "/api/rulesets");
+    xhttp.setRequestHeader("Content-Type", "application/json");
+    xhttp.onreadystatechange = function() {
+      if (xhttp.readyState == XMLHttpRequest.DONE && xhttp.status == 200) {
+        _cachedRulesets = JSON.parse(xhttp.responseText);
+        callback(_cachedRulesets);
+      }
+    };
+    xhttp.send();
+  }
+
+  function updateVotePanel(game) {
+    var container = document.getElementById('vote_list');
+    if (!container) return;
+
+    loadRulesetsForVoting(function(rulesets) {
+      var votes = game.Ruleset_Votes || {};
+      var myId = getMyId();
+      var myVote = '';
+      for (var i = 0; i < game.User.length; i++) {
+        if (game.User[i].Id === myId) {
+          myVote = game.User[i].Ruleset_Vote || '';
+          break;
+        }
+      }
+
+      var maxVotes = 0;
+      for (var key in votes) {
+        if (votes[key] > maxVotes) maxVotes = votes[key];
+      }
+      if (maxVotes === 0) maxVotes = 1;
+
+      var html = '';
+      for (var i = 0; i < rulesets.length; i++) {
+        var rs = rulesets[i];
+        var count = votes[rs.id] || 0;
+        var pct = (count / maxVotes) * 100;
+        var isMine = (rs.id === myVote);
+        var star = isMine ? '★' : '';
+
+        html += '<div class="vote-item" onclick="castVote(\'' + rs.id + '\')" title="' + rs.name + '">';
+        html += '<div class="vote-bar" style="width: ' + pct + '%"></div>';
+        html += '<div class="vote-item-content">';
+        html += '<span class="vote-star">' + star + '</span>';
+        html += '<span class="vote-name">' + rs.name + '</span>';
+        html += '<span class="vote-count">' + count + '</span>';
+        html += '</div></div>';
+      }
+      container.innerHTML = html;
+    });
+  }
+
+  function castVote(rulesetId) {
+    var gameid = getGameId();
+    var myId = getMyId();
+    var xhttp = new XMLHttpRequest();
+    xhttp.open("POST", "/api/game/" + gameid + "/vote_ruleset");
+    xhttp.setRequestHeader("Content-Type", "application/json");
+    xhttp.onreadystatechange = function() {
+      if (xhttp.readyState == XMLHttpRequest.DONE && xhttp.status != 200) {
+        try {
+          var res = JSON.parse(xhttp.responseText);
+          alert(res.Message);
+        } catch (e) {}
+      }
+    };
+    xhttp.send(JSON.stringify({ voter_id: myId, ruleset_id: rulesetId }));
   }
 
   function restoreMyDice(game) {

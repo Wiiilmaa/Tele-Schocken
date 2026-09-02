@@ -67,6 +67,60 @@ def get_complete_rules(ruleset):
     return explicit_rules
 
 
+def calculate_winning_ruleset(vote_counts, current_ruleset_id):
+    """
+    Given vote_counts dict {ruleset_id: count} and the current ruleset_id,
+    calculate the winning ruleset considering tiebreaker rules:
+    - +0.5 for play_final == true
+    - +0 to +0.4 based on explicit rule count (spread across range of rulesets)
+
+    Returns the winning ruleset_id if it has a higher adjusted score than
+    the current one, otherwise returns None (keep current).
+    """
+    if not vote_counts:
+        return None
+
+    rulesets = _load_rulesets()
+    ruleset_map = {r['id']: r for r in rulesets}
+
+    rule_counts = [len(r['rules']) for r in rulesets]
+    min_rules = min(rule_counts)
+    max_rules = max(rule_counts)
+    rule_range = max_rules - min_rules if max_rules > min_rules else 1
+
+    scores = {}
+    for rid, count in vote_counts.items():
+        rs = ruleset_map.get(rid)
+        if rs is None:
+            continue
+        score = count
+        if rs.get('play_final'):
+            score += 0.5
+        score += (len(rs['rules']) - min_rules) / rule_range * 0.4
+        scores[rid] = score
+
+    if not scores:
+        return None
+
+    # Also score the current ruleset (even with 0 votes if not in vote_counts)
+    if current_ruleset_id and current_ruleset_id not in scores:
+        rs = ruleset_map.get(current_ruleset_id)
+        if rs:
+            score = 0
+            if rs.get('play_final'):
+                score += 0.5
+            score += (len(rs['rules']) - min_rules) / rule_range * 0.4
+            scores[current_ruleset_id] = score
+
+    winner_id = max(scores, key=lambda k: scores[k])
+    current_score = scores.get(current_ruleset_id, 0)
+
+    if winner_id != current_ruleset_id and scores[winner_id] > current_score:
+        return winner_id
+
+    return None
+
+
 def reload_rulesets():
     """Force reload of rulesets from disk (for future admin UI)."""
     global _rulesets_cache
