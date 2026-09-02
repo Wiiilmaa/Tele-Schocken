@@ -67,6 +67,62 @@ def get_complete_rules(ruleset):
     return explicit_rules
 
 
+def calculate_winning_ruleset(vote_counts, current_ruleset_id):
+    """
+    Given vote_counts dict {ruleset_id: count} and the current ruleset_id,
+    determine if a different ruleset should replace the current one.
+
+    The current ruleset has "home advantage": it only gets replaced when
+    at least one other ruleset has strictly MORE raw votes.  The tiebreaker
+    (+0.5 for play_final, +0–0.4 for explicit rule count) only decides
+    among challengers that share the highest raw vote count.
+
+    Returns the winning ruleset_id, or None to keep the current one.
+    """
+    if not vote_counts:
+        return None
+
+    current_votes = vote_counts.get(current_ruleset_id, 0)
+
+    # Find the highest raw vote count among OTHER rulesets
+    max_other_votes = 0
+    for rid, count in vote_counts.items():
+        if rid != current_ruleset_id and count > max_other_votes:
+            max_other_votes = count
+
+    # Current ruleset stays unless another has strictly more raw votes
+    if max_other_votes <= current_votes:
+        return None
+
+    # Collect all challengers tied at the top raw vote count
+    challengers = [rid for rid, count in vote_counts.items()
+                   if rid != current_ruleset_id and count == max_other_votes]
+
+    if len(challengers) == 1:
+        return challengers[0]
+
+    # Tiebreaker among challengers: +0.5 finale, +0–0.4 rule count
+    rulesets = _load_rulesets()
+    ruleset_map = {r['id']: r for r in rulesets}
+
+    rule_counts = [len(r['rules']) for r in rulesets]
+    min_rules = min(rule_counts)
+    max_rules = max(rule_counts)
+    rule_range = max_rules - min_rules if max_rules > min_rules else 1
+
+    def tiebreak_score(rid):
+        rs = ruleset_map.get(rid)
+        if rs is None:
+            return 0
+        score = 0.0
+        if rs.get('play_final'):
+            score += 0.5
+        score += (len(rs['rules']) - min_rules) / rule_range * 0.4
+        return score
+
+    return max(challengers, key=tiebreak_score)
+
+
 def reload_rulesets():
     """Force reload of rulesets from disk (for future admin UI)."""
     global _rulesets_cache

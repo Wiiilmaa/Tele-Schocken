@@ -46,14 +46,16 @@
 <div id="qrcode" class="qr-wrapper" style="margin-top: 12px;"></div>
 <div><button id="switch_device_btn" onclick="toggleDeviceSwitch()" class="btn btn-outline-secondary btn-sm" style="margin-top: 8px;">Gerät wechseln</button></div>
 
+<div id="vote_section" style="display:none;">
+  <h3>Abstimmung: Regelsatz wählen</h3>
+  <p id="current_ruleset_display"><strong>Aktuell:</strong> <span id="current_ruleset_name">—</span></p>
+  <div class="lobby-vote-panel" id="lobby_vote_list"></div>
+</div>
+
 <div class="admin_interface">
   <h3>Spiel starten (<b>Du kannst Spieler auch nachträglich hinzufügen</b>)</h3>
 </div>
 <div class="admin_interface">
-  <label for="ruleset_select">Ruleset wählen:</label>
-  <select name="ruleset_select" id="ruleset_select" class="form-select">
-    <option value="">-- Wird geladen --</option>
-  </select>
   <div style="margin-top: 8px;">
     <label><input type="checkbox" id="falling_dice_cb"> Würfel können vom Tisch fallen (Schnapsrunde)</label>
   </div>
@@ -183,22 +185,88 @@
     xhttp.onreadystatechange = function() {
       if (xhttp.readyState == XMLHttpRequest.DONE && xhttp.status == 200) {
         _rulesets = JSON.parse(xhttp.responseText);
-        var select = document.getElementById('ruleset_select');
-        select.innerHTML = '';
-        for (var i = 0; i < _rulesets.length; i++) {
-          var opt = document.createElement('option');
-          opt.value = _rulesets[i].id;
-          opt.innerHTML = _rulesets[i].name;
-          select.appendChild(opt);
-        }
-        // Pre-select current ruleset if returning to lobby
-        var currentEl = document.getElementById('current_ruleset_id');
-        if (currentEl && currentEl.innerHTML.trim()) {
-          select.value = currentEl.innerHTML.trim();
-        }
+        updateLobbyVotePanel();
       }
     }
     xhttp.send();
+  }
+
+  function updateLobbyVotePanel() {
+    var container = document.getElementById('lobby_vote_list');
+    if (!container || !_rulesets.length) return;
+
+    var gameData = window._currentGame;
+    if (!gameData) return;
+
+    var votes = gameData.Ruleset_Votes || {};
+    var myId = parseInt(localStorage.getItem('id'));
+    var myVote = '';
+    for (var i = 0; i < (gameData.User || []).length; i++) {
+      if (gameData.User[i].Id === myId) {
+        myVote = gameData.User[i].Ruleset_Vote || '';
+        break;
+      }
+    }
+
+    // Update current ruleset display
+    var nameEl = document.getElementById('current_ruleset_name');
+    if (nameEl && gameData.Ruleset_Id) {
+      for (var i = 0; i < _rulesets.length; i++) {
+        if (_rulesets[i].id === gameData.Ruleset_Id) {
+          nameEl.textContent = _rulesets[i].name;
+          break;
+        }
+      }
+    }
+
+    var totalVotes = 0;
+    for (var key in votes) {
+      totalVotes += votes[key];
+    }
+    if (totalVotes === 0) totalVotes = 1;
+
+    var html = '';
+    for (var i = 0; i < _rulesets.length; i++) {
+      var rs = _rulesets[i];
+      var count = votes[rs.id] || 0;
+      var pct = (count / totalVotes) * 100;
+      var isMine = (rs.id === myVote);
+      var star = isMine ? '★' : '';
+
+      html += '<div class="vote-item" onclick="castLobbyVote(\'' + rs.id + '\')" title="' + rs.name + '">';
+      html += '<div class="vote-bar" style="width: ' + pct + '%"></div>';
+      html += '<div class="vote-item-content">';
+      html += '<span class="vote-star">' + star + '</span>';
+      html += '<span class="vote-name">' + rs.name + '</span>';
+      html += '</div></div>';
+    }
+    container.innerHTML = html;
+
+    // Show vote section if user is in the game
+    var voteSection = document.getElementById('vote_section');
+    if (voteSection && myVote) {
+      voteSection.style.display = '';
+    }
+  }
+
+  function castLobbyVote(rulesetId) {
+    var game = document.getElementById('UUID');
+    var gameid = game.innerHTML.replace(/^"(.+)"$/,'$1').trim();
+    var myId = parseInt(localStorage.getItem('id'));
+    if (!myId) return;
+
+    var xhttp = new XMLHttpRequest();
+    xhttp.open("POST", "/api/game/" + gameid + "/vote_ruleset");
+    xhttp.setRequestHeader("Content-Type", "application/json");
+    xhttp.onreadystatechange = function() {
+      if (xhttp.readyState == XMLHttpRequest.DONE && xhttp.status != 200) {
+        try {
+          var res = JSON.parse(xhttp.responseText);
+          alert(res.Message);
+        } catch (e) {}
+      }
+    };
+    xhttp.send(JSON.stringify({ voter_id: myId, ruleset_id: rulesetId }));
   }
 
   function joinGame() {
@@ -243,8 +311,6 @@
     var gameid = game.innerHTML;
     gameid = gameid.replace(/^"(.+)"$/,'$1');
 
-    var rulesetSelect = document.getElementById('ruleset_select');
-    var rulesetId = rulesetSelect.value;
     var myId = parseInt(localStorage.getItem('id'));
 
     var xhttp = new XMLHttpRequest();
@@ -263,7 +329,7 @@
       }
     }
     var fallingDice = document.getElementById('falling_dice_cb').checked;
-    xhttp.send(JSON.stringify({ruleset_id: rulesetId, admin_id: myId, falling_dice: fallingDice}));
+    xhttp.send(JSON.stringify({admin_id: myId, falling_dice: fallingDice}));
   }
 
   function isAdminUser() {
@@ -346,11 +412,20 @@
           fallingCb.checked = gameData.Falling_Dice;
         }
 
-        // Restore selected ruleset
-        if (gameData.Ruleset_Id) {
-          var rulesetSel = document.getElementById('ruleset_select');
-          if (rulesetSel) rulesetSel.value = gameData.Ruleset_Id;
+        // Show vote section if user is in the game
+        if (myId) {
+          var voteSection = document.getElementById('vote_section');
+          var isInGame = false;
+          for (var i = 0; i < gameData.User.length; i++) {
+            if (gameData.User[i].Id === myId) { isInGame = true; break; }
+          }
+          if (isInGame && voteSection) {
+            voteSection.style.display = '';
+          }
         }
+
+        // Update vote panel with initial data
+        updateLobbyVotePanel();
       }
     }
     xhttp.send();
@@ -442,10 +517,16 @@
       if (myIdInGame) {
         nameInput.disabled = true;
         joinBtn.disabled = true;
+        // Show vote section for players who are in the game
+        var voteSection = document.getElementById('vote_section');
+        if (voteSection) voteSection.style.display = '';
       } else {
         nameInput.disabled = false;
         joinBtn.disabled = false;
       }
+
+      // Update vote panel
+      updateLobbyVotePanel();
 
       if (sate == 'started' || sate == 'playfinal') {
         window.location.href = "/game/" + gameid;

@@ -12,7 +12,7 @@ from jinja2 import utils
 import json
 import threading
 from app.api.errors import bad_request
-from app.rulesets import get_all_rulesets, get_ruleset
+from app.rulesets import get_all_rulesets, get_ruleset, calculate_winning_ruleset
 from app.scoring import calculate_scoring
 
 
@@ -166,6 +166,10 @@ def execute_deferred_actions(game):
 
     # 4. If lobby_after_game: transition to WAITING
     if game.lobby_after_game:
+        # Check ruleset votes before returning to lobby
+        from app.api.game_endpoints import _check_and_apply_ruleset_vote
+        _check_and_apply_ruleset_vote(game)
+
         game.status = Status.WAITING
         game.lobby_after_game = False
         for user in game.users:
@@ -177,6 +181,10 @@ def execute_deferred_actions(game):
         game.player_changes_allowed = True
         game.message = "Zurück in der Lobby"
     else:
+        # Check ruleset votes before auto-starting next round
+        from app.api.game_endpoints import _check_and_apply_ruleset_vote
+        _check_and_apply_ruleset_vote(game)
+
         # Auto-start next round
         game.status = Status.STARTED
         for user in game.active_users:
@@ -246,6 +254,7 @@ def create_Game():
         user = User()
         user.name = escapedusername
         user.is_admin = True  # Creator is first admin
+        user.ruleset_vote = game.ruleset_id or 'jule_13'
         game.users.append(user)
         db.session.add(game)
         db.session.commit()
@@ -275,7 +284,8 @@ def start_game(gid):
     if requester_id and not _is_admin(game, int(requester_id)):
         return jsonify(Message='Nur Admins dürfen das Spiel starten'), 403
 
-    # Support both new ruleset-based and legacy stack_max/play_final start
+    # Use ruleset determined by voting (already stored on game),
+    # or accept explicit ruleset_id / legacy stack_max+play_final for backwards compat
     if 'ruleset_id' in data:
         ruleset_id = str(utils.escape(data['ruleset_id']))
         ruleset = get_ruleset(ruleset_id)
@@ -292,9 +302,18 @@ def start_game(gid):
         game.stack = escaped_stack_max
         escaped_play_final = str(utils.escape(data['play_final']))
         game.play_final = escaped_play_final.lower() in ['true', '1', 't', 'y', 'yes']
-        game.ruleset_id = 'classic_13'  # default
+        game.ruleset_id = 'jule_13'  # default
     else:
-        return jsonify(Message='Bitte ein Ruleset oder stack_max und play_final angeben'), 400
+        # Use the game's current ruleset_id (set by voting or default)
+        current_rid = game.ruleset_id or 'jule_13'
+        ruleset = get_ruleset(current_rid)
+        if ruleset is None:
+            ruleset = get_ruleset('jule_13')
+            current_rid = 'jule_13'
+        game.ruleset_id = current_rid
+        game.stack_max = ruleset['stack_max']
+        game.stack = ruleset['stack_max']
+        game.play_final = ruleset['play_final']
 
     game.status = Status.STARTED
 
@@ -390,6 +409,12 @@ def distribute_chips(gid):
 
     game.first_user_id = target_user.id
     game.move_user_id = target_user.id
+
+    # Penalty: when the loser receives 0 chips (winner had none to give),
+    # they must roll at least once before pausing to prevent an invalid state
+    # where the round starter immediately goes passive.
+    if transfer_count == 0 and target_user.chips == 0:
+        target_user.penalty_count = (target_user.penalty_count or 0) + 1
 
     # Short message for the game message line
     if from_source == 'schockaus':
@@ -630,6 +655,13 @@ def mark_leave_after_game(gid, uid):
 
             game.message = "Spieler {} hat das Spiel verlassen".format(target_user.name)
             db.session.delete(target_user)
+
+            # Recheck ruleset votes if in WAITING state (player's vote removed)
+            if game.status == Status.WAITING:
+                from app.api.game_endpoints import _check_and_apply_ruleset_vote
+                db.session.flush()
+                _check_and_apply_ruleset_vote(game)
+
             db.session.add(game)
             db.session.commit()
             emit('reload_game', game.to_dict(), room=gid, namespace='/game')
@@ -709,6 +741,12 @@ def delete_player(gid, uid):
     if admins:
         game.admin_user_id = admins[0].id
 
+    # Recheck ruleset votes if in WAITING state
+    if game.status == Status.WAITING:
+        from app.api.game_endpoints import _check_and_apply_ruleset_vote
+        db.session.flush()
+        _check_and_apply_ruleset_vote(game)
+
     db.session.add(game)
     db.session.commit()
     emit('reload_game', game.to_dict(), room=gid, namespace='/game')
@@ -771,6 +809,11 @@ def wait_game(gid):
     game.lobby_after_game = False
     game.reveal_votes = ''
     game.player_changes_allowed = True
+
+    # Recheck ruleset votes now that we're back in WAITING
+    from app.api.game_endpoints import _check_and_apply_ruleset_vote
+    _check_and_apply_ruleset_vote(game)
+
     db.session.add(game)
     db.session.commit()
     emit('reload_game', game.to_dict(), room=gid, namespace='/game')

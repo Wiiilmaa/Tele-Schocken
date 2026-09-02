@@ -11,6 +11,7 @@ from jinja2 import utils
 import os
 
 from app.api.errors import bad_request
+from app.rulesets import get_ruleset, get_all_rulesets, calculate_winning_ruleset
 from sqlalchemy.exc import IntegrityError
 
 
@@ -145,6 +146,7 @@ def set_game_user(gid):
 
     user = User()
     user.name = escapedusername
+    user.ruleset_vote = game.ruleset_id or 'jule_13'
 
     if game.player_changes_allowed:
         user.pending_join = False
@@ -393,6 +395,11 @@ def set_user_passiv(gid, uid):
                 game.move_user_id = next_id
             if game.move_user_id == -1:
                 game.message = "Aufdecken!"
+
+            # If the round starter goes passive before throwing, transfer
+            # first_user role to the new move_user so throw limits work.
+            if user.id == game.first_user_id and user.number_dice == 0 and game.move_user_id != -1:
+                game.first_user_id = game.move_user_id
 
         db.session.add(user)
         db.session.commit()
@@ -761,6 +768,69 @@ def vote_reveal_all(gid):
 
     emit('reload_game', game.to_dict(), room=gid, namespace='/game')
     return jsonify(Message='Stimme gezählt'), 200
+
+
+# Vote for a ruleset
+@bp.route('/game/<gid>/vote_ruleset', methods=['POST'])
+def vote_ruleset(gid):
+    """Cast or change a player's vote for a ruleset.
+    In WAITING state, the ruleset switches immediately if the winner changes.
+    During active games, votes are stored and applied after the game ends.
+    """
+    game = Game.query.filter_by(UUID=gid).first()
+    if game is None:
+        return jsonify(Message='Spiel nicht gefunden'), 404
+
+    data = request.get_json() or {}
+    voter_id = data.get('voter_id')
+    ruleset_id = data.get('ruleset_id')
+
+    if not voter_id or not ruleset_id:
+        return jsonify(Message='voter_id und ruleset_id sind erforderlich'), 400
+
+    voter_id = int(voter_id)
+    user = User.query.get(voter_id)
+    if user is None or user.game_id != game.id:
+        return jsonify(Message='Spieler ist nicht in diesem Spiel'), 404
+
+    ruleset = get_ruleset(str(ruleset_id))
+    if ruleset is None:
+        return jsonify(Message='Unbekanntes Ruleset'), 400
+
+    user.ruleset_vote = str(ruleset_id)
+    db.session.add(user)
+
+    # In WAITING state, check if the winning ruleset changed and apply immediately
+    if game.status == Status.WAITING:
+        _check_and_apply_ruleset_vote(game)
+
+    db.session.add(game)
+    db.session.commit()
+    emit('reload_game', game.to_dict(), room=gid, namespace='/game')
+    return jsonify(Message='Stimme gezählt'), 200
+
+
+def _check_and_apply_ruleset_vote(game):
+    """Check vote results and apply winning ruleset if it changed.
+    Sets game message on change. Does NOT commit — caller must commit.
+    Returns True if ruleset changed, False otherwise.
+    """
+    vote_counts = {}
+    for u in game.users:
+        if u.ruleset_vote:
+            vote_counts[u.ruleset_vote] = vote_counts.get(u.ruleset_vote, 0) + 1
+
+    winner_id = calculate_winning_ruleset(vote_counts, game.ruleset_id)
+    if winner_id:
+        ruleset = get_ruleset(winner_id)
+        if ruleset:
+            game.ruleset_id = winner_id
+            game.stack_max = ruleset['stack_max']
+            game.stack = ruleset['stack_max']
+            game.play_final = ruleset['play_final']
+            game.message = "Regelsatz gewechselt: {}".format(ruleset['name'])
+            return True
+    return False
 
 
 # ============= Personalized Sound URLs =============
