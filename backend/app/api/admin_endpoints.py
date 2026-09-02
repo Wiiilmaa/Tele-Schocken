@@ -410,6 +410,12 @@ def distribute_chips(gid):
     game.first_user_id = target_user.id
     game.move_user_id = target_user.id
 
+    # Penalty: when the loser receives 0 chips (winner had none to give),
+    # they must roll at least once before pausing to prevent an invalid state
+    # where the round starter immediately goes passive.
+    if transfer_count == 0 and target_user.chips == 0:
+        target_user.penalty_count = (target_user.penalty_count or 0) + 1
+
     # Short message for the game message line
     if from_source == 'schockaus':
         game.message = "{}! Alle Chips an {}".format(scoring['From_Name'], scoring['To_Name'])
