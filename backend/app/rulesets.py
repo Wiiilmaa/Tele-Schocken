@@ -128,3 +128,16 @@ def reload_rulesets():
     global _rulesets_cache
     _rulesets_cache = None
     return _load_rulesets()
+
+
+def count_votes(users):
+    """Count the ruleset votes of the players that have a say right now:
+    pending joiners (not yet in the game) and players who leave after this
+    game are skipped.  Returns {ruleset_id: count}."""
+    counts = {}
+    for u in users:
+        if getattr(u, 'pending_join', False) or getattr(u, 'leave_after_game', False):
+            continue
+        if u.ruleset_vote:
+            counts[u.ruleset_vote] = counts.get(u.ruleset_vote, 0) + 1
+    return counts
