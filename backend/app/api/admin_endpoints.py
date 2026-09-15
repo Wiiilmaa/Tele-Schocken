@@ -139,6 +139,7 @@ def execute_deferred_actions(game):
     leaving_users = [u for u in game.users if u.leave_after_game]
     for user in leaving_users:
         leaving_ids.add(user.id)
+        user.ruleset_vote = None
         if user.id == loser_id:
             # Pick a random remaining player who stays
             remaining = [u for u in game.users
@@ -166,10 +167,6 @@ def execute_deferred_actions(game):
 
     # 4. If lobby_after_game: transition to WAITING
     if game.lobby_after_game:
-        # Check ruleset votes before returning to lobby
-        from app.api.game_endpoints import _check_and_apply_ruleset_vote
-        _check_and_apply_ruleset_vote(game)
-
         game.status = Status.WAITING
         game.lobby_after_game = False
         for user in game.users:
@@ -181,10 +178,6 @@ def execute_deferred_actions(game):
         game.player_changes_allowed = True
         game.message = "Zurück in der Lobby"
     else:
-        # Check ruleset votes before auto-starting next round
-        from app.api.game_endpoints import _check_and_apply_ruleset_vote
-        _check_and_apply_ruleset_vote(game)
-
         # Auto-start next round
         game.status = Status.STARTED
         for user in game.active_users:
@@ -195,6 +188,12 @@ def execute_deferred_actions(game):
         game.stack = game.stack_max
         game.player_changes_allowed = True
         # Keep the message from the round end (shows who lost)
+
+    # 5. Only now — with the player changes done — the vote result is counted
+    #    on the players that are actually in the next game. A change is
+    #    announced together with the end-of-game message.
+    from app.api.game_endpoints import _check_and_apply_ruleset_vote
+    _check_and_apply_ruleset_vote(game, append=True)
 
 
 # Get all available rulesets
@@ -656,11 +655,11 @@ def mark_leave_after_game(gid, uid):
             game.message = "Spieler {} hat das Spiel verlassen".format(target_user.name)
             db.session.delete(target_user)
 
-            # Recheck ruleset votes if in WAITING state (player's vote removed)
-            if game.status == Status.WAITING:
+            # Recheck ruleset votes — the leaving player's vote is gone
+            if game.player_changes_allowed:
                 from app.api.game_endpoints import _check_and_apply_ruleset_vote
                 db.session.flush()
-                _check_and_apply_ruleset_vote(game)
+                _check_and_apply_ruleset_vote(game, append=True)
 
             db.session.add(game)
             db.session.commit()
@@ -741,11 +740,11 @@ def delete_player(gid, uid):
     if admins:
         game.admin_user_id = admins[0].id
 
-    # Recheck ruleset votes if in WAITING state
-    if game.status == Status.WAITING:
+    # Recheck ruleset votes — the removed player's vote is gone
+    if game.player_changes_allowed:
         from app.api.game_endpoints import _check_and_apply_ruleset_vote
         db.session.flush()
-        _check_and_apply_ruleset_vote(game)
+        _check_and_apply_ruleset_vote(game, append=True)
 
     db.session.add(game)
     db.session.commit()

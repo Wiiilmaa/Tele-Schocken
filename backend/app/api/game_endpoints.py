@@ -11,7 +11,7 @@ from jinja2 import utils
 import os
 
 from app.api.errors import bad_request
-from app.rulesets import get_ruleset, get_all_rulesets, calculate_winning_ruleset
+from app.rulesets import get_ruleset, get_all_rulesets, calculate_winning_ruleset, count_votes
 from sqlalchemy.exc import IntegrityError
 
 
@@ -774,8 +774,9 @@ def vote_reveal_all(gid):
 @bp.route('/game/<gid>/vote_ruleset', methods=['POST'])
 def vote_ruleset(gid):
     """Cast or change a player's vote for a ruleset.
-    In WAITING state, the ruleset switches immediately if the winner changes.
-    During active games, votes are stored and applied after the game ends.
+    During the break between games (the window in which players can also join
+    and leave directly) the ruleset switches immediately if the winner changes.
+    During a running game, votes are stored and applied after the game ends.
     """
     game = Game.query.filter_by(UUID=gid).first()
     if game is None:
@@ -800,8 +801,8 @@ def vote_ruleset(gid):
     user.ruleset_vote = str(ruleset_id)
     db.session.add(user)
 
-    # In WAITING state, check if the winning ruleset changed and apply immediately
-    if game.status == Status.WAITING:
+    # During the break between games, apply a changed winner immediately
+    if game.player_changes_allowed:
         _check_and_apply_ruleset_vote(game)
 
     db.session.add(game)
@@ -810,17 +811,17 @@ def vote_ruleset(gid):
     return jsonify(Message='Stimme gezählt'), 200
 
 
-def _check_and_apply_ruleset_vote(game):
-    """Check vote results and apply winning ruleset if it changed.
-    Sets game message on change. Does NOT commit — caller must commit.
-    Returns True if ruleset changed, False otherwise.
-    """
-    vote_counts = {}
-    for u in game.users:
-        if u.ruleset_vote:
-            vote_counts[u.ruleset_vote] = vote_counts.get(u.ruleset_vote, 0) + 1
+def _check_and_apply_ruleset_vote(game, append=False):
+    """Recalculate the winner from the players that currently have a vote
+    (pending joiners and players leaving after this game don't count) and
+    apply it if it differs from the current ruleset.
 
-    winner_id = calculate_winning_ruleset(vote_counts, game.ruleset_id)
+    Every change is announced in game.message — appended to the message that
+    is already there when append=True (end of game: shown together with the
+    game result). Does NOT commit — caller must commit.
+    Returns True if the ruleset changed, False otherwise.
+    """
+    winner_id = calculate_winning_ruleset(count_votes(game.users), game.ruleset_id)
     if winner_id:
         ruleset = get_ruleset(winner_id)
         if ruleset:
@@ -828,7 +829,11 @@ def _check_and_apply_ruleset_vote(game):
             game.stack_max = ruleset['stack_max']
             game.stack = ruleset['stack_max']
             game.play_final = ruleset['play_final']
-            game.message = "Regelsatz gewechselt: {}".format(ruleset['name'])
+            text = "Regelsatz gewechselt: {}".format(ruleset['name'])
+            if append and game.message:
+                game.message = "{} — {}".format(game.message, text)
+            else:
+                game.message = text
             return True
     return False
 
