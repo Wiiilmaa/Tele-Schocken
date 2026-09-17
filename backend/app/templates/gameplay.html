@@ -167,7 +167,10 @@
     </div>
     <div class="modal-body">
       <div class="rules-layout">
-        <div class="rules-main" id="rules_content"></div>
+        <div class="rules-main">
+          <div id="rules_content"></div>
+          <p id="next_ruleset_hint" class="next-ruleset-hint"></p>
+        </div>
         <div class="vote-panel" id="vote_panel">
           <h3>Abstimmung</h3>
           <div id="vote_list"></div>
@@ -2441,6 +2444,10 @@
       }
       if (totalVotes === 0) totalVotes = 1;
 
+      var currentId = game.Ruleset_Id || '';
+      var nextId = game.Ruleset_Next || '';
+      var nextName = '';
+
       var html = '';
       for (var i = 0; i < rulesets.length; i++) {
         var rs = rulesets[i];
@@ -2448,15 +2455,33 @@
         var pct = (count / totalVotes) * 100;
         var isMine = (rs.id === myVote);
         var star = isMine ? '★' : '';
+        var cls = 'vote-item';
+        var tag = '';
+        if (rs.id === currentId) {
+          cls += ' vote-current';
+          tag = 'aktuell';
+        } else if (rs.id === nextId) {
+          cls += ' vote-next';
+          tag = 'nächstes';
+          nextName = rs.name;
+        }
 
-        html += '<div class="vote-item" onclick="castVote(\'' + rs.id + '\')" title="' + rs.name + '">';
+        html += '<div class="' + cls + '" onclick="castVote(\'' + rs.id + '\')" title="' + rs.name + '">';
         html += '<div class="vote-bar" style="width: ' + pct + '%"></div>';
         html += '<div class="vote-item-content">';
         html += '<span class="vote-star">' + star + '</span>';
         html += '<span class="vote-name">' + rs.name + '</span>';
+        html += '<span class="vote-tag">' + tag + '</span>';
         html += '</div></div>';
       }
       container.innerHTML = html;
+
+      var hint = document.getElementById('next_ruleset_hint');
+      if (hint) {
+        hint.innerHTML = nextName
+          ? 'Wechselt nach dem nächsten Spiel zu: <strong>' + nextName + '</strong>'
+          : '';
+      }
     });
   }
 

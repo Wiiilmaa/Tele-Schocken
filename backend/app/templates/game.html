@@ -225,6 +225,9 @@
     }
     if (totalVotes === 0) totalVotes = 1;
 
+    var currentId = gameData.Ruleset_Id || '';
+    var nextId = gameData.Ruleset_Next || '';
+
     var html = '';
     for (var i = 0; i < _rulesets.length; i++) {
       var rs = _rulesets[i];
@@ -232,12 +235,22 @@
       var pct = (count / totalVotes) * 100;
       var isMine = (rs.id === myVote);
       var star = isMine ? '★' : '';
+      var cls = 'vote-item';
+      var tag = '';
+      if (rs.id === currentId) {
+        cls += ' vote-current';
+        tag = 'aktuell';
+      } else if (rs.id === nextId) {
+        cls += ' vote-next';
+        tag = 'nächstes';
+      }
 
-      html += '<div class="vote-item" onclick="castLobbyVote(\'' + rs.id + '\')" title="' + rs.name + '">';
+      html += '<div class="' + cls + '" onclick="castLobbyVote(\'' + rs.id + '\')" title="' + rs.name + '">';
       html += '<div class="vote-bar" style="width: ' + pct + '%"></div>';
       html += '<div class="vote-item-content">';
       html += '<span class="vote-star">' + star + '</span>';
       html += '<span class="vote-name">' + rs.name + '</span>';
+      html += '<span class="vote-tag">' + tag + '</span>';
       html += '</div></div>';
     }
     container.innerHTML = html;

@@ -117,12 +117,17 @@ class Game(BaseGameData, db.Model):
             'Reveal_Votes': len([v for v in (self.reveal_votes or '').split(',') if v]),
         }
 
-        # Aggregate ruleset votes from all users
-        vote_counts = {}
-        for u in self.users:
-            if u.ruleset_vote:
-                vote_counts[u.ruleset_vote] = vote_counts.get(u.ruleset_vote, 0) + 1
-        data['Ruleset_Votes'] = vote_counts
+        # Aggregate ruleset votes (players leaving after this game and
+        # pending joiners don't count) and the ruleset that would win
+        # with the current votes — None when nothing changes.
+        try:
+            from app.rulesets import count_votes, calculate_winning_ruleset
+            vote_counts = count_votes(self.users)
+            data['Ruleset_Votes'] = vote_counts
+            data['Ruleset_Next'] = calculate_winning_ruleset(vote_counts, self.ruleset_id)
+        except Exception:
+            data['Ruleset_Votes'] = {}
+            data['Ruleset_Next'] = None
 
         # Add live scoring when ready for distribution
         if self.move_user_id == -1 and self._all_dice_visible():

@@ -282,6 +282,29 @@ select optgroup {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* current ruleset and the one winning the vote so far */
+.vote-item.vote-current {
+  border-color: var(--link-color);
+  border-width: 2px;
+}
+.vote-item.vote-next {
+  border-color: var(--green-button-bg);
+  border-width: 2px;
+}
+.vote-tag {
+  flex-shrink: 0;
+  margin-left: 8px;
+  font-size: 0.75em;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+.vote-item.vote-current .vote-tag { color: var(--link-color); }
+.vote-item.vote-next .vote-tag { color: var(--green-button-bg); }
+.next-ruleset-hint {
+  margin-top: 4px;
+  color: var(--green-button-bg);
+}
 
 /* ============= Lobby vote panel ============= */
 .lobby-vote-panel {
