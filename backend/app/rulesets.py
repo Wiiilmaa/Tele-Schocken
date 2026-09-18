@@ -131,12 +131,12 @@ def reload_rulesets():
 
 
 def count_votes(users):
-    """Count the ruleset votes of the players that have a say right now:
-    pending joiners (not yet in the game) and players who leave after this
-    game are skipped.  Returns {ruleset_id: count}."""
+    """Count the ruleset votes of the players the next game will be played
+    with: pending joiners count (they are in), players who leave after this
+    game don't (they are out).  Returns {ruleset_id: count}."""
     counts = {}
     for u in users:
-        if getattr(u, 'pending_join', False) or getattr(u, 'leave_after_game', False):
+        if getattr(u, 'leave_after_game', False):
             continue
         if u.ruleset_vote:
             counts[u.ruleset_vote] = counts.get(u.ruleset_vote, 0) + 1

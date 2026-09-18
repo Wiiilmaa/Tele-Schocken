@@ -19,10 +19,17 @@ class _U(object):
         self.leave_after_game = leave_after_game
 
 
-def test_count_votes_ignores_pending_and_leaving():
+def test_count_votes_counts_pending_and_ignores_leaving():
+    # the vote applies to the NEXT game: joiners are in, leavers are out
     users = [_U('a'), _U('b'), _U('b', pending_join=True),
              _U('b', leave_after_game=True), _U(None)]
-    assert count_votes(users) == {'a': 1, 'b': 1}
+    assert count_votes(users) == {'a': 1, 'b': 2}
+
+
+def test_pending_player_can_decide_next_ruleset():
+    users = [_U('jule_13'), _U('classic_13'),
+             _U('classic_13', pending_join=True)]
+    assert calculate_winning_ruleset(count_votes(users), 'jule_13') == 'classic_13'
 
 
 def test_leaving_player_does_not_decide_next_ruleset():
@@ -38,7 +45,8 @@ def test_majority_changes_ruleset():
 
 
 if __name__ == '__main__':
-    test_count_votes_ignores_pending_and_leaving()
+    test_count_votes_counts_pending_and_ignores_leaving()
+    test_pending_player_can_decide_next_ruleset()
     test_leaving_player_does_not_decide_next_ruleset()
     test_majority_changes_ruleset()
     print('ok')
