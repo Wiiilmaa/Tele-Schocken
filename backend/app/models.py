@@ -263,6 +263,8 @@ class Person(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200), unique=True, nullable=False)
     keyboard_bindings = db.Column(db.Text, nullable=True)
+    # Last ruleset this person voted for — restored when they join a game
+    ruleset_vote = db.Column(db.String(50), nullable=True)
 
 
 class GameLog(db.Model):
