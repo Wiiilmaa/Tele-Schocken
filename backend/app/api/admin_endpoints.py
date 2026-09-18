@@ -661,7 +661,9 @@ def mark_leave_after_game(gid, uid):
                 db.session.flush()
                 _check_and_apply_ruleset_vote(game, append=True)
 
-            db.session.add(game)
+            # ponytail: kein db.session.add(game) — game haengt schon in der
+            # Session, und add() kaskadiert auf game.users, wo der eben
+            # geflushte User noch drinsteht -> InvalidRequestError "has been deleted"
             db.session.commit()
             emit('reload_game', game.to_dict(), room=gid, namespace='/game')
             return jsonify(Message='Spieler entfernt'), 200
@@ -746,7 +748,8 @@ def delete_player(gid, uid):
         db.session.flush()
         _check_and_apply_ruleset_vote(game, append=True)
 
-    db.session.add(game)
+    # ponytail: siehe mark_leave_after_game — add() nach dem Flush eines
+    # geloeschten Users kaskadiert auf game.users und knallt
     db.session.commit()
     emit('reload_game', game.to_dict(), room=gid, namespace='/game')
     return jsonify(Message='success'), 200
