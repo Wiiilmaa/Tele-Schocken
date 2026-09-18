@@ -146,7 +146,11 @@ def set_game_user(gid):
 
     user = User()
     user.name = escapedusername
-    user.ruleset_vote = game.ruleset_id or 'jule_13'
+    # Known player? Restore their last vote, otherwise go with the current ruleset
+    from app.api.protocol_endpoints import _resolve_person_by_nick
+    person = _resolve_person_by_nick(escapedusername)
+    user.ruleset_vote = ((person.ruleset_vote if person else None)
+                         or game.ruleset_id or 'jule_13')
 
     if game.player_changes_allowed:
         user.pending_join = False
@@ -800,6 +804,13 @@ def vote_ruleset(gid):
 
     user.ruleset_vote = str(ruleset_id)
     db.session.add(user)
+
+    # Remember the vote for known players so it survives into the next game
+    from app.api.protocol_endpoints import _resolve_person_by_nick
+    person = _resolve_person_by_nick(user.name)
+    if person:
+        person.ruleset_vote = str(ruleset_id)
+        db.session.add(person)
 
     # During the break between games, apply a changed winner immediately
     if game.player_changes_allowed:
