@@ -13,6 +13,7 @@
       <button id="jointbtn" class="btn btn-primary btn-outline-secondary" type="button" onclick="joinGame()">Beitreten</button>
     </div>
   </div>
+  <div id="takeover_status" class="takeover-waiting" aria-live="polite"></div>
 </div>
 
 <h3 id="admin"></h3>
@@ -282,21 +283,60 @@
     xhttp.send(JSON.stringify({ voter_id: myId, ruleset_id: rulesetId }));
   }
 
+  // An admin confirms (or rejects) that the player knocking at a taken
+  // nickname really is that player.
+  function decideTakeover(userId, approve) {
+    var game = document.getElementById('UUID');
+    var uuid = game.innerHTML.replace(/^"(.+)"$/,'$1');
+    var xhttp = new XMLHttpRequest();
+    xhttp.open("POST", "/api/game/"+uuid+"/user/"+userId+"/takeover");
+    xhttp.setRequestHeader("Content-Type", "application/json");
+    xhttp.onreadystatechange = function() {
+      if (xhttp.readyState == XMLHttpRequest.DONE && xhttp.status != 200) {
+        try {
+          alert(JSON.parse(xhttp.responseText).Message);
+        } catch (e) {
+          alert('Fehler');
+        }
+      }
+    }
+    xhttp.send(JSON.stringify({
+      requester_id: parseInt(localStorage.getItem('id')),
+      approve: !!approve
+    }));
+  }
+
   function joinGame() {
     var user = document.getElementById('Name');
     var joinBtn = document.getElementById('jointbtn');
+    var status = document.getElementById('takeover_status');
     var game = document.getElementById('UUID');
     var uuid = game.innerHTML;
     uuid = uuid.replace(/^"(.+)"$/,'$1');
     var usernname = user.value;
     if (joinBtn) joinBtn.disabled = true;
     user.disabled = true;
-    var xhttp = new XMLHttpRequest();
-    xhttp.open("POST", "/api/game/"+uuid+"/user");
-    xhttp.setRequestHeader("Content-Type", "application/json");
-    xhttp.onreadystatechange = function() {
-      if (xhttp.readyState == XMLHttpRequest.DONE) {
+
+    var payload = {name: usernname};
+    var oldId = localStorage.getItem('id');
+    if (oldId) payload.reconnect_id = parseInt(oldId);
+
+    function attempt() {
+      var xhttp = new XMLHttpRequest();
+      xhttp.open("POST", "/api/game/"+uuid+"/user");
+      xhttp.setRequestHeader("Content-Type", "application/json");
+      xhttp.onreadystatechange = function() {
+        if (xhttp.readyState != XMLHttpRequest.DONE) return;
         var res = JSON.parse(xhttp.responseText);
+        if (xhttp.status == 202) {
+          // Name is taken: an admin has to confirm the takeover. Keep asking.
+          window._takeoverWaiting = true;
+          if (status) status.innerHTML = res.Message;
+          setTimeout(attempt, 2000);
+          return;
+        }
+        window._takeoverWaiting = false;
+        if (status) status.innerHTML = '';
         if (xhttp.status != 200) {
           alert('Fehler beim erzeugen: '+res.Message);
           location = location;
@@ -312,11 +352,9 @@
           window.location.href = "/game_waiting/"+uuid;
         }
       }
+      xhttp.send(JSON.stringify(payload));
     }
-    var payload = {name: usernname};
-    var oldId = localStorage.getItem('id');
-    if (oldId) payload.reconnect_id = parseInt(oldId);
-    xhttp.send(JSON.stringify(payload));
+    attempt();
   }
 
   function startGame() {
@@ -516,6 +554,16 @@
         var td = document.createElement('td');
         var nameHtml = juser['Name'];
         if (juser['Pending_Join']) nameHtml += ' <small>(wartet)</small>';
+        if (juser['Takeover_Requested']) {
+          nameHtml += ' <span class="takeover-request"'
+            + ' title="Jemand möchte unter diesem Namen weiterspielen">⚠ Übernahme?</span>';
+          if (isAdminUser()) {
+            nameHtml += '<button type="button" class="takeover-btn"'
+              + ' onclick="decideTakeover(' + juser['Id'] + ', true)">Ja</button>'
+              + '<button type="button" class="takeover-btn"'
+              + ' onclick="decideTakeover(' + juser['Id'] + ', false)">Nein</button>';
+          }
+        }
         td.innerHTML = nameHtml;
         tr.appendChild(th);
         tr.appendChild(td);
@@ -534,8 +582,9 @@
         var voteSection = document.getElementById('vote_section');
         if (voteSection) voteSection.style.display = '';
       } else {
-        nameInput.disabled = false;
-        joinBtn.disabled = false;
+        var waiting = !!window._takeoverWaiting;
+        nameInput.disabled = waiting;
+        joinBtn.disabled = waiting;
       }
 
       // Update vote panel

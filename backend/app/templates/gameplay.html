@@ -103,6 +103,7 @@
       <button id="join_btn" class="btn btn-primary" onclick="joinMidGame()">Beitreten</button>
     </div>
   </div>
+  <div id="admin_alert" class="takeover-waiting" aria-live="polite"></div>
 </div>
 
 <!-- Pending notice: visible for players waiting to join -->
@@ -1351,9 +1352,10 @@
       pendingNotice.style.display = 'none';
       var joinBtn = document.getElementById('join_btn');
       var joinInput = document.getElementById('join_name');
-      if (joinBtn) joinBtn.disabled = false;
-      if (joinInput) joinInput.disabled = false;
-      if (wasHidden && joinInput) {
+      var waiting = !!window._takeoverWaiting;
+      if (joinBtn) joinBtn.disabled = waiting;
+      if (joinInput) joinInput.disabled = waiting;
+      if (wasHidden && joinInput && !waiting) {
         joinInput.focus();
       }
     } else {
@@ -1861,6 +1863,17 @@
           + ' title="Nach dem Spiel verlassen"'
           + ' onclick="toggle_leave(' + juser.Id + ')"'
           + '>' + leaveIconSvg + '</span>';
+      }
+      // Somebody wants to take this seat over — admins decide
+      if (juser.Takeover_Requested) {
+        secondLine += '<span class="takeover-request"'
+          + ' title="Jemand möchte unter diesem Namen weiterspielen">⚠ Übernahme?</span>';
+        if (isAdmin) {
+          secondLine += '<button type="button" class="takeover-btn"'
+            + ' onclick="decide_takeover(' + juser.Id + ', true)">Ja</button>'
+            + '<button type="button" class="takeover-btn"'
+            + ' onclick="decide_takeover(' + juser.Id + ', false)">Nein</button>';
+        }
       }
       if (secondLine) nameHtml += '<div>' + secondLine + '</div>';
       nameCell.innerHTML = nameHtml;

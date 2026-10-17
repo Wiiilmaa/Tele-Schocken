@@ -100,6 +100,21 @@ def get_game(gid):
     return response
 
 
+def _take_seat_back(game, user, gid):
+    """Hand an existing seat back to its player (reconnect or confirmed
+    takeover). The seat keeps whatever it had — chips, half, turn order.
+    """
+    user.leave_after_game = False
+    user.takeover_state = None
+    # Never turn an active player into a pending one here: that is what used
+    # to lock a reconnecting player out of the running round.
+    if game.player_changes_allowed or game.status == Status.WAITING:
+        user.pending_join = False
+    db.session.commit()
+    emit('reload_game', game.to_dict(), room=gid, namespace='/game')
+    return jsonify(game.to_dict())
+
+
 # set User to Game (supports mid-game joining)
 @bp.route('/game/<gid>/user', methods=['POST'])
 def set_game_user(gid):
@@ -129,20 +144,26 @@ def set_game_user(gid):
         # Reconnect: allow if the client sends the matching old user ID
         reconnect_id = data.get('reconnect_id')
         if reconnect_id is not None and existing.id == int(reconnect_id):
-            # Reactivate the existing user
-            existing.leave_after_game = False
-            if game.player_changes_allowed:
-                existing.pending_join = False
-            else:
-                existing.pending_join = True
-            db.session.add(existing)
+            return _take_seat_back(game, existing, gid)
+
+        # Same nickname, no matching ID — browser storage lost, other device.
+        # An admin has to confirm that this really is that player.
+        if existing.takeover_state == 'approved':
+            return _take_seat_back(game, existing, gid)
+        if existing.takeover_state == 'denied':
+            existing.takeover_state = None
+            db.session.commit()
+            return jsonify(Message='Ein Admin hat die Übernahme abgelehnt. '
+                                   'Bitte wähle einen anderen Namen.'), 403
+        if existing.takeover_state != 'requested':
+            existing.takeover_state = 'requested'
+            game.message = ('{} möchte weiterspielen — ein Admin muss die '
+                            'Übernahme bestätigen'.format(existing.name))
             db.session.commit()
             emit('reload_game', game.to_dict(), room=gid, namespace='/game')
-            return jsonify(game.to_dict())
-        else:
-            response = jsonify(Message='Benutzername in diesem Spiel schon vergeben!')
-            response.status_code = 400
-            return response
+        return jsonify(Message='Diesen Namen spielt schon jemand. Ein Admin '
+                               'muss bestätigen, dass das Du bist.',
+                       Takeover_Pending=True), 202
 
     user = User()
     user.name = escapedusername
@@ -162,6 +183,10 @@ def set_game_user(gid):
     game.users.append(user)
     db.session.add(game)
     try:
+        db.session.flush()
+        # A newcomer must not end up playing a final they hold no half in
+        from app.api.admin_endpoints import consolidate_game_state
+        consolidate_game_state(game)
         db.session.commit()
     except IntegrityError:
         db.session.rollback()

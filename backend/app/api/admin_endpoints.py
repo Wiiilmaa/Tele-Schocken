@@ -58,7 +58,7 @@ def _handle_round_end(game, loser):
                 game.stack = game.stack_max
             else:
                 # Second half to the same user -> game finish
-                if loser.halfcount == 1:
+                if loser.halfcount >= 1:
                     game.stack = game.stack_max
                     loser.finalcount = loser.finalcount + 1
                     game.finalcount = game.finalcount + 1
@@ -71,7 +71,7 @@ def _handle_round_end(game, loser):
                     message = '{} hat beide Hälften und damit das Spiel verloren'.format(loser.name)
                     game.message = message
                 # First half, round finish
-                elif loser.halfcount == 0:
+                else:
                     game.stack = game.stack_max
                     game.halfcount = game.halfcount + 1
                     loser.halfcount = loser.halfcount + 1
@@ -90,8 +90,6 @@ def _handle_round_end(game, loser):
                         game.status = Status.ROUNDFINISCH
                         message = '{} hat die Hälfte verloren'.format(loser.name)
                         game.message = message
-                else:
-                    message = 'Fehler'
         # No finale: each round is a full game
         else:
             loser.finalcount = loser.finalcount + 1
@@ -115,6 +113,134 @@ def _handle_round_end(game, loser):
         _reset_user_dice(user)
 
     return message
+
+
+RUNNING = (Status.STARTED, Status.ROUNDFINISCH, Status.PLAYFINAL)
+
+
+def _reset_table(game):
+    """Fresh round: full stack, no chips, no dice, nobody paused, and the
+    round starts over at the round starter."""
+    game.stack = game.stack_max
+    for user in game.active_users:
+        user.chips = 0
+        user.passive = False
+        _reset_user_dice(user)
+    game.move_user_id = game.first_user_id
+
+
+def _drop_user(game, user):
+    """Delete a user and reload game.users, so no stale row is left behind."""
+    db.session.delete(user)
+    db.session.flush()
+    db.session.expire(game, ['users'])
+
+
+def consolidate_game_state(game):
+    """Repair the game state after the set of players changed and return a
+    note for game.message ('' when there was nothing to fix).
+
+    The player set can change at any moment (join, leave, admin removal), so
+    every such change ends here. These invariants must always hold:
+
+      * a running game has at least two active players
+      * game.halfcount matches the halves the present players actually hold
+      * a final is played by exactly the two half holders — and only by them
+      * first_user_id / move_user_id point at players who are still here
+    """
+    note = ''
+    active = game.active_users
+
+    # Not enough players left to play at all
+    if game.status in RUNNING and len(active) < 2:
+        game.status = Status.WAITING
+        game.halfcount = 0
+        for user in game.users:
+            user.halfcount = 0
+        _reset_table(game)
+        game.player_changes_allowed = True
+        return 'Zu wenig Mitspieler — zurück im Warteraum'
+
+    # A half only counts while the player holding it is still in the game,
+    # and the final is on exactly while two players hold one.
+    holders = [u for u in active if (u.halfcount or 0) >= 1]
+    if not game.play_final:
+        for user in active:
+            user.halfcount = 0
+        game.halfcount = 0
+    elif game.status == Status.PLAYFINAL and len(holders) != 2:
+        # A final needs exactly two half holders. Without them it cannot be
+        # played, so the next round is the first half of a new game.
+        for user in active:
+            user.halfcount = 0
+        game.halfcount = 0
+        game.status = Status.STARTED
+        _reset_table(game)
+        note = 'Finale nicht mehr spielbar — neues Spiel'
+    elif game.status in RUNNING and game.status != Status.PLAYFINAL:
+        if len(holders) == 2:
+            # Both halves are decided: that is a final, not a normal round
+            game.status = Status.PLAYFINAL
+            game.halfcount = 0
+            _reset_table(game)
+            note = 'Finale wird gespielt'
+        else:
+            game.halfcount = len(holders)
+
+    # In the final only the two half holders play
+    if game.status == Status.PLAYFINAL:
+        for user in active:
+            user.passive = ((user.halfcount or 0) < 1)
+
+    # Turn pointers must reference players that are still in the game
+    if game.status in RUNNING:
+        if not any(u.id == game.first_user_id for u in active):
+            game.first_user_id = choice([u for u in active if not u.passive]
+                                        or active).id
+        mover = next((u for u in active if u.id == game.move_user_id), None)
+        if game.move_user_id != -1 and (mover is None or mover.passive):
+            game.move_user_id = game.first_user_id
+
+    return note
+
+
+def remove_player(game, user, reset_table=False):
+    """Take a player out of the game and leave a valid state behind.
+
+    Dropping out of a running game while holding a half means losing that
+    game — whoever goes, loses; afterwards a new game starts, exactly as if
+    the final had been lost. Returns the message to show.
+    """
+    if game.status in RUNNING and game.play_final and (user.halfcount or 0) >= 1:
+        message = '{} hat das Spiel durch Verlassen verloren'.format(user.name)
+        user.finalcount = (user.finalcount or 0) + 1
+        game.status = Status.GAMEFINISCH
+        game.halfcount = 0
+        game.stack = game.stack_max
+        for other in game.active_users:
+            other.chips = 0
+            other.passive = False
+            other.halfcount = 0
+            _reset_user_dice(other)
+        game.message = message
+        from app.api.protocol_endpoints import log_game_result
+        log_game_result(game, user)
+        # The departing player is this game's loser; execute_deferred_actions
+        # removes them and hands the new game's start to someone else.
+        game.first_user_id = user.id
+        user.leave_after_game = True
+        execute_deferred_actions(game)
+    else:
+        message = 'Spieler {} hat das Spiel verlassen'.format(user.name)
+        _drop_user(game, user)
+        if reset_table:
+            _reset_table(game)
+        game.message = message
+
+    note = consolidate_game_state(game)
+    if note:
+        game.message = '{} — {}'.format(message, note)
+    return game.message
 
 
 def execute_deferred_actions(game):
@@ -147,6 +273,9 @@ def execute_deferred_actions(game):
             if remaining:
                 loser_id = choice(remaining).id
         db.session.delete(user)
+    if leaving_users:
+        db.session.flush()
+        db.session.expire(game, ['users'])
 
     # 2b. Assign turn_order to newly activated players: append them at
     #     the end of the PREVIOUS game's rotation (preserving existing
@@ -641,24 +770,11 @@ def mark_leave_after_game(gid, uid):
     if new_state:
         can_remove_now = game.player_changes_allowed or target_user.pending_join
         if can_remove_now:
-            # Remove immediately
-            if target_user.id == game.first_user_id or target_user.id == game.move_user_id:
-                remaining = [u for u in game.users
-                             if u.id != target_user.id]
-                if remaining:
-                    new_starter = choice(remaining)
-                    if target_user.id == game.first_user_id:
-                        game.first_user_id = new_starter.id
-                    if target_user.id == game.move_user_id:
-                        game.move_user_id = new_starter.id
-
-            game.message = "Spieler {} hat das Spiel verlassen".format(target_user.name)
-            db.session.delete(target_user)
+            message = remove_player(game, target_user)
 
             # Recheck ruleset votes — the leaving player's vote is gone
             if game.player_changes_allowed:
                 from app.api.game_endpoints import _check_and_apply_ruleset_vote
-                db.session.flush()
                 _check_and_apply_ruleset_vote(game, append=True)
 
             # ponytail: kein db.session.add(game) — game haengt schon in der
@@ -666,7 +782,7 @@ def mark_leave_after_game(gid, uid):
             # geflushte User noch drinsteht -> InvalidRequestError "has been deleted"
             db.session.commit()
             emit('reload_game', game.to_dict(), room=gid, namespace='/game')
-            return jsonify(Message='Spieler entfernt'), 200
+            return jsonify(Message=message), 200
 
     db.session.add(game)
     db.session.commit()
@@ -718,41 +834,58 @@ def delete_player(gid, uid):
         if admin_count == 0:
             return jsonify(Message='Letzter Admin kann nicht entfernt werden'), 400
 
-    if delete_user.id == game.first_user_id:
-        # Starter was removed — pick a random replacement
-        remaining = [u for u in game.users if u.id != delete_user.id]
-        if remaining:
-            game.first_user_id = choice(remaining).id
-
-    # Game resets after removal, so the starter begins the new round
-    game.move_user_id = game.first_user_id
-
-    for user in game.users:
-        user.chips = 0
-        _reset_user_dice(user)
-        user.passive = False
-
-    game.stack = game.stack_max
-    # H2: Removed "Seite neu laden" instruction
-    game.message = "Spieler: {} wurde entfernt".format(delete_user.name)
-    db.session.delete(delete_user)
+    # Admin removal also clears the table, so the round starts over
+    message = remove_player(game, delete_user, reset_table=True)
 
     # Update admin_user_id for backward compat
-    admins = [u for u in game.users if u.is_admin and u.id != delete_user.id]
+    admins = [u for u in game.users if u.is_admin]
     if admins:
         game.admin_user_id = admins[0].id
 
     # Recheck ruleset votes — the removed player's vote is gone
     if game.player_changes_allowed:
         from app.api.game_endpoints import _check_and_apply_ruleset_vote
-        db.session.flush()
         _check_and_apply_ruleset_vote(game, append=True)
 
     # ponytail: siehe mark_leave_after_game — add() nach dem Flush eines
     # geloeschten Users kaskadiert auf game.users und knallt
     db.session.commit()
     emit('reload_game', game.to_dict(), room=gid, namespace='/game')
-    return jsonify(Message='success'), 200
+    return jsonify(Message=message), 200
+
+
+# XHR admin decides on a takeover request (someone joining under a taken nick)
+@bp.route('/game/<gid>/user/<uid>/takeover', methods=['POST'])
+def decide_takeover(gid, uid):
+    """Confirm (or reject) that the player trying to join under this already
+    taken nickname really is this player, so they can carry on in their seat.
+    """
+    game = Game.query.filter_by(UUID=gid).first()
+    if game is None:
+        return jsonify(Message='Spiel nicht gefunden'), 404
+    user = User.query.get(uid)
+    if user is None or user.game_id != game.id:
+        return jsonify(Message='Spieler ist nicht in diesem Spiel'), 404
+
+    data = request.get_json() or {}
+    requester_id = data.get('requester_id')
+    if not requester_id or not _is_admin(game, int(requester_id)):
+        return jsonify(Message='Nur Admins dürfen diese Aktion ausführen'), 403
+    if user.takeover_state != 'requested':
+        return jsonify(Message='Keine offene Anfrage für diesen Spieler'), 400
+
+    approve = data.get('approve', True)
+    if isinstance(approve, str):
+        approve = approve.lower() in ['true', '1', 't', 'y', 'yes']
+
+    user.takeover_state = 'approved' if approve else 'denied'
+    if approve:
+        game.message = '{} darf weiterspielen'.format(user.name)
+    else:
+        game.message = 'Übernahme von {} abgelehnt'.format(user.name)
+    db.session.commit()
+    emit('reload_game', game.to_dict(), room=gid, namespace='/game')
+    return jsonify(Message=game.message), 200
 
 
 # XHR choose new admin (legacy endpoint, now uses toggle_admin internally)

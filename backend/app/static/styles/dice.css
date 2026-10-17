@@ -647,3 +647,29 @@ body {
     margin: 1px auto;
   }
 }
+
+/* Takeover request: somebody wants to continue under a taken nickname */
+.takeover-request {
+  color: #d9534f;
+  font-size: 12px;
+  font-weight: bold;
+  white-space: nowrap;
+}
+.takeover-btn {
+  font-size: 11px;
+  padding: 1px 6px;
+  margin-left: 4px;
+  cursor: pointer;
+  border: 1px solid var(--text-muted);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-secondary);
+}
+.takeover-btn:hover {
+  color: var(--text-primary);
+}
+.takeover-waiting {
+  margin-top: 8px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
