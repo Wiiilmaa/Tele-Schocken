@@ -43,3 +43,14 @@ def game_play(gid):
 @app.route('/protokoll')
 def protokoll():
     return render_template('protokoll.html', title='Protokoll')
+
+
+def protokoll_alias():
+    return redirect(url_for('protokoll'))
+
+
+# /protokoll is a name that is easy to forget — let the obvious guesses in too
+for _alias in ('statistik', 'statistics', 'statistic', 'stats', 'stat',
+               'admin', 'protocol', 'protokol', 'auswertung', 'log'):
+    app.add_url_rule('/' + _alias, 'protokoll_alias', protokoll_alias)
+    app.add_url_rule('/' + _alias + '/', 'protokoll_alias', protokoll_alias)
