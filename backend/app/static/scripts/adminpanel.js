@@ -271,6 +271,23 @@ function decide_takeover(userId, approve) {
   xhttp.send(JSON.stringify({ requester_id: getMyId(), approve: !!approve }));
 }
 
+function set_penalty(userId, delta) {
+  var gameid = getGameId();
+  var xhttp = new XMLHttpRequest();
+  xhttp.open("POST", "/api/game/" + gameid + "/user/" + userId + "/penalty");
+  xhttp.setRequestHeader("Content-Type", "application/json");
+  xhttp.onreadystatechange = function () {
+    if (xhttp.readyState == XMLHttpRequest.DONE && xhttp.status != 200) {
+      try {
+        alert(JSON.parse(xhttp.responseText).Message);
+      } catch (e) {
+        alert('Fehler');
+      }
+    }
+  };
+  xhttp.send(JSON.stringify({ requester_id: getMyId(), delta: delta }));
+}
+
 function joinMidGame() {
   var gameid = getGameId();
   var nameInput = document.getElementById('join_name');

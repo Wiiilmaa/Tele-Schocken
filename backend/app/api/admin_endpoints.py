@@ -888,6 +888,46 @@ def decide_takeover(gid, uid):
     return jsonify(Message=game.message), 200
 
 
+# XHR give or take back a penalty ("Einwuerfeln")
+@bp.route('/game/<gid>/user/<uid>/penalty', methods=['POST'])
+def set_penalty(gid, uid):
+    """Admins hand out a penalty or take one back. delta: +1 / -1 (or any
+    integer); the counter never drops below zero."""
+    game = Game.query.filter_by(UUID=gid).first()
+    if game is None:
+        return jsonify(Message='Spiel nicht gefunden'), 404
+    user = User.query.get(uid)
+    if user is None or user.game_id != game.id:
+        return jsonify(Message='Spieler ist nicht in diesem Spiel'), 404
+
+    data = request.get_json() or {}
+    requester_id = data.get('requester_id')
+    if not requester_id or not _is_admin(game, int(requester_id)):
+        return jsonify(Message='Nur Admins dürfen Strafen verteilen'), 403
+
+    try:
+        delta = int(data.get('delta', 1))
+    except (TypeError, ValueError):
+        return jsonify(Message='delta muss eine Zahl sein'), 400
+
+    before = user.penalty_count or 0
+    user.penalty_count = max(0, before + delta)
+    if user.penalty_count == before:
+        return jsonify(Message='{} hat keine Strafe'.format(user.name)), 400
+
+    if user.penalty_count > before:
+        game.message = '{} muss sich {} mal einwürfeln'.format(
+            user.name, user.penalty_count)
+    elif user.penalty_count == 0:
+        game.message = 'Strafe für {} aufgehoben'.format(user.name)
+    else:
+        game.message = '{} muss sich nur noch {} mal einwürfeln'.format(
+            user.name, user.penalty_count)
+
+    db.session.commit()
+    emit('reload_game', game.to_dict(), room=gid, namespace='/game')
+    return jsonify(Message=game.message), 200
+
 # XHR choose new admin (legacy endpoint, now uses toggle_admin internally)
 @bp.route('/game/<gid>/user/<uid>/change_admin', methods=['POST'])
 def choose_admin(gid, uid):
