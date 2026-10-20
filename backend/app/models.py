@@ -209,6 +209,9 @@ class User(db.Model):
     turn_order = db.Column(db.Integer, default=0)
     # Ruleset vote: which ruleset this user votes for
     ruleset_vote = db.Column(db.String(50))
+    # Someone tries to join under this (taken) name and claims to be this
+    # player: None / 'requested' / 'approved' / 'denied'
+    takeover_state = db.Column(db.String(20))
 
     def user_name(self):
         return Markup(self.name)
@@ -239,6 +242,7 @@ class User(db.Model):
             'Pending_Join': self.pending_join or False,
             'Penalty_Count': self.penalty_count or 0,
             'Ruleset_Vote': self.ruleset_vote or '',
+            'Takeover_Requested': self.takeover_state == 'requested',
         }
         return data
 
@@ -257,6 +261,7 @@ class User(db.Model):
         self.penalty_count = 0
         self.turn_order = 0
         self.ruleset_vote = None
+        self.takeover_state = None
 
 
 class Person(db.Model):

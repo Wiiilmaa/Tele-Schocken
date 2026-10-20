@@ -252,6 +252,48 @@ function showRules() {
   document.getElementById('rulesModal').style.display = 'block';
 }
 
+// An admin confirms (or rejects) that the player knocking at a taken
+// nickname really is that player.
+function decide_takeover(userId, approve) {
+  var gameid = getGameId();
+  var xhttp = new XMLHttpRequest();
+  xhttp.open("POST", "/api/game/" + gameid + "/user/" + userId + "/takeover");
+  xhttp.setRequestHeader("Content-Type", "application/json");
+  xhttp.onreadystatechange = function () {
+    if (xhttp.readyState == XMLHttpRequest.DONE && xhttp.status != 200) {
+      try {
+        alert(JSON.parse(xhttp.responseText).Message);
+      } catch (e) {
+        alert('Fehler');
+      }
+    }
+  };
+  xhttp.send(JSON.stringify({ requester_id: getMyId(), approve: !!approve }));
+}
+
+function set_penalty(delta) {
+  var gameid = getGameId();
+  var select = document.getElementById('select_penalty_player');
+  var userId = select.options[select.selectedIndex].value;
+  if (!userId) {
+    admin_alert('Kein Spieler ausgewählt');
+    return;
+  }
+  var xhttp = new XMLHttpRequest();
+  xhttp.open("POST", "/api/game/" + gameid + "/user/" + userId + "/penalty");
+  xhttp.setRequestHeader("Content-Type", "application/json");
+  xhttp.onreadystatechange = function () {
+    if (xhttp.readyState == XMLHttpRequest.DONE) {
+      try {
+        admin_alert(JSON.parse(xhttp.responseText).Message);
+      } catch (e) {
+        admin_alert('Fehler');
+      }
+    }
+  };
+  xhttp.send(JSON.stringify({ requester_id: getMyId(), delta: delta }));
+}
+
 function joinMidGame() {
   var gameid = getGameId();
   var nameInput = document.getElementById('join_name');
@@ -263,35 +305,48 @@ function joinMidGame() {
   }
   if (joinBtn) joinBtn.disabled = true;
   nameInput.disabled = true;
-  var xhttp = new XMLHttpRequest();
-  xhttp.open("POST", "/api/game/" + gameid + "/user");
-  xhttp.setRequestHeader("Content-Type", "application/json");
-  xhttp.onreadystatechange = function () {
-    if (xhttp.readyState == XMLHttpRequest.DONE) {
-      var res = JSON.parse(xhttp.responseText);
-      if (xhttp.status != 200) {
-        alert('Fehler: ' + res.Message + '\nSeite wird neu geladen.');
-        location.reload();
-      } else {
-        localStorage.setItem('name', username);
-        for (var num in res.User) {
-          var juser = res.User[num];
-          if (juser['Name'] == username) {
-            localStorage.setItem('id', juser['Id']);
-          }
-        }
-        // Update user display
-        var userEl = document.getElementById('ownuser');
-        if (userEl) userEl.innerHTML = "Spieler: " + username;
-        // Trigger refresh
-        initial_game_data();
-      }
-    }
-  }
+
   var payload = { name: username };
   var oldId = localStorage.getItem('id');
   if (oldId) payload.reconnect_id = parseInt(oldId);
-  xhttp.send(JSON.stringify(payload));
+
+  function attempt() {
+    var xhttp = new XMLHttpRequest();
+    xhttp.open("POST", "/api/game/" + gameid + "/user");
+    xhttp.setRequestHeader("Content-Type", "application/json");
+    xhttp.onreadystatechange = function () {
+      if (xhttp.readyState != XMLHttpRequest.DONE) return;
+      var res = JSON.parse(xhttp.responseText);
+      if (xhttp.status == 202) {
+        // Name is taken: an admin has to confirm the takeover. Keep asking.
+        window._takeoverWaiting = true;
+        admin_alert(res.Message);
+        setTimeout(attempt, 2000);
+        return;
+      }
+      window._takeoverWaiting = false;
+      if (xhttp.status != 200) {
+        alert('Fehler: ' + res.Message + '\nSeite wird neu geladen.');
+        location.reload();
+        return;
+      }
+      admin_alert('');
+      localStorage.setItem('name', username);
+      for (var num in res.User) {
+        var juser = res.User[num];
+        if (juser['Name'] == username) {
+          localStorage.setItem('id', juser['Id']);
+        }
+      }
+      // Update user display
+      var userEl = document.getElementById('ownuser');
+      if (userEl) userEl.innerHTML = "Spieler: " + username;
+      // Trigger refresh
+      initial_game_data();
+    }
+    xhttp.send(JSON.stringify(payload));
+  }
+  attempt();
 }
 
 // H2: Update admin panel select lists dynamically
@@ -314,7 +369,7 @@ function updatePlayerSelects(game) {
   }
 
   // Transfer dropdowns: include own user
-  ['transfer_source_user', 'transfer_target_user'].forEach(function (id) { populateSelect(id, false); });
+  ['transfer_source_user', 'transfer_target_user', 'select_penalty_player'].forEach(function (id) { populateSelect(id, false); });
   // Delete/admin dropdowns: exclude own user
   ['select_delete_player', 'select_choose_admin'].forEach(function (id) { populateSelect(id, true); });
 

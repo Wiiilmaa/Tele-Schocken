@@ -42,6 +42,16 @@
       </div>
       <button class="btn btn-primary btn-sm" id='transfere_chips_id' onclick="transfer_chips()">Chips übertragen</button>
     </div>
+    <div class="admin-correction-row">
+      <div>
+        <label for="select_penalty_player">Strafe (Einwürfeln):</label><br />
+        <select id="select_penalty_player" name="count">
+          <option value=""></option>
+        </select>
+      </div>
+      <button class="btn btn-primary btn-sm" id='give_penalty_id' onclick="set_penalty(1)">Strafe verteilen</button>
+      <button class="btn btn-default btn-sm" id='revoke_penalty_id' onclick="set_penalty(-1)">Strafe zurücknehmen</button>
+    </div>
   </div>
 
   <!-- Player management -->

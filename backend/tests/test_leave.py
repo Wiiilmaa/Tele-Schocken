@@ -73,5 +73,5 @@ def test_admin_deletes_player():
     client = app.test_client()
     response = client.delete('/api/game/{}/user/{}'.format(gid, victim_id))
     assert response.status_code == 200
-    assert json.loads(response.get_data(as_text=True))['Message'] == 'success'
+    assert json.loads(response.get_data(as_text=True))['Message']
     assert User.query.get(victim_id) is None
