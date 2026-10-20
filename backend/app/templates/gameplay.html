@@ -1800,10 +1800,8 @@
 
     // Check if any player has penalty > 0
     var anyPenalty = game.User.some(function(u) { return (u.Penalty_Count || 0) > 0; });
-    // Admins always see the column — otherwise they could never give the first penalty
-    var showPenalty = anyPenalty || isAdmin;
     var penaltyHeader = document.getElementById('penalty_header');
-    if (penaltyHeader) penaltyHeader.style.display = showPenalty ? '' : 'none';
+    if (penaltyHeader) penaltyHeader.style.display = anyPenalty ? '' : 'none';
 
     // Build current set of user IDs in table
     var existingRows = {};
@@ -1831,7 +1829,7 @@
           + '<td id="dice3' + juser.Id + '" class="dice-cell col-dice"></td>'
           + '<td id="first' + juser.Id + '" class="col-half"' + (showFinal ? '' : ' style="display:none"') + '></td>'
           + '<td id="finalcount' + juser.Id + '" class="col-final"></td>'
-          + '<td id="penalty' + juser.Id + '" class="col-penalty"' + (showPenalty ? '' : ' style="display:none"') + '></td>';
+          + '<td id="penalty' + juser.Id + '" class="col-penalty"' + (anyPenalty ? '' : ' style="display:none"') + '></td>';
         tbody.appendChild(row);
       }
 
@@ -1901,17 +1899,7 @@
       if (pcEl) {
         var pc = juser.Penalty_Count || 0;
         pcEl.innerHTML = pc > 0 ? pc : '';
-        if (isAdmin) {
-          if (pc > 0) {
-            pcEl.innerHTML += ' <button type="button" class="penalty-btn"'
-              + ' title="Strafe zurücknehmen"'
-              + ' onclick="set_penalty(' + juser.Id + ', -1)">\u2212</button>';
-          }
-          pcEl.innerHTML += ' <button type="button" class="penalty-btn"'
-            + ' title="Strafe verteilen"'
-            + ' onclick="set_penalty(' + juser.Id + ', 1)">+</button>';
-        }
-        pcEl.style.display = showPenalty ? '' : 'none';
+        pcEl.style.display = anyPenalty ? '' : 'none';
       }
 
       // Number of dice throws

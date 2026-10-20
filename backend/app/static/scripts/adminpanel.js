@@ -271,17 +271,23 @@ function decide_takeover(userId, approve) {
   xhttp.send(JSON.stringify({ requester_id: getMyId(), approve: !!approve }));
 }
 
-function set_penalty(userId, delta) {
+function set_penalty(delta) {
   var gameid = getGameId();
+  var select = document.getElementById('select_penalty_player');
+  var userId = select.options[select.selectedIndex].value;
+  if (!userId) {
+    admin_alert('Kein Spieler ausgewählt');
+    return;
+  }
   var xhttp = new XMLHttpRequest();
   xhttp.open("POST", "/api/game/" + gameid + "/user/" + userId + "/penalty");
   xhttp.setRequestHeader("Content-Type", "application/json");
   xhttp.onreadystatechange = function () {
-    if (xhttp.readyState == XMLHttpRequest.DONE && xhttp.status != 200) {
+    if (xhttp.readyState == XMLHttpRequest.DONE) {
       try {
-        alert(JSON.parse(xhttp.responseText).Message);
+        admin_alert(JSON.parse(xhttp.responseText).Message);
       } catch (e) {
-        alert('Fehler');
+        admin_alert('Fehler');
       }
     }
   };
@@ -363,7 +369,7 @@ function updatePlayerSelects(game) {
   }
 
   // Transfer dropdowns: include own user
-  ['transfer_source_user', 'transfer_target_user'].forEach(function (id) { populateSelect(id, false); });
+  ['transfer_source_user', 'transfer_target_user', 'select_penalty_player'].forEach(function (id) { populateSelect(id, false); });
   // Delete/admin dropdowns: exclude own user
   ['select_delete_player', 'select_choose_admin'].forEach(function (id) { populateSelect(id, true); });
 

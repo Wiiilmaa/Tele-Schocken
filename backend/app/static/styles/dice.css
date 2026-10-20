@@ -673,18 +673,3 @@ body {
   color: var(--text-secondary);
   font-size: 14px;
 }
-
-/* ponytail: same look as .takeover-btn, nur kompakter in der Tabellenzelle */
-.penalty-btn {
-  font-size: 11px;
-  line-height: 1;
-  padding: 1px 4px;
-  cursor: pointer;
-  border: 1px solid var(--text-muted);
-  border-radius: 3px;
-  background: transparent;
-  color: var(--text-secondary);
-}
-.penalty-btn:hover {
-  color: var(--text-primary);
-}
