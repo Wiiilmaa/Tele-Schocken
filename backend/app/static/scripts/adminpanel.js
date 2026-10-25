@@ -356,16 +356,26 @@ function updatePlayerSelects(game) {
   function populateSelect(selectId, excludeOwn) {
     var el = document.getElementById(selectId);
     if (!el) return;
-    while (el.options && el.options.length > 0) { el.remove(0); }
-    while (el.firstChild) { el.removeChild(el.firstChild); }
-    game.User.forEach(function (u) {
-      if (!u.Pending_Join && (!excludeOwn || u.Id !== myId)) {
-        var opt = document.createElement('option');
-        opt.value = u.Id;
-        opt.innerHTML = u.Name;
-        el.appendChild(opt);
-      }
+    var users = game.User.filter(function (u) {
+      return !u.Pending_Join && (!excludeOwn || u.Id !== myId);
     });
+    // Only rebuild when the players changed: every game update used to wipe
+    // the list, resetting the admin's choice (and emptying an open dropdown).
+    var key = users.map(function (u) { return u.Id + ':' + u.Name; }).join(',');
+    if (el.dataset.players === key) return;
+    el.dataset.players = key;
+    var select = el.tagName === 'OPTGROUP' ? el.parentNode : el;
+    var selected = select.value;
+    while (el.firstChild) { el.removeChild(el.firstChild); }
+    users.forEach(function (u) {
+      var opt = document.createElement('option');
+      opt.value = u.Id;
+      opt.innerHTML = u.Name;
+      el.appendChild(opt);
+    });
+    // Keep the choice — unless that player has left the game
+    select.value = selected;
+    if (select.selectedIndex < 0) select.selectedIndex = 0;
   }
 
   // Transfer dropdowns: include own user
@@ -388,7 +398,8 @@ function updatePlayerSelects(game) {
 
   // Update stack count options
   var selectionchips = document.getElementById('stack_count_id');
-  if (selectionchips) {
+  if (selectionchips && selectionchips.dataset.max !== String(game.Stack_Max)) {
+    selectionchips.dataset.max = String(game.Stack_Max);
     while (selectionchips.options.length > 1) { selectionchips.remove(1); }
     for (var i = 1; i <= game.Stack_Max; i++) {
       var exists = false;
