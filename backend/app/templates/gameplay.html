@@ -1969,6 +1969,11 @@
     if (adminPanel) {
       adminPanel.style.display = isAdmin ? 'block' : 'none';
     }
+    // H2: Update player select lists — early, so a failure further down in
+    // refresh_game can't leave the admin's lists empty
+    if (typeof updatePlayerSelects === 'function') {
+      updatePlayerSelects(game);
+    }
 
     // Check if player / pending / spectator
     checkIfPlayer(game);
@@ -2386,11 +2391,6 @@
         lobbyBtn.className = 'btn btn-warning btn-sm';
         lobbyBtn.innerHTML = 'Zurück zur Lobby nach dem Spiel';
       }
-    }
-
-    // H2: Update player select lists
-    if (typeof updatePlayerSelects === 'function') {
-      updatePlayerSelects(game);
     }
 
     // R6: Update rules display data
